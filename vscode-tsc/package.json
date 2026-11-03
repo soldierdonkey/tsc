@@ -1,0 +1,36 @@
+{
+  "name": "typed-symbolic-code",
+  "displayName": "Typed Symbolic Code",
+  "description": "Syntax highlighting and comment-header folding for Typed Symbolic Code (.tsc) drafts.",
+  "publisher": "local",
+  "version": "0.1.0",
+  "engines": { "vscode": "^1.80.0" },
+  "categories": ["Programming Languages"],
+  "main": "./extension.js",
+  "activationEvents": ["onLanguage:tsc"],
+  "contributes": {
+    "languages": [
+      {
+        "id": "tsc",
+        "aliases": ["Typed Symbolic Code", "tsc"],
+        "extensions": [".tsc"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "tsc",
+        "scopeName": "source.tsc",
+        "path": "./syntaxes/tsc.tmLanguage.json"
+      }
+    ],
+    "configurationDefaults": {
+      "[tsc]": {
+        "editor.tabSize": 2,
+        "editor.insertSpaces": true,
+        "editor.wordSeparators": "`()[]{}|\"',;:",
+        "editor.bracketPairColorization.enabled": true
+      }
+    }
+  }
+}
