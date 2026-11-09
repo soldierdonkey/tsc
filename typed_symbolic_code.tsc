@@ -35,6 +35,12 @@
 ; 1. Examples are fragments. A define, struct or enum example sits at the
 ;    top level. Any other example reads as part of the body of main (9.1).
 ;    Earlier examples in the same entry are in scope.
+;    The examples of an entry that are not top level read as items of one
+;    do, which is main's body. A bare let example is therefore a do item,
+;    not a top-level let (4.3.3).
+;    Warnings that come only from an example being a fragment are not
+;    shown: a binding that no later example reads (4.1.10), or a
+;    declaration that ends the fragment (2.5.1.3).
 ; 2. A trailing comment states the outcome:
 ;      returns X     the example evaluates to X
 ;      type: T       the example has type T
@@ -216,7 +222,7 @@ export  ; exports a define, enum, or struct (9.6)
 ::  ; module paths and access (9.4)
 ->  ; separates inputs from the output in signatures and function types
 =>  ; separates a match arm's pattern from its value (5.7.1)
-_   ; the wildcard pattern (6.1)
+_   ; the wildcard pattern (6.1), and a let or parameter that binds nothing (4.1.10)
 @   ; binds a whole value in a pattern (6.6)
 ^   ; pins a name in a pattern, so it compares instead of binding (6.7)
 ..  ; skips items in a pattern, or copies fields in construction (4.4.4)
@@ -308,11 +314,19 @@ make_adder               ; type: [u32 -> [u32 -> u32]], written bare            
 ;    <Value Unit>.
 ; 2. Both function values and other values are <Value T>s. An identifier
 ;    bound to a function is a <Value F>.
+; 3. A <Declaration>'s () is meant to be discarded. Using it as a value
+;    warns: as the last item of a do, a branch of an if, the body of a when,
+;    unless, fn or loop, an arm value, or an argument.
+;    why?: only a do item that is not last can be followed by something
+;    that reads the binding (4.1.3), so a used () marks a binding nothing
+;    can read
 
 (let x : u32 = 1)  ; a <Declaration>; returns ()                                     [2.5.1.1]
 (+ 1 2)            ; an <Application i32>, so an <Expression i32> and a <Value i32>  [2.5.1.2]
 +                  ; an identifier bound to a function: a <Value F>                  [2.5.1.2]
 + [u32]            ; + with a type argument: a <Value [u32 u32 -> u32]> (7.5)        [2.5.1.2]
+(when true (let y : u32 = 1))
+    ; warning: the let's () is used; warning: y is never used  [2.5.1.3, 4.1.10]
 
 ;; 2.5.2 types, parameters and fields
 <Type>           ; a type identifier such as u32, or a bracketed type such as [List u32]
@@ -545,8 +559,10 @@ numbers.i        ; error: numbers.i is field access, and a list has no field i  
 ;    the language changes a binding once it is made.
 ; 2. define binds in the global scope. Global definitions are
 ;    order-independent: each may refer to any other, wherever it appears.
-; 3. let binds inside a block. Its name is visible from the next item of the
-;    block to the end of the block.
+; 3. let binds inside the form that directly contains it. Its name is
+;    visible from the next item of that form to the form's end. Only a do
+;    has later items, so a let anywhere else binds a name nothing can read
+;    (4.1.10, 2.5.1.3).
 ; 4. When a block ends, the names it bound go out of scope, and their values
 ;    are dropped unless something still refers to them (9.2.2).
 ; 5. A local binding may reuse the name of any local binding in scope, in
@@ -571,6 +587,13 @@ numbers.i        ; error: numbers.i is field access, and a list has no field i  
 ;    why?: keywords and special forms are not values (2.2.1, 2.2.2), so a
 ;    binding by one of their names could never be read the way the name
 ;    reads elsewhere; a fixed, short list costs local code little
+; 10. A local binding that is never read warns. This covers let, parameters
+;     (5.4.1, 5.8, 5.10) and patterns (6); 5.7.1.6 is this rule for arms.
+;     Write _ instead of a name: _ binds nothing, so it never warns, and it
+;     may appear any number of times.
+;     - A parameter named _ still takes an argument by position, and may
+;       have a default. It cannot be named in recur (5.9.3), so in a loop it
+;       keeps its default on every pass.
 
 (define is_even = {fn |n : u32 -> bool| (if (== n 0u32) true (is_odd (- n 1u32)))})
 (define is_odd = {fn |n : u32 -> bool| (if (== n 0u32) false (is_even (- n 1u32)))})
@@ -583,6 +606,9 @@ numbers.i        ; error: numbers.i is field access, and a list has no field i  
     (let b : u32 = (+ a 1u32))  ; error: a is not bound yet  [4.1.3]
     (let a : u32 = 1)
     b)
+(do
+    (if true (let y : u32 = 1) ())
+    y)  ; error: y is bound only inside the if's branch  [4.1.3]
 (do
     (do (let inner : u32 = 1))
     inner)  ; error: inner went out of scope with its block  [4.1.4]
@@ -616,6 +642,10 @@ numbers.i        ; error: numbers.i is field access, and a list has no field i  
 (define debug = 1)             ; error: debug is a special form                [4.1.9]
 (do (let print = "hi") print)  ; error: print is a special form, not a warning [4.1.9]
 ({fn |if : u32 -> u32| if} 1)  ; error: a parameter may not be named if        [4.1.9]
+(do (let unused : u32 = 1) 2)        ; returns 2; warning: unused is never used  [4.1.10]
+(do (let _ = (to_string 5)) ())      ; returns (); no warning                    [4.1.10]
+{fn |_ : u32 x : u32 -> u32| x}      ; no warning: _ is never read               [4.1.10]
+{fn |n : u32 -> u32| 0u32}           ; warning: n is never used                  [4.1.10]
 
 ;;; 4.2 define
 (define <Annotated T> = <Value T>) -> Unit
@@ -647,11 +677,13 @@ numbers.i        ; error: numbers.i is field access, and a list has no field i  
 ;;; 4.3 let
 (let <Annotated T> = <Value T>) -> Unit
 (let <Identifier> = <Value T>) -> Unit
-; 1. let binds a name for the rest of the enclosing block (4.1.3).
+(let _ = <Value T>) -> Unit  ; evaluates the value and binds nothing (4.1.10)
+; 1. let binds a name for the rest of the form that directly contains it
+;    (4.1.3).
 ; 2. As with define, the annotation may be left out (4.2.2).
-; 3. let at the top level is legal, but it is an anti-pattern: use define.
+; 3. let may not appear at the top level: use define.
 ;    why: a top-level define can be exported and used before the line it is
-;    on, so a top-level let only adds an ordering constraint
+;    on, so a top-level let would only add an ordering constraint
 ; 4. let may shadow an earlier binding (4.1.5).
 
 (do
@@ -661,7 +693,7 @@ numbers.i        ; error: numbers.i is field access, and a list has no field i  
     (inc some_other_number))                       ; returns 8
 (do (let doubled = (* 2 3)) doubled)  ; returns 6; doubled : i32                 [4.3.2]
 (do (let s = "hi") (let s = (+ s "!")) s)  ; returns "hi!"                       [4.3.4]
-(let top_level_number : u32 = 7)      ; legal at the top level, but use define  [4.3.3]
+(let top_level_number : u32 = 7)      ; error: let may not appear at the top level; use define  [4.3.3]
 
 ;;; 4.4 struct
 
@@ -672,6 +704,7 @@ numbers.i        ; error: numbers.i is field access, and a list has no field i  
 ; 2. The definition's <Identifier> becomes a type, and the name of that
 ;    type's constructor.
 ; 3. Every field is a named <Parameter>, and may have a default value.
+; 4. struct may only appear at the top level.
 
 (struct Employee |
     name   : string
@@ -687,6 +720,7 @@ numbers.i        ; error: numbers.i is field access, and a list has no field i  
     legendary : bool|)
 (struct Point |x : i32 y : i32|)  ; every Point holds both an x and a y  [4.4.1.1]
 (struct Bad |i32 string|)         ; error: every field needs a name      [4.4.1.3]
+(do (struct Local |x : i32|) ())  ; error: struct only appears at the top level  [4.4.1.4]
 
 ;; 4.4.2 construction
 (<Identifier> <Binding>...) -> T
@@ -766,6 +800,7 @@ bob.salary                                   ; returns 2.5, copied from jane    
 ; 3. A variant's fields follow the struct rules (4.4.1.3): every field is
 ;    named, and may have a default.
 ; 4. A variant with no fields is a value, not a function.
+; 5. enum may only appear at the top level.
 
 (enum Weapon
     Sword |sword : Sword|
@@ -779,6 +814,7 @@ bob.salary                                   ; returns 2.5, copied from jane    
     Silence)  ; a variant field with a default  [4.5.1.3]
 (enum Broken
     Wrapped |f64|)  ; error: the field needs a name  [4.5.1.3]
+(do (enum Local A B) ())  ; error: enum only appears at the top level  [4.5.1.5]
 
 ;; 4.5.2 construction
 (<Identifier>.<Identifier> <Binding>...) -> T
@@ -907,7 +943,8 @@ bob.salary                                   ; returns 2.5, copied from jane    
 ; 3. A let inside the block binds for the items after it, and the binding
 ;    is dropped when the block ends (4.1).
 ; 4. Every item but the last is discarded. Discarding a value that is not
-;    Unit warns (3.2.2).
+;    Unit warns (3.2.2). A declaration as the last item warns instead, since
+;    its () is used (2.5.1.3).
 ; 5. An empty block returns ().
 
 (do
@@ -922,7 +959,9 @@ bob.salary                                   ; returns 2.5, copied from jane    
     (+ 1 2)         ; warning: the i32 is discarded  [5.3.4]
     (print "done")  ; a discarded (), no warning     [5.3.4]
     3)              ; returns 3
-(do (let x : u32 = 1))  ; returns (), the value of the let  [5.3.2]
+(do (let x : u32 = 1))
+    ; returns (), the value of the let; warning: the let's () is used;
+    ; warning: x is never used  [5.3.2, 2.5.1.3, 4.1.10]
 (do)                    ; returns ()                        [5.3.5]
 {do
     (let n : u32 = 10)
@@ -1090,7 +1129,7 @@ bob.salary                                   ; returns 2.5, copied from jane    
 ;    only.
 ; 4. The if of a guard is part of the arm, not an if form (5.5).
 ; 5. Every arm's value has the same type U.
-; 6. A binding that the arm never uses warns. Use _ instead (6.1).
+; 6. A binding that the arm never uses warns (4.1.10). Use _ instead (6.1).
 
 (let weapon : Weapon = Weapon.Fist)
 (match weapon
@@ -2201,10 +2240,8 @@ circle::Shape.Round                      ; type: circle::Shape          [9.6.3]
 ; 6. What does a doc comment (;:) attach to, and what reads it?
 
 ;;; 11.2 grammar
-; 1. Which keywords are restricted to certain places? define is top level
-;    only (4.2.1). May struct and enum appear inside a do? (old todo: "remove
-;    status of certain keywords as Values so they can only be called in
-;    certain contexts"; 2.2.1 now settles the Values part.)
+; Nothing open. 11.2.1, where each keyword may appear, is settled by
+; 2.5.1.3, 4.1.3, 4.1.10, 4.3.3, 4.4.1.4 and 4.5.1.5.
 
 ;;; 11.3 types
 ; 1. 128-bit (quad) and arbitrary-size (big) numbers. (old notes: "will be
@@ -2345,6 +2382,14 @@ circle::Shape.Round                      ; type: circle::Shape          [9.6.3]
 ; 6. Can a module re-export items from a module it imports?
 ; 7. Is whitespace allowed around :: as it is around : (1.2.1)?
 ; 8. Where is the project root (9.3.2), and how does the compiler find it?
+; 9. Linting. (todo)
+;    - Which warnings belong to the compiler, and which to a separate
+;      linter?
+;    - Can a warning be silenced at one site, per file or per project, or
+;      raised to an error?
+;    - Current candidates: naming (1.4.4), hiding (4.1.8), never used
+;      (4.1.10), discarded values (5.3.4), a used declaration (2.5.1.3), a
+;      recur not in tail position (5.9.6), and the default alias (9.4.5).
 
 ;;; 11.9 hypothetical examples
 ; Examples marked hypothetical:, and what each one assumes.
