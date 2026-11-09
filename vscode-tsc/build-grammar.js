@@ -62,8 +62,21 @@ const OP = `(?:${alt(OPERATORS)})(?=[\\s()\\[\\]{}|;]|$)`;
 const QNAME = `(?:[a-z_][A-Za-z0-9_]*::)*${ID}(?:\\.(?:${ID}|\\d+))*`;
 // A single type token after : or ->, such as u32 or circle::Circle
 const TYPE_ATOM = `(?:[a-z_][A-Za-z0-9_]*::)*${ID}`;
-// 1.3.1: integer with an integer suffix, or float with a float suffix
-const NUMBER = `(?<![A-Za-z0-9_.])-?\\d+(?:\\.\\d+(?:f32|f64)?|(?:[ui](?:8|16|32|64))?)(?![A-Za-z0-9_.])`;
+// 1.3.1: digits with single _ separators (rule 5); a float is decimal with a
+// . or an exponent (rules 3, 4) and takes only a float suffix; an integer is
+// decimal or radix (rule 2) and takes any suffix (rules 6, 7).
+// A - ends any identifier before it (1.2.6), so x-1 is x and -1.
+const DIGITS = (d) => `${d}(?:_?${d})*`;
+const DEC = DIGITS("\\d");
+const INT_SUFFIX = "_[ui](?:8|16|32|64)";
+const FLOAT_SUFFIX = "_f(?:32|64)";
+const FLOAT_LIT = `${DEC}(?:\\.${DEC}(?:e[+-]?${DEC})?|e[+-]?${DEC})(?:${FLOAT_SUFFIX})?`;
+const INT_LIT =
+  `(?:0x${DIGITS("[0-9A-Fa-f]")}|0o${DIGITS("[0-7]")}|0b${DIGITS("[01]")}|${DEC})` +
+  `(?:${INT_SUFFIX}|${FLOAT_SUFFIX})?`;
+const NUMBER = `(?:(?<![A-Za-z0-9_.])|(?=-))-?(?:${FLOAT_LIT}|${INT_LIT})(?![A-Za-z0-9_.])`;
+// 1.3.5: the escapes a string or char literal may hold
+const ESCAPE = "\\\\(?:[nrt0\\\\`$\"']|x[0-7][0-9A-Fa-f]|u\\{[0-9A-Fa-f]{1,6}\\})";
 
 // `= {...}`, `= \`...\`` or `: [... -> ...]` after a defined name means the
 // name is bound to a function (2.4.2, 3.3.1). Group 4 is the recursive bracket.
@@ -145,15 +158,17 @@ const grammar = {
         { include: "#char" },
         { match: "\\(\\s*\\)", name: "constant.language.unit.tsc" },
         { match: NUMBER, name: "constant.numeric.tsc" },
-        // a malformed number such as 2.5u8
-        { match: "(?<![A-Za-z0-9_.])-?\\d[A-Za-z0-9_.]*", name: "invalid.illegal.numeric.tsc" },
+        // a malformed number such as 2.5_u8 or 42u8
+        { match: "(?:(?<![A-Za-z0-9_.])|(?=-))-?\\d[A-Za-z0-9_.]*", name: "invalid.illegal.numeric.tsc" },
         { match: word(BOOLEANS), name: "constant.language.boolean.tsc" },
       ],
     },
     escape: {
-      // 1.3.5; any other escape is open (11.1.4)
-      match: "\\\\[nt\\\\`$\"']",
-      name: "constant.character.escape.tsc",
+      patterns: [
+        { match: ESCAPE, name: "constant.character.escape.tsc" },
+        // 1.3.5.5: any other escape is an error
+        { match: "\\\\.", name: "invalid.illegal.escape.tsc" },
+      ],
     },
     string: {
       begin: '"',
@@ -187,7 +202,7 @@ const grammar = {
       patterns: [
         {
           // 1.3.3: a single character
-          match: "(')(?:[^'\\\\]|(\\\\[nt\\\\`$\"']))(')",
+          match: `(')(?:[^'\\\\]|(${ESCAPE}))(')`,
           name: "string.quoted.single.char.tsc",
           captures: {
             1: { name: "punctuation.definition.string.begin.tsc" },

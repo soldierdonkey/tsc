@@ -191,11 +191,11 @@
           "name": "constant.language.unit.tsc"
         },
         {
-          "match": "(?<![A-Za-z0-9_.])-?\\d+(?:\\.\\d+(?:f32|f64)?|(?:[ui](?:8|16|32|64))?)(?![A-Za-z0-9_.])",
+          "match": "(?:(?<![A-Za-z0-9_.])|(?=-))-?(?:\\d(?:_?\\d)*(?:\\.\\d(?:_?\\d)*(?:e[+-]?\\d(?:_?\\d)*)?|e[+-]?\\d(?:_?\\d)*)(?:_f(?:32|64))?|(?:0x[0-9A-Fa-f](?:_?[0-9A-Fa-f])*|0o[0-7](?:_?[0-7])*|0b[01](?:_?[01])*|\\d(?:_?\\d)*)(?:_[ui](?:8|16|32|64)|_f(?:32|64))?)(?![A-Za-z0-9_.])",
           "name": "constant.numeric.tsc"
         },
         {
-          "match": "(?<![A-Za-z0-9_.])-?\\d[A-Za-z0-9_.]*",
+          "match": "(?:(?<![A-Za-z0-9_.])|(?=-))-?\\d[A-Za-z0-9_.]*",
           "name": "invalid.illegal.numeric.tsc"
         },
         {
@@ -205,8 +205,16 @@
       ]
     },
     "escape": {
-      "match": "\\\\[nt\\\\`$\"']",
-      "name": "constant.character.escape.tsc"
+      "patterns": [
+        {
+          "match": "\\\\(?:[nrt0\\\\`$\"']|x[0-7][0-9A-Fa-f]|u\\{[0-9A-Fa-f]{1,6}\\})",
+          "name": "constant.character.escape.tsc"
+        },
+        {
+          "match": "\\\\.",
+          "name": "invalid.illegal.escape.tsc"
+        }
+      ]
     },
     "string": {
       "begin": "\"",
@@ -266,7 +274,7 @@
     "char": {
       "patterns": [
         {
-          "match": "(')(?:[^'\\\\]|(\\\\[nt\\\\`$\"']))(')",
+          "match": "(')(?:[^'\\\\]|(\\\\(?:[nrt0\\\\`$\"']|x[0-7][0-9A-Fa-f]|u\\{[0-9A-Fa-f]{1,6}\\})))(')",
           "name": "string.quoted.single.char.tsc",
           "captures": {
             "1": {
