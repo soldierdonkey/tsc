@@ -257,7 +257,7 @@
           "name": "keyword.control.tsc"
         },
         {
-          "match": "(?<![^\\s()\\[\\]{}|'\"`;:])(?:to-string|bit-not|bit-and|bit-xor|bit-or|try-as|assert|parse|panic|wrap|exp|not|and|xor|the|<=|>=|or|as|\\+|-|\\*|\\/|=|<|>)(?![^\\s()\\[\\]{}|'\"`;:])",
+          "match": "(?<![^\\s()\\[\\]{}|'\"`;:])(?:to-string|bit-not|bit-and|bit-xor|bit-or|try-as|assert|parse|panic|wrap|exp|not|and|xor|<=|>=|or|as|\\+|-|\\*|\\/|=|<|>)(?![^\\s()\\[\\]{}|'\"`;:])",
           "name": "support.function.builtin.tsc"
         },
         {
@@ -277,7 +277,7 @@
     "atom": {
       "patterns": [
         {
-          "match": "(?<![^\\s()\\[\\]{}|'\"`;:])-?\\d+(?:\\.\\d+)?(?![^\\s()\\[\\]{}|'\"`;:])",
+          "match": "(?<![^\\s()\\[\\]{}|'\"`;:])-?\\d+(?:\\.\\d+)?(?:[ui](?:8|16|32|64)|f(?:32|64))?(?![^\\s()\\[\\]{}|'\"`;:])",
           "name": "constant.numeric.tsc"
         },
         {
@@ -289,7 +289,7 @@
           "name": "constant.language.tsc"
         },
         {
-          "match": "(?<![^\\s()\\[\\]{}|'\"`;:])(?:to-string|bit-not|bit-and|bit-xor|bit-or|try-as|assert|parse|panic|wrap|exp|not|and|xor|the|<=|>=|or|as|\\+|-|\\*|\\/|=|<|>)(?![^\\s()\\[\\]{}|'\"`;:])",
+          "match": "(?<![^\\s()\\[\\]{}|'\"`;:])(?:to-string|bit-not|bit-and|bit-xor|bit-or|try-as|assert|parse|panic|wrap|exp|not|and|xor|<=|>=|or|as|\\+|-|\\*|\\/|=|<|>)(?![^\\s()\\[\\]{}|'\"`;:])",
           "name": "support.function.builtin.tsc"
         },
         {

@@ -74,14 +74,17 @@
 ; 1. Whitespace separates tokens. It is optional next to the delimiters
 ;    ( ) [ ] { } | and next to :.
 ; 2. -> is always a token of its own, even between letters.
-; 3. A token that starts with - followed by a digit is a number literal.
+; 3. A token that starts with - followed by a digit is a number literal. A
+;    literal's type suffix (1.3.1.3) is part of the same token.
 ; 4. A line break is whitespace, except that it ends a comment.
 
-(+ x y)      ; same as ( + x y )                   [1.2.1]
-|x: u32|     ; same as |x : u32|                   [1.2.1]
-string->u32  ; three tokens: string -> u32         [1.2.2]
--5           ; one token, a literal                [1.2.3]
-(- 5)        ; a call of - on 5; returns -5 (8.2)  [1.2.3]
+(+ x y)        ; same as ( + x y )                   [1.2.1]
+|x: u32|       ; same as |x : u32|                   [1.2.1]
+first_or[i32]  ; same as first_or [i32] (7.4)        [1.2.1]
+string->u32    ; three tokens: string -> u32         [1.2.2]
+-5             ; one token, a literal                [1.2.3]
+-5i8           ; one token, a literal with a suffix  [1.2.3]
+(- 5)          ; a call of - on 5; returns -5 (8.2)  [1.2.3]
 (+ 1
    2)  ; the line break is just whitespace; returns 3  [1.2.4]
 
@@ -91,13 +94,19 @@ string->u32  ; three tokens: string -> u32         [1.2.2]
 ; 1. An integer literal is one or more digits, optionally preceded by -.
 ; 2. A float literal is digits, a ., and more digits, optionally preceded by
 ;    -.
-; 3. A number literal has no type suffix. Its type comes from where it is
-;    used (5.1.1). Other formats are open (11.1.2).
+; 3. A number literal may end in a type suffix, with no space before it: an
+;    integer type (u8 to i64) after an integer literal, or f32 or f64 after a
+;    float literal. The suffix gives the literal its type. Without a suffix,
+;    the type comes from where the literal is used (5.1.1). Other formats are
+;    open (11.1.2, 11.5.13).
 
-42           ; an integer literal      [1.3.1.1]
--7           ; an integer literal      [1.3.1.1]
-3.14         ; a float literal         [1.3.1.2]
-(the u8 42)  ; 42 typed as a u8 (8.6)  [1.3.1.3]
+42      ; an integer literal                          [1.3.1.1]
+-7      ; an integer literal                          [1.3.1.1]
+3.14    ; a float literal                             [1.3.1.2]
+42u8    ; type: u8                                    [1.3.1.3]
+-5i8    ; type: i8                                    [1.3.1.3]
+2.5f32  ; type: f32                                   [1.3.1.3]
+2.5u8   ; error: an integer suffix on a float literal  [1.3.1.3]
 
 ;; 1.3.2 booleans and unit
 ; 1. true and false are the two bool literals.
@@ -147,12 +156,12 @@ true  ; type: bool  [1.3.2.1]
 ; 4. Breaking 1 to 3 is a warning, not an error.
 
 (struct Employee |name : string|)  ; a type                                           [1.4.1]
-(define add_one = {fn |x : u32 -> u32| (+ x 1)})  ; a function                        [1.4.2]
+(define add_one = {fn |x : u32 -> u32| (+ x 1u32)})  ; a function                     [1.4.2]
 (define PI : f64 = 3.14)           ; an f64 constant                                  [1.4.3]
 (define GREETING : string = "hi")  ; string is primitive                              [1.4.3]
 (define pi : f64 = 3.14)           ; warning: constants are SCREAMING_SNAKE_CASE      [1.4.4]
 (struct employee |name : string|)  ; warning: types are PascalCase                    [1.4.4]
-(define AddOne = {fn |x : u32 -> u32| (+ x 1)})  ; warning: functions are snake_case  [1.4.4]
+(define AddOne = {fn |x : u32 -> u32| (+ x 1u32)})  ; warning: functions are snake_case  [1.4.4]
 
 ;;;; 2 grammar
 
@@ -185,8 +194,8 @@ next    ; an arm that shares the following arm's value (5.7.3)
 loop    ; a loop (5.8)
 recur   ; a new pass of a loop or fn (5.9)
 for     ; a counting loop (5.10)
-mod     ; imports a module (9.3)
-export  ; exports a define, enum, or struct (9.4)
+mod     ; imports a module (9.4)
+export  ; exports a define, enum, or struct (9.6)
 ; 1. Keywords are reserved and are not values. A keyword cannot be bound,
 ;    passed or returned; it can only be the head of its own form.
 ; 2. The built-ins print, panic, assert and debug are not values either.
@@ -199,7 +208,7 @@ export  ; exports a define, enum, or struct (9.4)
 ;;; 2.3 punctuation
 .   ; qualified names, field access and literal indexing
 :   ; type annotation
-::  ; module access (9.3)
+::  ; module paths and access (9.4)
 ->  ; separates inputs from the output in signatures and function types
 =>  ; separates a match arm's pattern from its value (5.7.1)
 _   ; the wildcard pattern (6.1)
@@ -214,6 +223,8 @@ _   ; the wildcard pattern (6.1)
 ;    element N (3.4.2).
 ; 4. The left side of . must be an identifier. For any other value, call an
 ;    accessor function (4.4.3) or get (8.7.2).
+; 5. :: binds tighter than ., so it is read first. An alias followed by an
+;    item, such as shapes::circle::Shape, counts as an identifier for rule 4.
 
 ; with jane : Employee, numbers : [List i32], and make_employee : [-> Employee]
 Weapon.Bow                       ; a variant name                                [2.3.1]
@@ -222,22 +233,25 @@ jane.dept                        ; reads jane's dept field                      
 numbers.0                        ; reads element 0 of numbers                    [2.3.3]
 (make_employee).dept             ; error: . must follow an identifier            [2.3.4]
 (Employee.dept (make_employee))  ; reads the field of any Employee value         [2.3.4]
+; with (mod geometry::shapes::circle) and an exported define origin : Point
+circle::Shape.Round              ; (circle::Shape).Round, a variant              [2.3.5]
+circle::origin.x                 ; reads field x of circle::origin               [2.3.5]
 
 ;;; 2.4 delimiters
 
 ;; 2.4.1 what each delimiter wraps
 ()  ; an expression whose value is not a function (2.4.2)
 {}  ; an expression whose value is a function (2.4.2)
-[]  ; a type, a type header (7.2) or a forall list (7.3)
+[]  ; a type, a type header (7.2), a forall list (7.3) or a type argument (7.4)
 ||  ; a signature or a field list (2.5.2)
 ; 1. [ ] never wrap an expression, and ( ) and { } never wrap a type.
 ; 2. Bars pair up within one level of brackets. A | | pair inside a nested
 ;    { } belongs to the form inside those braces, which is how a fn can
 ;    appear inside a signature (2.6.3).
 
-(let xs : [List u32] = (list 1 2))  ; a type in [ ], a value in ( )         [2.4.1.1]
-(let xs : (List u32) = (list 1 2))  ; error: a type must be in [ ]          [2.4.1.1]
-[list 1 2]                          ; error: [ ] cannot wrap an expression  [2.4.1.1]
+(let xs : [List u32] = (list [u32] 1 2))  ; types in [ ], a value in ( )        [2.4.1.1]
+(let xs : (List u32) = (list [u32] 1 2))  ; error: a type must be in [ ]          [2.4.1.1]
+[list 1 2]                                ; error: [ ] cannot wrap an expression  [2.4.1.1]
 {fn |f : [u32 -> u32] = {fn |y : u32 -> u32| y} -> u32| (f 1)}
                                     ; two bar pairs, kept apart by { }  [2.4.1.2]
 
@@ -251,7 +265,7 @@ numbers.0                        ; reads element 0 of numbers                   
 ; 4. {f} calls f with no arguments and expects a function back. It does not
 ;    wrap f. A function value on its own is written bare: f.
 ; 5. fn always produces a function, so it is always written {fn ...}.
-;    why?: a reader can tell from the bracket alone whether an expression
+;    why: a reader can tell from the bracket alone whether an expression
 ;    produces a function
 
 (define make_adder = {fn |x : u32 -> [u32 -> u32]| {fn |y : u32 -> u32| (+ x y)}})
@@ -267,9 +281,10 @@ make_adder               ; type: [u32 -> [u32 -> u32]], written bare            
 (fn |x : u32 -> u32| x)  ; error: fn makes a function; write {fn ...}                    [2.4.2.5]
 
 (define identity = {fn [forall T] |x : T -> T| x})
-(identity 5)               ; returns 5; T is i32                                           [2.4.2.2]
-{identity {make_adder 1}}  ; type: [u32 -> u32]; at this call T is known to be a function  [2.4.2.2]
-(identity {make_adder 1})
+(identity [i32] 5)  ; returns 5; T is i32  [2.4.2.2]
+{identity [u32 -> u32] {make_adder 1}}
+    ; type: [u32 -> u32]; at this call T is known to be a function  [2.4.2.2]
+(identity [u32 -> u32] {make_adder 1})
     ; error: here T is [u32 -> u32], so the call returns a function  [2.4.2.2]
 
 ;;; 2.5 syntactic categories
@@ -281,7 +296,8 @@ make_adder               ; type: [u32 -> [u32 -> u32]], written bare            
 <Callee T>       ; a <Value F> whose return type is T: the function being called
 <Application T>  ; (<Callee T> <Value>...), or {<Callee T> <Value>...} when T is a function type
 <Expression T>   ; a <Special T> or an <Application T>
-<Value T>        ; an <Expression T>, a literal of type T, or an identifier bound to a T
+<Value T>        ; an <Expression T>, a literal of type T, an identifier bound to a T, or an
+                 ; identifier and its <Type Argument>s (7.4)
 ; 1. Every <Declaration> returns Unit, so it is an <Expression Unit> and a
 ;    <Value Unit>.
 ; 2. Both function values and other values are <Value T>s. An identifier
@@ -290,6 +306,7 @@ make_adder               ; type: [u32 -> [u32 -> u32]], written bare            
 (let x : u32 = 1)  ; a <Declaration>; returns ()                                     [2.5.1.1]
 (+ 1 2)            ; an <Application i32>, so an <Expression i32> and a <Value i32>  [2.5.1.2]
 +                  ; an identifier bound to a function: a <Value F>                  [2.5.1.2]
++ [u32]            ; + with a type argument: a <Value [u32 u32 -> u32]> (7.5)        [2.5.1.2]
 
 ;; 2.5.2 types, parameters and fields
 <Type>           ; a type identifier such as u32, or a bracketed type such as [List u32]
@@ -302,6 +319,7 @@ make_adder               ; type: [u32 -> [u32 -> u32]], written bare            
 <Constructor T>  ; (<Callee T> <Binding>...): builds a struct or variant value of type T
 <Type Header>    ; [<Identifier> <Identifier> <Identifier>...]: a generic type and its parameters
 <Forall>         ; [forall <Identifier> <Identifier>...]: a generic function's type parameters
+<Type Argument>  ; [<Type>]: one type given to a generic or overloaded name (7.4)
 ; 1. A <Signature> always has an output type after ->. A bar list with no ->
 ;    is always a <Fields>.
 ; 2. A type identifier is read as a <Type> wherever a type is expected,
@@ -349,8 +367,8 @@ make_adder               ; type: [u32 -> [u32 -> u32]], written bare            
 ;; 2.6.3 a function-valued default
 ; The default for f is itself a fn, so the signature holds a second pair of
 ; bars. The { } around the inner fn keep the two pairs apart (2.4.1.2).
-{fn |x : u32  f : [u32 -> u32] = {fn |y : u32 -> u32| (+ y 1)}  -> u32| (f x)}
-;   ^ open (depth 1)                 ^ open (depth 2)                 ^ close (depth 1)
+{fn |x : u32  f : [u32 -> u32] = {fn |y : u32 -> u32| (+ y 1u32)}  -> u32| (f x)}
+;   ^ open (depth 1)                 ^ open (depth 2)                    ^ close (depth 1)
 ;                                                   ^ close (depth 2)
 
 ;; 2.6.4 a match arm
@@ -363,16 +381,17 @@ make_adder               ; type: [u32 -> [u32 -> u32]], written bare            
                                          true  ; <Value bool>: the arm's value
 
 ;; 2.6.5 a loop
-(loop |n : u32 = 1 -> u32| (if (< n 9) (recur n = (* n 2)) n))  ; <Expression u32>; returns 16
- loop                                                           ; Keyword
-      |n : u32 = 1 -> u32|                                      ; <Signature>
-       n : u32 = 1                                              ; <Parameter u32>; n starts at 1
-                   -> u32                                       ; the loop's type (5.8.2)
-                           (if (< n 9) (recur n = (* n 2)) n)   ; the body
-                               (< n 9)                          ; go on while n < 9
-                                       (recur n = (* n 2))      ; next pass, n doubled
-                                              n = (* n 2)       ; <Binding>
-                                                           n    ; the value of the last pass
+(loop |n : u32 = 1 -> u32| (if (< n 9u32) (recur n = (* n 2u32)) n))  ; <Expression u32>; returns 16
+ loop                                                                 ; Keyword
+      |n : u32 = 1 -> u32|                                            ; <Signature>
+       n : u32 = 1                                                    ; <Parameter u32>; n starts at 1
+                   -> u32                                             ; the loop's type (5.8.2)
+                           (if (< n 9u32) (recur n = (* n 2u32)) n)   ; the body
+                               (< n 9u32)                             ; go on while n < 9
+                                          (recur n = (* n 2u32))      ; next pass, n doubled
+                                                 n = (* n 2u32)       ; <Binding>
+                                                                 n    ; the value of the last pass
+; 9u32 and 2u32 need their suffixes: < and * are overloaded (5.1.1.3)
 
 ;; 2.6.6 a generic function
 {fn [forall T U] |x : T f : [T -> U] -> U| (f x)}  ; type: [[forall T U] T [T -> U] -> U]
@@ -383,6 +402,14 @@ make_adder               ; type: [u32 -> [u32 -> u32]], written bare            
                  |x : T f : [T -> U] -> U|         ; <Signature>
                             [T -> U]               ; <Type>: a function type (3.3)
                                            (f x)   ; <Application U>, in ( ) (2.4.2.2)
+
+;; 2.6.7 a call with type arguments
+(first_or [i32] numbers 0)  ; <Application i32>, with numbers : [List i32]
+ first_or                   ; Identifier: a generic function (7.3)
+          [i32]             ; <Type Argument>: T is i32 (7.4)
+ first_or [i32]             ; <Callee i32>: first_or with T given
+                numbers     ; <Value [List i32]>
+                        0   ; Literal; an i32, the type written for fallback (5.1.1.2)
 
 ;;;; 3 types
 
@@ -407,11 +434,11 @@ string  ; text, written "like this" (1.3.4)
 ;    why: every change of type is visible in the code
 ; 128-bit ("quad") and arbitrary-size ("big") numbers are planned (11.3.1).
 
-(let count : u32 = 3)               ; u32 is primitive, so lowercase               [3.1.1]
-(+ 2.5 1.5)                         ; f64 is numerical; returns 4.0                [3.1.2]
-(+ true false)                      ; error: + needs numerical or string operands  [3.1.2]
-(let wide : u64 = count)            ; error: count is a u32; write (as u64 count)  [3.1.3]
-(let wider : u64 = (as u64 count))  ; the explicit cast                            [3.1.3]
+(let count : u32 = 3)                 ; u32 is primitive, so lowercase               [3.1.1]
+(+ 2.5 1.5)                           ; f64 is numerical; returns 4.0                [3.1.2]
+(+ true false)                        ; error: + needs numerical or string operands  [3.1.2]
+(let wide : u64 = count)              ; error: count is a u32; write (as [u64] count)  [3.1.3]
+(let wider : u64 = (as [u64] count))  ; the explicit cast                              [3.1.3]
 
 ;;; 3.2 Unit and Never
 Unit   ; a type with exactly one value, written ()
@@ -458,12 +485,12 @@ Never  ; a type with no values
 ; 2. Indices are u32 and start at 0.
 ; 3. list builds a list (8.7.1), and get reads an element safely (8.7.2).
 
-(let numbers : [List i32] = (list 1 2 3))  ; three i32s                   [3.4.1.1]
-(list 1 "two")   ; error: an i32 and a string in one list                 [3.4.1.1]
-(get numbers 0)  ; returns (Option.Some value = 1); index 0 is the first  [3.4.1.2]
+(let numbers : [List i32] = (list 1 2 3))  ; three i32s                         [3.4.1.1]
+(list 1 "two")   ; error: an i32 and a string in one list                       [3.4.1.1]
+(get numbers 0)  ; returns (Option.Some [i32] value = 1); index 0 is the first  [3.4.1.2]
 (let j : i32 = 1)
-(get numbers j)  ; error: j is an i32, and an index is a u32              [3.4.1.2]
-(get numbers 2)  ; returns (Option.Some value = 3)                        [3.4.1.3]
+(get numbers j)  ; error: j is an i32, and an index is a u32                    [3.4.1.2]
+(get numbers 2)  ; returns (Option.Some [i32] value = 3)                        [3.4.1.3]
 
 ;; 3.4.2 literal indexing
 ; 1. name.N, where name is an identifier bound to a list and N is an integer
@@ -476,7 +503,7 @@ numbers.2        ; returns 3                                                    
 numbers.3        ; panics: index out of range                                   [3.4.2.2]
 (let i : u32 = 1)
 numbers.i        ; error: numbers.i is field access, and a list has no field i  [3.4.2.3]
-(get numbers i)  ; returns (Option.Some value = 2)                              [3.4.2.3]
+(get numbers i)  ; returns (Option.Some [i32] value = 2)                        [3.4.2.3]
 (list 7 8 9).0   ; error: . must follow an identifier (2.3.4)                   [3.4.2.1]
 
 ;;; 3.5 Map (todo)
@@ -492,12 +519,17 @@ numbers.i        ; error: numbers.i is field access, and a list has no field i  
 ; 1. Their variants are qualified like any other: Option.Some, Option.None,
 ;    Result.Ok and Result.Error (4.5.2).
 ; 2. Option.None has no fields, so it is a value, not a function.
+; 3. Like any generic enum, they are built with their type arguments (7.4):
+;    (Option.Some [i32] value = 5), Option.None [i32]. A Result.Ok or
+;    Result.Error takes both T and E, even though it holds only one of them.
 
-(Option.Some value = 5)                     ; type: [Option i32]                      [3.6.1]
-(let nothing : [Option i32] = Option.None)  ; no parentheses                          [3.6.2]
-(let failed : [Result u32 string] = (Result.Error error = "bad input"))  ; qualified  [3.6.1]
-(Some value = 5)                            ; error: write Option.Some                [3.6.1]
-(Option.None)                               ; error: Option.None is not a function    [3.6.2]
+(Option.Some [i32] value = 5)                     ; type: [Option i32]                         [3.6.3]
+(let nothing : [Option i32] = Option.None [i32])  ; no parentheses                             [3.6.2]
+(let failed = (Result.Error [u32] [string] error = "bad input"))
+                                                  ; failed : [Result u32 string]               [3.6.3]
+(Some [i32] value = 5)                            ; error: write Option.Some                   [3.6.1]
+(Option.None [i32])                               ; error: Option.None is not a function       [3.6.2]
+(Option.Some value = 5)                           ; error: Option.Some needs its type argument  [3.6.3]
 
 ;;;; 4 declarations
 
@@ -511,15 +543,15 @@ numbers.i        ; error: numbers.i is field access, and a list has no field i  
 ; 4. When a block ends, the names it bound go out of scope, and their values
 ;    are dropped unless something still refers to them (9.2.2).
 
-(define is_even = {fn |n : u32 -> bool| (if (== n 0) true (is_odd (- n 1)))})
-(define is_odd = {fn |n : u32 -> bool| (if (== n 0) false (is_even (- n 1)))})
+(define is_even = {fn |n : u32 -> bool| (if (== n 0u32) true (is_odd (- n 1u32)))})
+(define is_odd = {fn |n : u32 -> bool| (if (== n 0u32) false (is_even (- n 1u32)))})
 (is_even 4)  ; returns true; is_even uses is_odd before its define  [4.1.2]
 (do
     (let a : u32 = 1)
-    (let b : u32 = (+ a 1))  ; a is visible here  [4.1.3]
-    b)                       ; returns 2
+    (let b : u32 = (+ a 1u32))  ; a is visible here  [4.1.3]
+    b)                          ; returns 2
 (do
-    (let b : u32 = (+ a 1))  ; error: a is not bound yet  [4.1.3]
+    (let b : u32 = (+ a 1u32))  ; error: a is not bound yet  [4.1.3]
     (let a : u32 = 1)
     b)
 (do
@@ -535,35 +567,44 @@ numbers.i        ; error: numbers.i is field access, and a list has no field i  
 (define <Identifier> = <Value T>) -> Unit
 ; 1. define binds a name in the global scope. It may only appear at the top
 ;    level.
-; 2. The annotation may be left out only when the value is a literal or a fn
-;    literal. The name then has that literal's type.
+; 2. The annotation may be left out. The name then has its value's type,
+;    which is worked out from the value itself.
+;    why?: nothing is inferred (5.1.1, 7.4, 7.5), so every value's type is
+;    known from the value alone
+; 3. Defines without annotations may not need each other's types in a cycle,
+;    since then none of the types can be worked out. The error names every
+;    define in the cycle. Annotating one of them breaks it. A fn literal's
+;    type comes from its signature, so fns may still call each other.
 
-(define SOME_NUMBER : u32 = (+ 2 5))  ; returns (); SOME_NUMBER is global            [4.2.1]
-(do (define X : u32 = 1) X)           ; error: define only appears at the top level  [4.2.1]
-(define E = 2.718)                    ; E : f64, from the literal                    [4.2.2]
-(define add = {fn |x : u32 y : u32 -> u32| (+ x y)})  ; add : [u32 u32 -> u32]       [4.2.2]
+(define SOME_NUMBER : u32 = (+ [u32] 2 5))  ; returns (); SOME_NUMBER is global            [4.2.1]
+(do (define X : u32 = 1) X)                 ; error: define only appears at the top level  [4.2.1]
+(define E = 2.718)                          ; E : f64, from the literal                    [4.2.2]
+(define add = {fn |x : u32 y : u32 -> u32| (+ x y)})  ; add : [u32 u32 -> u32]             [4.2.2]
 ; an annotation is allowed even where it could be left out  [4.2.2]
 (define add_2 : [u32 u32 -> u32] = {fn |x : u32 y : u32 -> u32| (+ x y)})
-(define LIMIT = (+ 2 5))        ; error: (+ 2 5) is not a literal, so annotate it  [4.2.2]
-(define primes = (list 2 3 5))  ; error: a call is not a literal, so annotate it   [4.2.2]
+(define LIMIT = (+ 2 5))        ; LIMIT : i32, the type of (+ 2 5)  [4.2.2]
+(define primes = (list 2 3 5))  ; primes : [List i32]               [4.2.2]
+(define A = B)
+(define B = A)                  ; error: A and B need each other's types; annotate one  [4.2.3]
+(define C = (twice 2))
+(define twice = {fn |n : i32 -> i32| (* n 2)})  ; fine: twice's type is its signature  [4.2.3]
 
 ;;; 4.3 let
 (let <Annotated T> = <Value T>) -> Unit
 (let <Identifier> = <Value T>) -> Unit
 ; 1. let binds a name for the rest of the enclosing block (4.1.3).
-; 2. As with define, the annotation may be left out only when the value is a
-;    literal or a fn literal (4.2.2).
+; 2. As with define, the annotation may be left out (4.2.2).
 ; 3. let at the top level is legal, but it is an anti-pattern: use define.
-;    why?: a top-level define can be exported and used before the line it is
+;    why: a top-level define can be exported and used before the line it is
 ;    on, so a top-level let only adds an ordering constraint
 
 (do
-    (let some_other_number : u32 = (+ 2 5))    ; annotated           [4.3.1]
-    (let greeting = "hi")                      ; greeting : string   [4.3.2]
-    (let inc = {fn |x : u32 -> u32| (+ x 1)})  ; inc : [u32 -> u32]  [4.3.2]
-    (inc some_other_number))                   ; returns 8
-(do (let doubled = (* 2 3)) doubled)  ; error: (* 2 3) is not a literal, so annotate it  [4.3.2]
-(let top_level_number : u32 = 7)      ; legal at the top level, but use define           [4.3.3]
+    (let some_other_number : u32 = (+ [u32] 2 5))  ; annotated           [4.3.1]
+    (let greeting = "hi")                          ; greeting : string   [4.3.2]
+    (let inc = {fn |x : u32 -> u32| (+ x 1u32)})   ; inc : [u32 -> u32]  [4.3.2]
+    (inc some_other_number))                       ; returns 8
+(do (let doubled = (* 2 3)) doubled)  ; returns 6; doubled : i32                 [4.3.2]
+(let top_level_number : u32 = 7)      ; legal at the top level, but use define  [4.3.3]
 
 ;;; 4.4 struct
 
@@ -624,7 +665,7 @@ numbers.i        ; error: numbers.i is field access, and a list has no field i  
 ; 2. name.F reads field F of the struct bound to the identifier name.
 ; 3. . only works after an identifier (2.3.4). For any other value, call
 ;    the accessor function.
-;    why?: . then stays part of names and is never an operator on
+;    why: . then stays part of names and is never an operator on
 ;    expressions
 
 jane.dept             ; returns "unknown"                                          [4.4.3.2]
@@ -702,26 +743,46 @@ bob.salary                                   ; returns 2.5, copied from jane    
     (let person_2 : Person = (Person.Hacker person = (Hacker
         skill = "backdoors"
         salary = 1.0)))
-    (print (to_string person_2)))  ; prints person_2 as text (11.7.6)  [4.5.2.1]
+    (print (to_string person_2)))  ; prints person_2 as text (11.7.4)  [4.5.2.1]
 
 ;;;; 5 expressions
 
 ;;; 5.1 literals
 
 ;; 5.1.1 number literals
-; 1. A number literal takes its type from the type expected where it
-;    appears. In (+ x 1) with x : u8, the 1 is a u8.
-; 2. When no type is expected, an integer literal is an i32, or an i64 if it
-;    is too large for an i32. A float literal is an f64.
-; 3. (the <Type> <Literal>) states a literal's type directly (8.6).
+; 1. A literal with a type suffix has that type: 200u8 is a u8 (1.3.1.3).
+; 2. A literal without a suffix takes a type written where it appears:
+;    - the annotation of its define or let
+;    - the declared type of the parameter or field it is bound to, in a call,
+;      a constructor, a recur, or a loop's default
+;    - the output type of the fn or loop whose value it is
+;    - a type argument (7.4), which makes the parameter types it fills
+;      written
+;    A written type also reaches into the value positions of do, if and
+;    match: the last item, both branches, and every arm.
+; 3. Anywhere else, an integer literal is an i32, or an i64 if it is too
+;    large for an i32, and a float literal is an f64. This includes an
+;    argument of an overloaded built-in whose parameter type depends on the
+;    member (7.5.5): in (+ x 1) with x : u8, the 1 is an i32, so the call is
+;    an error.
+;    why?: a literal's type is always written in the code or fixed, never
+;    worked out from its neighbors
+; 4. A float literal never takes an integer type. Whether an integer literal
+;    can take a float type is open (11.5.2).
+; Refining these rules is open (11.5.13).
 
-(let small : u8 = 200)   ; 200 is a u8                       [5.1.1.1]
-(+ small 1)              ; the 1 is a u8; returns 201, a u8  [5.1.1.1]
-(let ratio : f32 = 0.5)  ; 0.5 is an f32                     [5.1.1.1]
-42                       ; type: i32                         [5.1.1.2]
-3000000000               ; type: i64, too large for an i32   [5.1.1.2]
-2.5                      ; type: f64                         [5.1.1.2]
-(the u8 5)               ; type: u8                          [5.1.1.3]
+(let small : u8 = 200)            ; 200 is a u8, from the annotation              [5.1.1.2]
+(+ small 1)                       ; error: a u8 and an i32; write 1u8             [5.1.1.3]
+(+ small 1u8)                     ; returns 201, a u8                             [5.1.1.1]
+(+ [u8] small 1)                  ; returns 201; [u8] makes + take u8s (7.5)      [5.1.1.2]
+(let ratio : f32 = 0.5)           ; 0.5 is an f32                                 [5.1.1.2]
+(let chosen : u8 = (if true 1 2)) ; 1 and 2 are u8s, through the if               [5.1.1.2]
+(define wide = {fn |-> u64| 7})   ; 7 is a u64, the fn's output type              [5.1.1.2]
+42                                ; type: i32                                     [5.1.1.3]
+3000000000                        ; type: i64, too large for an i32               [5.1.1.3]
+2.5                               ; type: f64                                     [5.1.1.3]
+42u8                              ; type: u8                                      [5.1.1.1]
+(let tiny : u8 = 2.5)             ; error: a float literal is never a u8          [5.1.1.4]
 
 ;; 5.1.2 fancy strings
 ; 1. A fancy string is a function value. Each distinct ${name} is a
@@ -761,8 +822,8 @@ bob.salary                                   ; returns 2.5, copied from jane    
 ;    defaults. Leaving out a parameter with no default is a compile error.
 ; 4. The built-in - is the one exception: called with one argument, its
 ;    first parameter takes the default 0 (8.2.2).
-; 5. A built-in that works on several types takes its concrete type from
-;    its arguments (8.1.3).
+; 5. A built-in that works on several types is overloaded. A call picks its
+;    member from the types of its arguments (7.5).
 
 ; with x, y, z : i32
 (+ x y)        ; x + y                                      [5.2.1]
@@ -836,7 +897,7 @@ bob.salary                                   ; returns 2.5, copied from jane    
 
 ({fn |x : u32 y : u32 -> u32| (+ x y)} 2 3)  ; returns 5; a fn called directly         [5.4.1.1]
 {fn |-> Unit| ()}                            ; type: [-> Unit]                         [5.4.1.5]
-{fn |x : u32 -> u32| (+ x 1)}                ; type: [u32 -> u32]                      [5.4.1.5]
+{fn |x : u32 -> u32| (+ x 1u32)}             ; type: [u32 -> u32]                      [5.4.1.5]
 {fn |x : u32 -> string| x}                   ; error: the body is a u32, not a string  [5.4.1.3]
 {fn |x : u32| x}                             ; error: the output type is required      [5.4.1.2]
 {fn |x : u32 -> [u32 -> u32]| {fn |y : u32 -> u32| y}}  ; a body that is a function    [5.4.1.3]
@@ -855,7 +916,7 @@ bob.salary                                   ; returns 2.5, copied from jane    
 (adder_default 2)    ; returns 7; y defaults to 5  [5.4.2.1]
 (adder_default 2 3)  ; returns 5                   [5.4.2.1]
 (adder_default)      ; error: x has no default     [5.2.3]
-(define apply_or_inc = {fn |x : u32  f : [u32 -> u32] = {fn |y : u32 -> u32| (+ y 1)}  -> u32|
+(define apply_or_inc = {fn |x : u32  f : [u32 -> u32] = {fn |y : u32 -> u32| (+ y 1u32)}  -> u32|
     (f x)})
 (apply_or_inc 1)                  ; returns 2, using the default f  [5.4.2.2]
 (apply_or_inc 1 {make_adder 10})  ; returns 11                      [5.4.2.2]
@@ -870,16 +931,16 @@ bob.salary                                   ; returns 2.5, copied from jane    
 
 (do
     (let factorial = {fn fact |n : u64 -> u64|
-        (if (== n 0)
+        (if (== n 0u64)
             1
-            (* n (fact (- n 1))))})  ; fact is the fn itself  [5.4.3.1]
-    (factorial 5))                   ; returns 120            [5.4.3.2]
+            (* n (fact (- n 1u64))))})  ; fact is the fn itself  [5.4.3.1]
+    (factorial 5))                      ; returns 120            [5.4.3.2]
 (do
     (let broken = {fn |n : u64 -> u64|
-        (if (== n 0) 1 (* n (broken (- n 1))))})
+        (if (== n 0u64) 1 (* n (broken (- n 1u64))))})
     (broken 5))  ; error: broken is not bound inside its own value  [5.4.3.2]
 (do
-    (let factorial = {fn fact |n : u64 -> u64| (if (== n 0) 1 (* n (fact (- n 1))))})
+    (let factorial = {fn fact |n : u64 -> u64| (if (== n 0u64) 1 (* n (fact (- n 1u64))))})
     (fact 5))  ; error: fact is only bound inside the fn  [5.4.3.3]
 
 ;;; 5.5 if
@@ -889,7 +950,7 @@ bob.salary                                   ; returns 2.5, copied from jane    
 ; 2. When the condition is true, the if evaluates the first branch and
 ;    returns its value. Otherwise it evaluates and returns the second. The
 ;    other branch is never evaluated.
-;    why?: the loop in 5.8 and factorial in 5.4.3 only stop because of this
+;    why: this avoids runtime panics 
 ; 3. Both branches have the same type T. A mismatch is a compile error, and
 ;    no choice of brackets fixes it.
 ; 4. The braced form is used exactly when T is a function type (2.4.2).
@@ -916,15 +977,15 @@ bob.salary                                   ; returns 2.5, copied from jane    
 ;    (if c () v).
 
 (let x : u32 = 5)
-(when (> x 3) (print "x is big"))       ; prints: x is big                                  [5.6.1]
-(unless (> x 3) (print "x is small"))   ; returns (), and prints nothing                    [5.6.2]
-(when (> x 3) 7)                        ; error: the body must be Unit, not an i32          [5.6.3]
-(when (> x 3) (print "a") (print "b"))  ; error: when takes one body; wrap several in a do  [5.6.3]
-(when (> x 3) (do
+(when (> x 3u32) (print "x is big"))       ; prints: x is big                                  [5.6.1]
+(unless (> x 3u32) (print "x is small"))   ; returns (), and prints nothing                    [5.6.2]
+(when (> x 3u32) 7)                        ; error: the body must be Unit, not an i32          [5.6.3]
+(when (> x 3u32) (print "a") (print "b"))  ; error: when takes one body; wrap several in a do  [5.6.3]
+(when (> x 3u32) (do
     (print "a")
     (print "b")))  ; prints: a  [5.6.3]
                    ;         b
-(if (> x 3) (print "x is big") ())  ; the same as the first when  [5.6.4]
+(if (> x 3u32) (print "x is big") ())  ; the same as the first when  [5.6.4]
 
 ;;; 5.7 match
 (match <Value T> <Arm T U>...) -> U
@@ -1045,23 +1106,23 @@ bob.salary                                   ; returns 2.5, copied from jane    
 
 (loop |number : u32 = 1 -> Unit| (do
     (print (`hello ${number}` (to_string number)))
-    (if (< number 3)
-        (recur number = (+ number 1))
+    (if (< number 3u32)
+        (recur number = (+ number 1u32))
         (print "loop terminated!"))))  ; prints: hello 1  [5.8.3]
                                        ;         hello 2
                                        ;         hello 3
                                        ;         loop terminated!
-(loop |n : u32 = 1 -> u32| (if (< n 9) (recur n = (* n 2)) n))
+(loop |n : u32 = 1 -> u32| (if (< n 9u32) (recur n = (* n 2u32)) n))
     ; returns 16, the value of the pass where n is 16  [5.8.4]
 (loop |i : u32 = 0 total : u32 = 0 -> u32|
-    (if (< i 4)
-        (recur i = (+ i 1) total = (+ total i))
+    (if (< i 4u32)
+        (recur i = (+ i 1u32) total = (+ total i))
         total))  ; returns 6, which is 0 + 1 + 2 + 3  [5.8.3]
 (loop |n : u32 -> u32| n)  ; error: n has no starting value      [5.8.1]
 (loop |n : u32 = 0| n)     ; error: the output type is required  [5.8.2]
 {loop |n : u32 = 0 -> [u32 -> u32]|
-    {if (< n 3)
-        {recur n = (+ n 1)}
+    {if (< n 3u32)
+        {recur n = (+ n 1u32)}
         {make_adder n}}}  ; type: [u32 -> u32]; adds 3  [5.8.5]
 
 ;;; 5.9 recur
@@ -1083,35 +1144,35 @@ bob.salary                                   ; returns 2.5, copied from jane    
 ;    not a call.
 
 (loop |i : u32 = 0 acc : u32 = 1 -> u32|
-    (if (< i 5)
-        (recur i = (+ i 1) acc = (* acc 2))
+    (if (< i 5u32)
+        (recur i = (+ i 1u32) acc = (* acc 2u32))
         acc))  ; returns 32  [5.9.2]
 (loop |i : u32 = 0 limit : u32 = 3 -> u32|
     (if (< i limit)
-        (recur i = (+ i 1))  ; limit is left out, so it stays 3  [5.9.2]
-        i))                  ; returns 3
+        (recur i = (+ i 1u32))  ; limit is left out, so it stays 3  [5.9.2]
+        i))                     ; returns 3
 (define factorial_2 = {fn |n : u64 acc : u64 = 1 -> u64|
-    (if (== n 0)
+    (if (== n 0u64)
         acc
-        (recur n = (- n 1) acc = (* acc n)))})  ; recur in a fn needs no name  [5.9.1]
+        (recur n = (- n 1u64) acc = (* acc n)))})  ; recur in a fn needs no name  [5.9.1]
 (factorial_2 5)  ; returns 120  [5.9.7]
 (loop |i : u32 = 0 -> u32|
-    (if (< i 2)
-        (recur i = (+ i 1))          ; a new pass of the outer loop
+    (if (< i 2u32)
+        (recur i = (+ i 1u32))          ; a new pass of the outer loop
         (loop |j : u32 = 10 -> u32|
-            (if (< j 12)
-                (recur j = (+ j 1))  ; a new pass of the inner loop  [5.9.1]
-                (+ i j)))))          ; returns 14
+            (if (< j 12u32)
+                (recur j = (+ j 1u32))  ; a new pass of the inner loop  [5.9.1]
+                (+ i j)))))             ; returns 14
 (loop |n : u32 = 3 -> u32|
-    (if (== n 0)
+    (if (== n 0u32)
         0
-        (+ n (recur n = (- n 1)))))
+        (+ n (recur n = (- n 1u32)))))
     ; warning: recur is not in tail position; returns 6  [5.9.4, 5.9.6]
 (loop |i : u32 = 0 -> u32|
-    (match (> i 2)
+    (match (> i 2u32)
         true  => i
-        false => (recur i = (+ i 1))))  ; returns 3; a match arm is a tail position  [5.9.5]
-(loop |i : u32 = 0 -> u32| (if (< i 3) (recur j = 1) i))  ; error: j is not a parameter  [5.9.3]
+        false => (recur i = (+ i 1u32))))  ; returns 3; a match arm is a tail position  [5.9.5]
+(loop |i : u32 = 0 -> u32| (if (< i 3u32) (recur j = 1) i))  ; error: j is not a parameter  [5.9.3]
 (recur n = 1)  ; error: no loop or fn contains this recur                                [5.9.1]
 
 ;;; 5.10 for
@@ -1130,18 +1191,18 @@ bob.salary                                   ; returns 2.5, copied from jane    
 ;    then the step starts the next pass. Otherwise the for returns ().
 ; 4. As in loop, every parameter needs a default (5.8.1).
 
-(for |i : u32 = 0| (< i 3) (recur i = (+ i 1))
+(for |i : u32 = 0| (< i 3u32) (recur i = (+ i 1u32))
     (print (to_string i)))  ; prints: 0  [5.10.3]
                             ;         1
                             ;         2
-(for |i : u32 = 10| (< i 3) (recur i = (+ i 1))
+(for |i : u32 = 10| (< i 3u32) (recur i = (+ i 1u32))
     (print "never"))  ; prints nothing: the condition fails on the first pass  [5.10.3]
-(for |i : u32 = 0 j : u32 = 10| (< i j) (recur i = (+ i 1) j = (- j 1))
+(for |i : u32 = 0 j : u32 = 10| (< i j) (recur i = (+ i 1u32) j = (- j 1u32))
     (print (`${a}-${b}` (to_string i) (to_string j))))
     ; prints: 0-10, 1-9, 2-8, 3-7 and 4-6, one per line  [5.10.2]
-(for |i : u32 = 0 -> Unit| (< i 3) (recur i = (+ i 1)) (print "x"))
+(for |i : u32 = 0 -> Unit| (< i 3u32) (recur i = (+ i 1u32)) (print "x"))
     ; error: for takes no ->          [5.10.1]
-(for |i : u32| (< i 3) (recur i = (+ i 1)) (print "x"))
+(for |i : u32| (< i 3u32) (recur i = (+ i 1u32)) (print "x"))
     ; error: i has no starting value  [5.10.4]
 
 ;;;; 6 patterns
@@ -1197,7 +1258,7 @@ _
 (match "hi"
     "hi" => true
     _    => false)  ; returns true  [6.3.1]
-(match (Option.Some value = 0)
+(match (Option.Some [i32] value = 0)
     (Option.Some value = 0) => "zero"
     (Option.Some value = _) => "other"
     Option.None             => "none")  ; returns "zero"; a literal inside a pattern  [6.3.1]
@@ -1216,10 +1277,10 @@ _
 ; 5. A variant with no fields is matched by its name alone, without
 ;    parentheses (6.2.2).
 
-(match (Option.Some value = 3)
+(match (Option.Some [i32] value = 3)
     (Option.Some value = v) => v
     Option.None             => 0)  ; returns 3  [6.4.1]
-(match (Option.Some value = (Option.Some value = 3))
+(match (Option.Some [Option i32] value = (Option.Some [i32] value = 3))
     (Option.Some value = (Option.Some value = x)) => x
     (Option.Some value = Option.None)             => 0
     Option.None                                   => -1)
@@ -1228,10 +1289,10 @@ _
     (Person.Hacker person = (Hacker skill = s ..))     => s
     (Person.Employee person = (Employee name = n ..))  => n)
     ; returns "backdoors"  [6.4.1]
-(match (Option.Some value = 3)
+(match (Option.Some [i32] value = 3)
     (Some value = v) => v
     _                => 0)  ; error: write Option.Some  [6.4.2]
-(match (Option.Some value = 3)
+(match (Option.Some [i32] value = 3)
     (Option.Some value) => 1
     _                   => 0)  ; error: the field value has no pattern  [6.4.3]
 (match jane
@@ -1247,7 +1308,7 @@ _
 (match jane
     (Employee .. name = n) => n)  ; error: .. must come last  [6.4.4]
 (do
-    (let nothing : [Option i32] = Option.None)
+    (let nothing : [Option i32] = Option.None [i32])
     (match nothing
         Option.None             => "none"
         (Option.Some value = _) => "some"))  ; returns "none"  [6.4.5]
@@ -1290,16 +1351,16 @@ _
 ; 1. name @ pattern matches when pattern does, and also binds the whole
 ;    value to name.
 
-(match (Option.Some value = 4)
+(match (Option.Some [i32] value = 4)
     whole @ (Option.Some value = v) if (> v 3) => whole
-    _                                          => Option.None)
-    ; returns (Option.Some value = 4)  [6.6.1]
+    _                                          => Option.None [i32])
+    ; returns (Option.Some [i32] value = 4)  [6.6.1]
 (match (list 1 2 3)
     all @ (list 1 ..) => all.1
     _                 => 0)  ; returns 2; all is the whole list  [6.6.1]
 (match jane
-    e @ (Employee age = a ..) if (> a 18) => e.name
-    _                                     => "minor")  ; returns "jane"  [6.6.1]
+    e @ (Employee age = a ..) if (> a 18u32) => e.name
+    _                                        => "minor")  ; returns "jane"  [6.6.1]
 
 ;;;; 7 generics
 
@@ -1307,7 +1368,7 @@ _
 ; 1. Every type parameter must be declared: in a type header for a struct or
 ;    enum (7.2), or in a forall list for a function (7.3).
 ; There is no way yet to require that a type parameter supports an
-; operation such as + (11.7.2).
+; operation such as + (11.7.1).
 
 (struct Box |item : T|)  ; error: T is not declared; write (struct [Box T] |item : T|)     [7.1.1]
 {fn |x : T -> T| x}      ; error: T is not declared; write {fn [forall T] |x : T -> T| x}  [7.1.1]
@@ -1318,43 +1379,48 @@ _
 ; 1. In the header [Name T U...], Name is the new generic type and T U...
 ;    are its type parameters. They can be used as types in every field.
 ; 2. A generic type is used by giving it type arguments: [Pair i32 string].
-; 3. When a generic value is built, its type arguments are inferred from the
-;    field values and the expected type.
-;    why?: Option.None has no fields, so only the expected type can give it
-;    its T
+; 3. When a generic value is built, its type arguments are written after
+;    the constructor's name (7.4): (Pair [i32] [string] first = 1 ...). A
+;    variant with no fields takes them too: Option.None [string].
 ; 4. A generic struct's accessors are generic functions: Pair.first has type
-;    [[forall A B] [Pair A B] -> A].
+;    [[forall A B] [Pair A B] -> A], so a call gives its type arguments.
+;    name.field needs none, since the type of name is already known.
 
 (struct [Pair A B] |
     first  : A
     second : B|)  ; A and B are used as field types  [7.2.1]
-(let p : [Pair i32 string] = (Pair first = 1 second = "one"))  ; type arguments i32, string  [7.2.2]
-(Pair first = 1 second = "one")                 ; type: [Pair i32 string], inferred          [7.2.3]
-p.second                                        ; returns "one"                              [7.2.1]
-(let q : [Pair i32] = p)                        ; error: Pair takes two type arguments       [7.2.2]
-(let none_yet : [Option string] = Option.None)  ; T is string, from the expected type        [7.2.3]
-(Pair.first p)                                  ; returns 1                                  [7.2.4]
-Pair.first                                      ; type: [[forall A B] [Pair A B] -> A]       [7.2.4]
+(let p : [Pair i32 string] = (Pair [i32] [string] first = 1 second = "one"))
+                                         ; the type [Pair i32 string], built with [i32] [string]  [7.2.2, 7.2.3]
+(Pair [u8] [string] first = 1 second = "one")  ; type: [Pair u8 string]; 1 is a u8 (5.1.1.2)  [7.2.3]
+(Pair first = 1 second = "one")          ; error: Pair needs its type arguments A and B      [7.2.3]
+(Pair [i32] first = 1 second = "one")    ; error: Pair takes two type arguments              [7.2.3]
+p.second                                 ; returns "one"                                     [7.2.1]
+(let q : [Pair i32] = p)                 ; error: Pair takes two type arguments              [7.2.2]
+(let none_yet = Option.None [string])    ; none_yet : [Option string]                        [7.2.3]
+(let not_yet : [Option string] = Option.None)  ; error: Option.None needs its type argument  [7.2.3]
+(Pair.first [i32] [string] p)            ; returns 1                                         [7.2.4]
+Pair.first                               ; type: [[forall A B] [Pair A B] -> A]              [7.2.4]
+(Pair.first p)                           ; error: Pair.first needs its type arguments        [7.2.4]
 (enum [Either L R]
     Left |value : L|
     Right |value : R|)  ; a generic enum  [7.2.1]
-(let e : [Either i32 string] = (Either.Right value = "r"))  ; L comes from the annotation  [7.2.3]
+(let e = (Either.Right [i32] [string] value = "r"))  ; e : [Either i32 string]  [7.2.3]
 ; hypothetical: assumes a type may refer to itself (11.3.8)
 (enum [Tree T]
     Leaf
     Node |left : [Tree T] value : T right : [Tree T]|)
-(let tree : [Tree i32] = (Tree.Node
-    left = Tree.Leaf
+(let tree = (Tree.Node [i32]
+    left = Tree.Leaf [i32]
     value = 5
-    right = Tree.Leaf))
+    right = Tree.Leaf [i32]))
 
 ;;; 7.3 generic functions
 {fn <Identifier>? <Forall> <Signature> <Value T>} -> [<Forall> <Type>... -> <Type>]
 ; 1. [forall T U...] declares the function's type parameters, which can be
 ;    used as types in its signature and body.
 ; 2. The function's type starts with the same forall list.
-; 3. At each call, the type parameters are inferred from the arguments and
-;    the expected type. Each parameter gets one type throughout the call.
+; 3. Each call gives the type parameters as type arguments (7.4), so each
+;    parameter has one written type throughout the call.
 ; 4. Inside the body, a value whose type is a type parameter is not known to
 ;    be a function, so it is produced in ( ) (2.4.2.2).
 ;    why: T is not known to be a function there
@@ -1363,17 +1429,101 @@ Pair.first                                      ; type: [[forall A B] [Pair A B]
     (match (get xs 0)  ; ( ) even though T could be a function  [7.3.4]
         (Option.Some value = first) => first
         Option.None                 => fallback)})
-first_or                      ; type: [[forall T] [List T] T -> T]                        [7.3.2]
-(first_or (list 4 5 6) 0)     ; returns 4; T is i32                                       [7.3.3]
-(first_or (list) "none")      ; returns "none"; T is string                               [7.3.3]
-(first_or (list 1 2) "none")  ; error: T cannot be both i32 and string                    [7.3.3]
-{first_or (list {make_adder 1}) {make_adder 2}}
-                              ; type: [u32 -> u32]; at this call T is a function, so { }  [2.4.2.2]
+first_or                                     ; type: [[forall T] [List T] T -> T]           [7.3.2]
+(first_or [i32] (list 4 5 6) 0)              ; returns 4; T is i32                          [7.3.3]
+(first_or [string] (list [string]) "none")   ; returns "none"; T is string                  [7.3.3]
+(first_or [i32] (list 1 2) "none")           ; error: fallback is an i32 here, not a string  [7.3.3]
+(first_or (list 4 5 6) 0)                    ; error: first_or needs its type argument T    [7.3.3]
+{first_or [u32 -> u32] (list {make_adder 1}) {make_adder 2}}
+    ; type: [u32 -> u32]; at this call T is a function, so { }  [2.4.2.2]
 (define apply = {fn [forall T U] |x : T f : [T -> U] -> U| (f x)})
-(apply 3 {fn |n : i32 -> bool| (> n 2)})  ; returns true; T is i32, U is bool             [7.3.3]
-(apply jane Employee.name)    ; returns "jane"; an accessor is a function (4.4.3)         [7.3.1]
-(define pair_up = {fn [forall A B] |a : A b : B -> [Pair A B]| (Pair first = a second = b)})
-(pair_up 1 "one")             ; type: [Pair i32 string]                                   [7.3.1]
+(apply [i32] [bool] 3 {fn |n : i32 -> bool| (> n 2)})  ; returns true; T is i32, U is bool  [7.3.3]
+(apply [Employee] [string] jane Employee.name)
+    ; returns "jane"; an accessor is a function (4.4.3)  [7.3.1]
+(define pair_up = {fn [forall A B] |a : A b : B -> [Pair A B]| (Pair [A] [B] first = a second = b)})
+(pair_up [i32] [string] 1 "one")             ; type: [Pair i32 string]                      [7.3.1]
+
+;;; 7.4 type arguments
+<Identifier> <Type Argument> <Type Argument>...
+; 1. A name followed by type arguments is that name with its type parameters
+;    filled in, in the order of its forall list (7.3) or type header (7.2).
+;    first_or [i32] is a [[List i32] i32 -> i32].
+; 2. In the callee position, this is a call: (first_or [i32] xs 0) calls
+;    first_or [i32]. A [ ] directly after a name belongs to that name, so in
+;    (combine [i32] 2 3 + [i32]) the second [i32] belongs to +.
+; 3. Each [ ] holds exactly one type: [u32], [List i32], [u32 -> u32]. A
+;    bracketed type with no arguments is that type, so [u32] is u32.
+; 4. A generic function, constructor or accessor needs all of its type
+;    arguments wherever it is used. Leaving any out, or giving too many, is a
+;    compile error.
+; 5. Type arguments may only follow an identifier or a qualified name, as .
+;    may (2.3.4). Any other value must be bound to a name first.
+; 6. Patterns take no type arguments. A pattern gets its types from the
+;    value it is matched against.
+; 7. Built-ins take type arguments by the rules of 7.5.
+;    why?: every type in a call is written, so a reader never has to work one
+;    out
+;    why?: [ ] never wrap an expression (2.4.1.1), so a type argument is
+;    never mistaken for a value, even for a name such as Employee that is
+;    both a type and a constructor
+
+(let numbers : [List i32] = (list 1 2 3))
+(first_or [i32] numbers 0)         ; returns 1                                [7.4.2]
+first_or [i32]                     ; type: [[List i32] i32 -> i32]            [7.4.1]
+(let first_num = first_or [i32])   ; a generic function, passed as a value    [7.4.1]
+(let first_any = first_or)         ; error: first_or needs its type argument  [7.4.4]
+(pair_up [i32] [string] 1 "one")   ; two type arguments, in forall order      [7.4.1]
+(pair_up [i32] 1 "one")            ; error: pair_up takes two type arguments  [7.4.4]
+(pair_up [i32 string] 1 "one")
+    ; error: [i32 string] reads as i32 applied to string; one type per [ ]  [7.4.3]
+(identity [Employee] jane)         ; returns jane; [Employee] is the type     [7.4.2]
+(identity Employee jane)
+    ; error: identity takes one argument; here Employee is the constructor, a value  [7.4.2]
+{fn [forall T] |x : T -> T| x} [i32]
+    ; error: type arguments follow a name; bind the fn first  [7.4.5]
+(match (Option.Some [i32] value = 3)
+    (Option.Some value = v) => v
+    Option.None             => 0)  ; returns 3; the pattern takes no type arguments  [7.4.6]
+
+;;; 7.5 overloads
+; 1. A built-in function that works on several types is overloaded: it has
+;    one member for each type. + has a member of type [u32 u32 -> u32], one
+;    of type [string string -> string], and so on.
+; 2. An overloaded built-in has type parameters, the types that differ
+;    between its members: the operand type of +, or the T of get's
+;    [List T]. name [U] is its member for U (7.4.1): + [u32] is the
+;    [u32 u32 -> u32] member.
+; 3. A call without type arguments picks the member whose parameter types
+;    match the types of its arguments, worked out from the arguments alone.
+;    Exactly one member must match.
+; 4. When the arguments cannot settle a type parameter, the call must give
+;    it. list with no arguments needs [T] (8.7.1.3), and a cast always gives
+;    its target type (8.6.1).
+; 5. An unsuffixed literal argument counts as its fixed type (5.1.1.3),
+;    unless its parameter has the same type in every member, or the call
+;    gives type arguments. get's index is a u32 in every member, so in
+;    (get xs 2) the 2 is a u32. In (+ x 1) with x : u32, the 1 is an i32,
+;    and no member matches.
+; 6. A member is never picked from the type expected where the call
+;    appears. Passing an overloaded built-in as a value always needs its
+;    type arguments: + [u32].
+; 7. Only built-ins are overloaded. A program cannot bind one name twice, so
+;    it cannot define overloads of its own (11.4.6).
+;    why?: a call's member always follows from what is written in the call
+
+(let x : u32 = 7)
+(+ x x)                      ; the [u32 u32 -> u32] member; returns 14                   [7.5.3]
+(+ "a" "b")                  ; the [string string -> string] member; returns "ab"        [7.5.3]
+(+ x "b")                    ; error: no member of + takes a u32 and a string            [7.5.3]
+(+ x 1)                      ; error: the 1 is an i32 (5.1.1.3); write 1u32               [7.5.5]
+(+ x 1u32)                   ; returns 8                                                 [7.5.5]
+(+ [u32] x 1)                ; returns 8; [u32] makes both parameters u32s               [7.5.5]
+(get (list 4 5) 1)           ; returns (Option.Some [i32] value = 5); the 1 is a u32     [7.5.5]
+(list)                       ; error: nothing settles T; write (list [T])                [7.5.4]
+(as [i64] 5)                 ; returns 5 as an i64; the target type is always given      [7.5.4]
+(let total : u64 = (+ 2 3))  ; error: (+ 2 3) is an i32; the u64 does not pick a member  [7.5.6]
+(define add_u32 = + [u32])   ; add_u32 : [u32 u32 -> u32]                                [7.5.6]
+(define plus = +)            ; error: + is overloaded; write + [T]                       [7.5.6]
 
 ;;;; 8 built-ins
 
@@ -1384,27 +1534,28 @@ first_or                      ; type: [[forall T] [List T] T -> T]              
 ; 2. The other built-ins are special forms: print, panic, assert and debug.
 ;    Like keywords, they can only be called, never passed. A fn that calls
 ;    one is still an ordinary function value.
-; 3. A built-in function that works on several types, such as +, has one
-;    concrete type at each use. When called, it takes that type from its
-;    arguments. When passed, it takes the type expected there.
-; 4. In the same way, a passed list takes its number of parameters from the
-;    expected function type (8.7.1).
-; 5. The casts are generic functions (8.6). This file writes their type
-;    argument first, as in (as i64 x). How type arguments are passed in
-;    general is open (11.7.1).
+; 3. A built-in function that works on several types, such as +, is
+;    overloaded (7.5). A call picks its member from the types of its
+;    arguments. Passing it as a value needs type arguments: + [u32].
+; 4. list takes any number of arguments, so it has no single function type
+;    and cannot be passed as a value. Wrap it in a fn instead.
+; 5. The casts take their target type as a type argument: (as [i64] x)
+;    (7.5.4, 8.6).
 
-(define add_u32 : [u32 u32 -> u32] = +)  ; + as a [u32 u32 -> u32]                     [8.1.3]
-(define join : [string string -> string] = +)  ; + as string concatenation             [8.1.3]
-(define plus = +)      ; error: no annotation, so + has no expected type               [8.1.3]
+(define add_u32 = + [u32])     ; add_u32 : [u32 u32 -> u32]                    [8.1.3]
+(define join = + [string])     ; + as string concatenation                     [8.1.3]
+(define plus = +)              ; error: + is overloaded; write + [T]           [8.1.3]
 (define combine = {fn [forall T] |a : T b : T f : [T T -> T] -> T| (f a b)})
-(combine 2 3 +)        ; returns 5; + is passed like any function                      [8.1.1]
-(combine "ab" "cd" +)  ; returns "abcd"; here + is [string string -> string]           [8.1.3]
-(combine 2 3 max)      ; returns 3                                                     [8.1.1]
-(define three : [i32 i32 i32 -> [List i32]] = list)  ; list with three parameters      [8.1.4]
-(three 1 2 3)          ; returns (list 1 2 3)                                          [8.1.4]
+(combine [i32] 2 3 + [i32])    ; returns 5; + [i32] is passed like any function  [8.1.1]
+(combine [string] "ab" "cd" + [string])  ; returns "abcd"                      [8.1.3]
+(combine [i32] 2 3 max [i32])  ; returns 3                                     [8.1.1]
+(define three = {fn |a : i32 b : i32 c : i32 -> [List i32]| (list a b c)})
+(three 1 2 3)                  ; returns (list 1 2 3); list wrapped in a fn    [8.1.4]
+(define bad_three : [i32 i32 i32 -> [List i32]] = list)
+    ; error: list cannot be passed as a value  [8.1.4]
 (define say : [string -> Unit] = print)  ; error: print is a special form              [8.1.2]
 (define shout = {fn |s : string -> Unit| (print s)})  ; a fn that calls print is fine  [8.1.2]
-(as i64 5)             ; the type argument i64 comes first                             [8.1.5]
+(as [i64] 5)                   ; the target type is a type argument            [8.1.5]
 
 ;;; 8.2 arithmetic
 (+ a b)        ; addition; numerical types and string
@@ -1501,74 +1652,80 @@ first_or                      ; type: [[forall T] [List T] T -> T]              
 ; 1. These work on all stack types, which include the integer types. What
 ;    else counts as a stack type is open (11.3.2).
 ; 2. n defaults to 1 in shl and shr.
+; 3. n is a u32 in every member of shl and shr (7.5.5).
 
 (let b : u8 = 12)  ; binary 00001100               [8.5.1]
-(bit_and b 10)     ; returns 8, binary 00001000    [8.5.1]
-(bit_or b 10)      ; returns 14, binary 00001110   [8.5.1]
-(bit_xor b 10)     ; returns 6, binary 00000110    [8.5.1]
+(bit_and b 10u8)   ; returns 8, binary 00001000    [8.5.1]
+(bit_or b 10u8)    ; returns 14, binary 00001110   [8.5.1]
+(bit_xor b 10u8)   ; returns 6, binary 00000110    [8.5.1]
 (bit_not b)        ; returns 243, binary 11110011  [8.5.1]
-(shl b 2)          ; returns 48                    [8.5.1]
+(shl b 2)          ; returns 48; the 2 is a u32    [8.5.3]
 (shr b 2)          ; returns 3                     [8.5.1]
 (shl b)            ; returns 24                    [8.5.2]
 
 ;;; 8.6 casting and conversion
-(the <Type> a)     ; ascription: a, typed as <Type>
-(as <Type> a)      ; widening
-(try_as <Type> a)  ; checked: returns [Option <Type>]
-(wrap <Type> a)    ; wrapping: wraps around on overflow
-(parse <Type> a)   ; parsing a string: returns [Result <Type> ParseError]
-(to_string a)      ; text: works on every type
-; 1. The casts are the only way to change a value's type (3.1.3).
-; 2. the gives a value its type at compile time. It is how a literal is
-;    written with a type other than its default (5.1.1.3), and it is native
-;    for numerical types.
-; 3. as only compiles when the target type is wider than the value's type,
+(as [<Type>] a)      ; widening
+(try_as [<Type>] a)  ; checked: returns [Option <Type>]
+(wrap [<Type>] a)    ; wrapping: wraps around on overflow
+(parse [<Type>] a)   ; parsing a string: returns [Result <Type> ParseError]
+(to_string a)        ; text: works on every type
+; 1. The casts are the only way to change a value's type (3.1.3). Each cast
+;    takes its target type as its type argument (7.5.4). The source type
+;    comes from the argument.
+; 2. as only compiles when the target type is wider than the value's type,
 ;    so it never fails.
-; 4. try_as returns Option.None when the value does not fit the target type.
-; 5. wrap wraps around on overflow. It is native for numerical types.
-; 6. parse reads a string as a value of the target type. It returns
+; 3. try_as returns Option.None when the value does not fit the target type.
+; 4. wrap wraps around on overflow. It is native for numerical types.
+; 5. parse reads a string as a value of the target type. It returns
 ;    Result.Error when the string is not a valid value of that type.
-; 7. to_string turns a value of any type into text.
+; 6. to_string turns a value of any type into text.
 
 (let n : u32 = 7)
-(let m : u64 = n)        ; error: nothing converts implicitly; write (as u64 n)    [8.6.1]
-(the u8 5)               ; type: u8                                                [8.6.2]
-(as i64 5)               ; returns 5 as an i64; i64 is wider than i32              [8.6.3]
-(as u8 5)                ; error: u8 is not wider than i32                         [8.6.3]
-(try_as u8 200)          ; returns (Option.Some value = 200), holding a u8         [8.6.4]
-(try_as u8 300)          ; returns Option.None: 300 does not fit in a u8           [8.6.4]
-(wrap u8 300)            ; returns 44, which is 300 - 256                          [8.6.5]
-(parse u32 "42")         ; returns (Result.Ok value = 42)                          [8.6.6]
-(parse u32 "forty-two")  ; returns a Result.Error holding a ParseError             [8.6.6]
-(to_string 42)           ; returns "42"                                            [8.6.7]
-(to_string excalibur)    ; returns excalibur as text; the format is open (11.7.6)  [8.6.7]
+(let m : u64 = n)          ; error: nothing converts implicitly; write (as [u64] n)       [8.6.1]
+(as u64 n)                 ; error: u64 is a type, not a value; write [u64]               [8.6.1]
+(as [i64] 5)               ; returns 5 as an i64; i64 is wider than i32                   [8.6.2]
+(as [u8] 5)                ; error: u8 is not wider than i32                              [8.6.2]
+(try_as [u8] 200)          ; returns (Option.Some [u8] value = 200)                       [8.6.3]
+(try_as [u8] 300)          ; returns Option.None [u8]: 300 does not fit in a u8           [8.6.3]
+(wrap [u8] 300)            ; returns 44, which is 300 - 256                               [8.6.4]
+(parse [u32] "42")         ; returns (Result.Ok [u32] [ParseError] value = 42)            [8.6.5]
+(parse [u32] "forty-two")  ; returns a Result.Error holding a ParseError                  [8.6.5]
+(to_string 42)             ; returns "42"                                                 [8.6.6]
+(to_string excalibur)      ; returns excalibur as text; the format is open (11.7.4)       [8.6.6]
 
 ;;; 8.7 lists
 
 ;; 8.7.1 list
 (list <Value T>...) -> [List T]
+(list [T] <Value T>...) -> [List T]
 ; 1. list returns a list of its arguments, in order.
-; 2. Called directly, list takes any number of arguments. Passed as a value,
-;    it takes the parameter count of the expected type (8.1.4).
-; 3. (list) is an empty list. Its T comes from the expected type.
+; 2. list takes any number of arguments. It cannot be passed as a value
+;    (8.1.4).
+; 3. (list [T]) is an empty [List T]. With no arguments, list needs its type
+;    argument, since nothing else settles T (7.5.4).
 
-(list 1 2 3)                      ; type: [List i32]                           [8.7.1.1]
-(list "a" "b")                    ; type: [List string]                        [8.7.1.1]
-(list (list 1) (list 2 3))        ; type: [List [List i32]]; two arguments     [8.7.1.2]
-(define pair_of : [u32 u32 -> [List u32]] = list)  ; list with two parameters  [8.7.1.2]
-(let empty : [List u8] = (list))  ; T is u8, from the annotation               [8.7.1.3]
+(list 1 2 3)                ; type: [List i32]                                  [8.7.1.1]
+(list "a" "b")              ; type: [List string]                               [8.7.1.1]
+(list (list 1) (list 2 3))  ; type: [List [List i32]]; two arguments            [8.7.1.2]
+(list [u8] 1 2)             ; type: [List u8]; [u8] makes 1 and 2 u8s (5.1.1.2)  [8.7.1.2]
+(let empty = (list [u8]))   ; empty : [List u8]                                 [8.7.1.3]
+(let none_yet : [List u8] = (list))
+    ; error: list has no arguments, so it needs [T]; the annotation does not count (7.5.6)  [8.7.1.3]
 
 ;; 8.7.2 get
 (get <Value [List T]> <Value u32>) -> [Option T]
-; 1. get returns (Option.Some value = x) when x is the element at the
-;    index, and Option.None when the index is out of range.
+; 1. get returns (Option.Some [T] value = x) when x is the element at the
+;    index, and Option.None [T] when the index is out of range.
 ; 2. The index can be any u32 value, not just a literal (compare 3.4.2).
+; 3. The index is a u32 in every member of get, so an unsuffixed literal
+;    index is a u32 (7.5.5).
 
 (let numbers : [List i32] = (list 1 2 3))
-(get numbers 1)        ; returns (Option.Some value = 2)         [8.7.2.1]
-(get numbers 5)        ; returns Option.None: 5 is out of range  [8.7.2.1]
-(get numbers (+ 1 1))  ; returns (Option.Some value = 3)         [8.7.2.2]
-; hypothetical: len is not defined yet (11.7.7)
+(get numbers 1)              ; returns (Option.Some [i32] value = 2)        [8.7.2.1]
+(get numbers 5)              ; returns Option.None [i32]: 5 is out of range  [8.7.2.1]
+(get numbers (+ [u32] 1 1))  ; returns (Option.Some [i32] value = 3)        [8.7.2.2]
+(get numbers (+ 1 1))        ; error: (+ 1 1) is an i32, not a u32           [8.7.2.3]
+; hypothetical: len is not defined yet (11.7.5)
 (len numbers)  ; returns 3
 
 ;;; 8.8 output and failure
@@ -1609,7 +1766,7 @@ first_or                      ; type: [[forall T] [List T] T -> T]              
 ; 1. Every program defines main, a function of type [-> Unit]. Running the
 ;    program calls main.
 ; Most examples in this file leave main out (0.3.1). Exit codes are open
-; (11.8.3).
+; (11.8.2).
 
 (define main = {fn |-> Unit| ()})  ; the smallest program  [9.1.1]
 ; a different program:
@@ -1631,21 +1788,130 @@ first_or                      ; type: [[forall T] [List T] T -> T]              
         {fn |y : u32 -> u32| (+ y ten)}})  ; the fn keeps ten alive after its block ends  [9.2.2]
     (print (to_string (add_ten 5))))})     ; prints: 15                                   [9.2.2]
 
-;;; 9.3 mod (todo)
-; mod imports a module, and :: reaches into one. Neither is designed yet
-; (11.8.1).
+;;; 9.3 modules and files
+; 1. Each .tsc file is exactly one module.
+; 2. A module's path is its file path from the project root, without .tsc,
+;    with each / written as ::. src/geometry/shapes.tsc has the path
+;    geometry::shapes. Where the project root is, is open (11.8.8).
+; 3. A directory is only a namespace. It is not a module, and has no file of
+;    its own. Having both geometry.tsc and a geometry/ directory is an error.
+; 4. Every segment of a path is snake_case (1.4).
+; 5. The file that defines main (9.1) is the entry module. It sits at the
+;    project root. No other module may define main.
 
-;;; 9.4 export (todo)
-; export makes a define visible to other modules, and only defines can be
-; exported. It is not designed yet (11.8.1).
+; src/geometry/shapes.tsc  has the path geometry::shapes              [9.3.2]
+; src/geometry.tsc         error: geometry/ is already a directory    [9.3.3]
+; src/Geometry/shapes.tsc  warning: path segments are snake_case      [9.3.4]
 
-;;; 9.5 sugar
+;;; 9.4 mod
+(mod <Path>) -> Unit
+(mod <Suffix> = <Path>) -> Unit
+<Path>    ; <Identifier>, or <Path>::<Identifier>: a module's path (9.3.2)
+<Suffix>  ; one or more trailing segments of the <Path> on the right of =
+; 1. mod may only appear at the top level. Like define, its place in the file
+;    does not matter (4.1.2).
+; 2. A path always starts at the project root. There are no relative paths.
+; 3. (mod a::b::c) binds the alias c, the path's last segment. It is the
+;    same as (mod c = a::b::c).
+; 4. (mod b::c = a::b::c) binds the alias b::c instead. The left side must
+;    be a suffix of the path: its last segments, in order. Any other name is
+;    an error. There are no free aliases.
+; 5. Writing the default alias out, as in (mod c = a::b::c), is a warning.
+; 6. Every item the module exports (9.6) is reachable as alias::item in the
+;    whole file. Nothing is brought in unqualified.
+; 7. An alias is not a value. It can only appear on the left of ::.
+; 8. Two mod forms that bind the same alias are an error, and so is
+;    importing the same path twice.
+;    why?: an alias always ends in the module's real name, so searching for
+;    c::item finds every use, and searching for a::b::c finds every importer
+;    why?: the default is the last segment, not the last two, because
+;    collisions are rare, and internal (9.5.1) would make many two-segment
+;    aliases read internal::x
+
+; as a whole program, in src/main.tsc:
+(mod geometry::shapes::circle)                   ; binds the alias circle     [9.4.3]
+(mod shapes::square = geometry::shapes::square)  ; binds shapes::square       [9.4.4]
+(mod ui::circle = ui::circle)                    ; binds ui::circle, the whole path  [9.4.4]
+(define main = {fn |-> Unit| (do
+    (let c : circle::Circle = (circle::Circle r = 2.0))
+    (print (to_string (circle::area c)))                ; prints: 12.56  [9.4.6]
+    (print (to_string (shapes::square::area 3.0)))      ; prints: 9.0    [9.4.6]
+    (ui::circle::draw c))})                             ; a different module's draw
+
+(mod ui::circle)                       ; error: circle is already bound           [9.4.8]
+(mod round = geometry::shapes::circle)   ; error: round is not a suffix of the path  [9.4.4]
+(mod circle = geometry::shapes::circle)  ; warning: circle is already the default    [9.4.5]
+(mod shapes)                           ; error: no module has the path shapes     [9.4.2]
+(define f = circle)                    ; error: an alias is not a value           [9.4.7]
+(circle::area)                         ; error: area needs its argument c         [9.4.6]
+
+;;; 9.5 visibility of modules
+; 1. A module whose path contains the segment internal can only be imported
+;    by modules whose path starts with the segments before internal.
+;    geometry::internal::common can be imported from geometry::shapes, but
+;    not from main or from render::draw.
+; 2. If a path contains internal more than once, rule 1 applies to each one.
+; 3. A module cannot import a module in its own directory (a sibling). Code
+;    that siblings share goes in an internal directory below them, or in
+;    another public directory.
+; 4. An import cycle, where a module reaches itself by following mod forms,
+;    is an error. The error names every module in the cycle.
+; 5. Because of 3, the entry module cannot import other files at the project
+;    root. Every module except the entry module lives in a directory.
+;    why?: dependencies point down or across, never sideways within one
+;    directory, and a directory's internal modules stay private to it
+
+; in src/geometry/shapes.tsc:
+(mod geometry::internal::common)  ; ok: shapes is inside geometry/  [9.5.1]
+(mod geometry::vectors)           ; error: vectors is a sibling     [9.5.3]
+; in src/main.tsc:
+(mod geometry::internal::common)  ; error: common is internal to geometry/  [9.5.1]
+(mod geometry::shapes)            ; ok                                      [9.5.3]
+(mod config)                      ; error: config is a sibling at the root  [9.5.5]
+; in src/render/draw.tsc:
+(mod geometry::shapes)            ; ok: public, and not a sibling  [9.5.3]
+(mod geometry::a::internal::b::internal::c)
+    ; error: only modules under geometry/a/internal/b/ may import c  [9.5.2]
+; if src/geometry/shapes.tsc also held (mod render::draw):
+    ; error: cycle render::draw -> geometry::shapes -> render::draw  [9.5.4]
+
+;;; 9.6 export
+(export <Identifier> <Identifier>...) -> Unit
+; 1. export may only appear at the top level, anywhere in the file, any
+;    number of times.
+; 2. Each identifier must name a define, struct or enum of this module.
+; 3. Exporting a struct exports its type, constructor and fields. Exporting
+;    an enum exports its type and all of its variants.
+; 4. A name that is not exported is private. Reaching it through :: is an
+;    error.
+; 5. Exporting a name twice, in one form or across forms, is an error.
+
+; in src/geometry/shapes/circle.tsc:
+(struct Circle |r : f64|)
+(enum Shape
+    Round
+    Oval |stretch : f64|)
+(define area = {fn |c : Circle -> f64| (* 3.14 c.r c.r)})
+(define helper = {fn |x : f64 -> f64| x})
+(export Circle Shape)  ; two names in one form                   [9.6.1]
+(export area)          ; a second export form                    [9.6.1]
+(export area)          ; error: area is already exported         [9.6.5]
+(export total)         ; error: total is not defined here        [9.6.2]
+(let local : u32 = 1)
+(export local)         ; error: only a define, struct or enum    [9.6.2]
+; in src/main.tsc:
+(mod geometry::shapes::circle)
+(circle::area (circle::Circle r = 2.0))  ; returns 12.56                [9.6.3]
+circle::Shape.Round                      ; type: circle::Shape          [9.6.3]
+(circle::helper 1.0)                     ; error: helper is not exported  [9.6.4]
+
+;;; 9.7 sugar
 ; 1. All syntactic sugar, such as for (5.10) and fancy strings (5.1.2), is
 ;    built in. Programs cannot define their own yet; macros are planned
-;    (11.8.5).
+;    (11.8.4).
 
-(for |i : u32 = 0| (< i 1) (recur i = (+ i 1)) (print "once"))
-    ; built-in sugar for a loop (5.10.2); prints: once  [9.5.1]
+(for |i : u32 = 0| (< i 1u32) (recur i = (+ i 1u32)) (print "once"))
+    ; built-in sugar for a loop (5.10.2); prints: once  [9.7.1]
 
 ;;;; 10 example programs
 ; Each entry is one complete program. Tags point at the rules each part
@@ -1654,12 +1920,12 @@ first_or                      ; type: [[forall T] [List T] T -> T]              
 ;;; 10.1 fizzbuzz
 (define fizzbuzz = {fn |n : u32 -> string|
     (match n
-        k if (== (% k 15) 0) => "FizzBuzz"        ; k is not bound yet, so it binds n      [6.2.1]
-        k if (== (% k 3) 0)  => "Fizz"            ; arms are tried in order                [5.7.2.1]
-        k if (== (% k 5) 0)  => "Buzz"
-        k                    => (to_string k))})  ; the unguarded arm makes it exhaustive  [5.7.2.3]
+        k if (== (% k 15u32) 0u32) => "FizzBuzz"        ; k is not bound yet, so it binds n      [6.2.1]
+        k if (== (% k 3u32) 0u32)  => "Fizz"            ; arms are tried in order                [5.7.2.1]
+        k if (== (% k 5u32) 0u32)  => "Buzz"            ; k is a u32, so the literals need u32   [5.1.1.3]
+        k                          => (to_string k))})  ; the unguarded arm makes it exhaustive  [5.7.2.3]
 (define main = {fn |-> Unit|
-    (for |i : u32 = 1| (<= i 15) (recur i = (+ i 1))
+    (for |i : u32 = 1| (<= i 15u32) (recur i = (+ i 1u32))
         (print (fizzbuzz i)))})  ; fizzbuzz is defined above, but could be below  [4.1.2]
                                  ; prints: 1, 2, Fizz, 4, Buzz, Fizz, 7, 8, Fizz, Buzz,
                                  ;         11, Fizz, 13, 14, FizzBuzz, one per line
@@ -1669,12 +1935,12 @@ first_or                      ; type: [[forall T] [List T] T -> T]              
     (loop |i : u32 = 0 total : i32 = 0 -> i32|
         (match (get xs i)
             (Option.Some value = x) => (recur
-                i = (+ i 1)
+                i = (+ i 1u32)
                 total = (+ total x))              ; in tail position, so a jump  [5.9.7]
             Option.None             => total))})  ; past the end of xs           [8.7.2.1]
 (define main = {fn |-> Unit| (do
-    (print (to_string (sum (list 3 4 5))))  ; prints: 12
-    (print (to_string (sum (list)))))})     ; prints: 0; (list) is a [List i32] here  [8.7.1.3]
+    (print (to_string (sum (list 3 4 5))))     ; prints: 12
+    (print (to_string (sum (list [i32])))))})  ; prints: 0; an empty list needs [i32]  [8.7.1.3]
 
 ;;; 10.3 shapes
 (struct Point |x : i32 y : i32|)
@@ -1707,11 +1973,12 @@ first_or                      ; type: [[forall T] [List T] T -> T]              
 
 ;;; 10.4 parsing with Result
 (define parse_age = {fn |text : string -> [Result u32 string]|
-    (match (parse u32 text)
-        (Result.Ok value = n) if (> n 150) => (Result.Error error = "too old")
-        (Result.Ok value = n)              => (Result.Ok value = n)
-        (Result.Error error = _)           =>
-            (Result.Error error = (`not a number: ${t}` text)))})
+    (match (parse [u32] text)
+        (Result.Ok value = n) if (> n 150u32) => (Result.Error [u32] [string] error = "too old")
+        (Result.Ok value = n)                 => (Result.Ok [u32] [string] value = n)
+        (Result.Error error = _)              =>
+            (Result.Error [u32] [string] error = (`not a number: ${t}` text)))})
+    ; patterns take no type arguments; built values do  [7.4.6]
 ; The second arm rebuilds the Ok. Returning the matched value itself would
 ; not compile: it is a [Result u32 ParseError], not a [Result u32 string].
 (define report = {fn |text : string -> string|
@@ -1730,18 +1997,19 @@ first_or                      ; type: [[forall T] [List T] T -> T]              
 (define fold = {fn [forall T U] |xs : [List T] init : U step : [U T -> U] -> U|
     (loop |i : u32 = 0 acc : U = init -> U|
         (match (get xs i)
-            (Option.Some value = x) => (recur i = (+ i 1) acc = (step acc x))
+            (Option.Some value = x) => (recur i = (+ i 1u32) acc = (step acc x))
             Option.None             => acc))})
 (define main = {fn |-> Unit| (do
     (let numbers : [List i32] = (list 1 2 3 4))
-    (print (to_string (fold numbers 0 +)))      ; + as [i32 i32 -> i32]; prints: 10       [8.1.3]
-    (print (to_string (fold numbers 1 *)))      ; prints: 24
-    (print (to_string (fold numbers 0 max)))    ; prints: 4
-    (print (fold (list "a" "b" "c") "" +))      ; + as string concatenation; prints: abc  [8.1.3]
-    (let inc_then_double : [u32 -> u32] = {compose
+    (print (to_string (fold [i32] [i32] numbers 0 + [i32])))    ; prints: 10               [7.4.2]
+    (print (to_string (fold [i32] [i32] numbers 1 * [i32])))    ; prints: 24
+    (print (to_string (fold [i32] [i32] numbers 0 max [i32])))  ; prints: 4
+    (print (fold [string] [string] (list "a" "b" "c") "" + [string]))
+                                                    ; + as string concatenation; prints: abc  [8.1.3]
+    (let inc_then_double = {compose [u32] [u32] [u32]
         {make_adder 1}
-        {fn |n : u32 -> u32| (* n 2)}})         ; annotated: not a literal                [4.3.2]
-    (print (to_string (inc_then_double 5))))})  ; prints: 12                              [5.4.1.4]
+        {fn |n : u32 -> u32| (* n 2u32)}})          ; inc_then_double : [u32 -> u32]          [4.3.2]
+    (print (to_string (inc_then_double 5))))})      ; prints: 12                              [5.4.1.4]
 
 ;;;; 11 open questions
 ; Each item is something this file does not settle yet. (old todo) marks an
@@ -1793,14 +2061,17 @@ first_or                      ; type: [[forall T] [List T] T -> T]              
 ;    more than once? May the source be any value, or only an identifier?
 ; 5. Can a constructor such as Employee or Option.Some be passed as a
 ;    function value, given that it takes its arguments by name?
+; 6. May a program define overloads of its own: one name with several
+;    signatures, picked by the rules of 7.5? That would also need rules for
+;    exporting them, and for which member an import brings in. (todo)
 
 ;;; 11.5 expressions
 ; 1. In what order are a call's arguments evaluated?
 ; 2. Can an integer literal take a float type, as in (let x : f64 = 5)? If
 ;    so, (let r : f64 = (if true 5 2.5)) would compile while
 ;    (if true 5 2.5) does not (5.5.3).
-; 3. Is a literal that does not fit its type, such as (the u8 300), a
-;    compile error?
+; 3. Is a literal that does not fit its type, such as 300u8 or the 300 in
+;    (let x : u8 = 300), a compile error?
 ; 4. What happens on overflow in +, - and *? wrap exists for wraparound on
 ;    purpose.
 ; 5. Does integer / round toward zero or down? What happens on division by
@@ -1814,6 +2085,15 @@ first_or                      ; type: [[forall T] [List T] T -> T]              
 ;     refer to earlier parameters?
 ; 11. Does an arm that can never apply, such as one after a _ arm, warn?
 ; 12. Literal handling and arithmetic in general. (old todo)
+; 13. Refine the number literal rules (1.3.1.3, 5.1.1). (todo)
+;     - Which suffixes exist, and how do they combine with other formats
+;       (11.1.2), as in 1_000u32 or 0xFFu8?
+;     - May an integer literal take a float suffix, as in 5f64 (see 2)?
+;     - Should an overloaded call let an unsuffixed literal take the type of
+;       its other operands, so that (+ i 1) works with i : u32? Today it is
+;       an error (7.5.5).
+;     - Should a written type reach further into an expression than the
+;       value positions of do, if and match (5.1.1.2)?
 
 ;;; 11.6 patterns
 ; 1. May the fields of a constructor pattern appear in any order?
@@ -1823,35 +2103,83 @@ first_or                      ; type: [[forall T] [List T] T -> T]              
 ;    two .. in a list pattern (6.5.3)?
 
 ;;; 11.7 generics and built-ins
-; 1. How does a call pass a type argument, as the casts do (8.6)? Employee
-;    is both a type and a constructor, so a parser cannot always tell a type
-;    argument from a value argument. (todo)
-; 2. How can a generic function require an operation on a type parameter,
+; 1. How can a generic function require an operation on a type parameter,
 ;    such as +? (old todo: traits for generics)
-; 3. What does (list) mean when no type is expected?
-; 4. Is == structural on structs, enums and lists? What about a struct with
+; 2. Is == structural on structs, enums and lists? What about a struct with
 ;    a function field?
-; 5. Which conversions count as wider for as? Is i32 to f64 wider? i64 to
+; 3. Which conversions count as wider for as? Is i32 to f64 wider? i64 to
 ;    f64? u32 to i64? What does try_as do with a float that has a fraction,
 ;    and how are floats turned into integers?
-; 6. What text does to_string produce for floats, bools, structs, enums and
+; 4. What text does to_string produce for floats, bools, structs, enums and
 ;    lists? What does debug print?
-; 7. Which list operations exist: len, push, map, filter, fold? (len is used
+; 5. Which list operations exist: len, push, map, filter, fold? (len is used
 ;    hypothetically in 8.7.2.) Does get work on strings or maps?
-; 8. Can the operand of the be any value, or only a literal?
+; 6. May a generic function be passed without its type arguments, so that
+;    the function receiving it gives them? Its parameter would need a type
+;    such as [[forall T] T -> T]. Today every use needs them (7.4.4).
 
 ;;; 11.8 programs
-; 1. Modules: mod, export and ::. (old todo)
-; 2. Input and output beyond print, such as reading input or files. (old
+; 1. Input and output beyond print, such as reading input or files. (old
 ;    todo)
-; 3. Command-line arguments, and exit codes from main.
-; 4. More error management, such as passing a Result.Error along without a
+; 2. Command-line arguments, and exit codes from main.
+; 3. More error management, such as passing a Result.Error along without a
 ;    match at every step. (old todo)
-; 5. Macros, so programs can define their own sugar. (old notes: "macros
+; 4. Macros, so programs can define their own sugar. (old notes: "macros
 ;    will come later")
+; 5. Is there a standard library, and which of its names are unqualified?
+;    (todo) Today every built-in (section 8) and every built-in type
+;    (section 3) is unqualified, while 9.4.6 brings nothing from a module in
+;    unqualified. Three ways to settle this:
+;    a. Everything unqualified. The whole standard library is in scope in
+;       every file, as the built-ins are now.
+;       pro: nothing to import; short programs stay short
+;       pro: matches the current spec, so nothing in sections 3 to 8 changes
+;       con: every standard name is taken in every file, and the set grows
+;            with each new structure (hash_map, rb_tree, ...)
+;       con: a reader cannot tell a standard name from a local one, and
+;            searching for a structure's uses does not work as it does
+;            for aliases (9.4.8)
+;       con: adding a name to the library can break programs that already
+;            define it
+;    b. Everything qualified. Every standard module is imported with mod,
+;       Option included: (mod std::option), then option::Option.Some.
+;       pro: one rule for every module, with no exceptions to 9.4.6
+;       pro: every dependency, even on the library, is listed at the top
+;            of the file
+;       con: Option, Result and List are used almost everywhere, so nearly
+;            every file starts with the same imports
+;       con: core types become long to write: [option::Option T]
+;    c. A small unqualified prelude, plus qualified modules. Core names
+;       come in automatically. Specialized structures live under std:: and
+;       need mod:
+;         unqualified:  primitives, Unit, Never, List, Option, Result, the
+;                       built-ins of section 8
+;         qualified:    (mod std::collections::hash_map), then
+;                       hash_map::HashMap; likewise rb_tree, deque, sets,
+;                       and I/O beyond print (11.8.1)
+;       pro: common code stays short, and specialized structures are
+;            visible at the top of each file that uses them
+;       pro: the prelude stays fixed and small, so new structures are added
+;            under std:: without taking names in every file
+;       pro: this is the usual approach (Rust's prelude, Haskell's Prelude)
+;       con: two kinds of standard name, and a line to draw between them;
+;            the line is a judgment call that has to be defended
+;       con: moving a name across the line later breaks programs
+;    Leaning (added during the rewrite, not yet confirmed): c.
+;    Questions that follow from c:
+;    - Is [Map K V] (3.5) in the prelude, or does it move to std::?
+;    - Can a program define a name the prelude already has, such as its own
+;      Option? Is that an error, a warning, or allowed?
+;    - Is std a reserved first segment, so a project cannot have a std/
+;      directory? Do 9.5's sibling and internal rules apply inside std?
+;    - Is the prelude a real module, std::prelude, that can also be written
+;      qualified?
+; 6. Can a module re-export items from a module it imports?
+; 7. Is whitespace allowed around :: as it is around : (1.2.1)?
+; 8. Where is the project root (9.3.2), and how does the compiler find it?
 
 ;;; 11.9 hypothetical examples
 ; Examples marked hypothetical:, and what each one assumes.
 ; 1. 7.2: [Tree T] refers to itself (11.3.8).
 ; 2. 8.3: (/ 0.0 0.0) produces NaN (11.5.5).
-; 3. 8.7.2: len exists (11.7.7).
+; 3. 8.7.2: len exists (11.7.5).

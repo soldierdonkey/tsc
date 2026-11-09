@@ -22,7 +22,7 @@ const KEYWORDS = ["fn", "define", "let", "do", "if", "map"];
 const BUILTINS = [
   "+", "-", "*", "/", "=", "<", ">", "<=", ">=", "exp",
   "not", "or", "and", "xor", "bit-not", "bit-or", "bit-and", "bit-xor",
-  "the", "as", "try-as", "wrap", "parse", "to-string", "panic", "assert",
+  "as", "try-as", "wrap", "parse", "to-string", "panic", "assert",
 ].sort((a, b) => b.length - a.length).map(esc);
 const PRIMITIVES = ["u8", "u16", "u32", "u64", "i8", "i16", "i32", "i64", "f32", "f64", "bool", "string"];
 const CONSTANTS = ["true", "false", "Unit", "Never", "None"];
@@ -180,7 +180,7 @@ const grammar = {
 
     atom: {
       patterns: [
-        { match: `${START}-?\\d+(?:\\.\\d+)?${END}`, name: "constant.numeric.tsc" },
+        { match: `${START}-?\\d+(?:\\.\\d+)?(?:[ui](?:8|16|32|64)|f(?:32|64))?${END}`, name: "constant.numeric.tsc" },
         { match: word(KEYWORDS), name: "keyword.control.tsc" },
         { match: word(CONSTANTS), name: "constant.language.tsc" },
         { match: word(BUILTINS), name: "support.function.builtin.tsc" },
