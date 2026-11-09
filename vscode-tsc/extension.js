@@ -1,9 +1,10 @@
 const vscode = require("vscode");
 
-// A line starting with two or more semicolons is a section header.
+// A line starting with two or more semicolons is a header (spec 0.1.1), except
+// ;;: which is an ordinary comment (spec 1.1.3).
 // A header with N semicolons runs until the next header with N or more
 // semicolons, so ;; ends at the next ;; or ;;;, and ;;; contains its ;; sections.
-const HEADER = /^\s*(;{2,})/;
+const HEADER = /^\s*(;{2,})(?!:)/;
 
 function headerRanges(doc) {
   const ranges = [];

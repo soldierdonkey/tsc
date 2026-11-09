@@ -77,6 +77,9 @@
 ; 3. A token that starts with - followed by a digit is a number literal. A
 ;    literal's type suffix (1.3.1.3) is part of the same token.
 ; 4. A line break is whitespace, except that it ends a comment.
+; 5. ^ is always a token of its own. It is written directly before the name
+;    it pins (6.7), with no whitespace between them.
+;    why?: ^name then reads as one unit, like -5
 
 (+ x y)        ; same as ( + x y )                   [1.2.1]
 |x: u32|       ; same as |x : u32|                   [1.2.1]
@@ -87,6 +90,8 @@ string->u32    ; three tokens: string -> u32         [1.2.2]
 (- 5)          ; a call of - on 5; returns -5 (8.2)  [1.2.3]
 (+ 1
    2)  ; the line break is just whitespace; returns 3  [1.2.4]
+^LUCKY         ; two tokens: ^ and LUCKY             [1.2.5]
+^ LUCKY        ; error: ^ is written directly before the name  [1.2.5]
 
 ;;; 1.3 literals
 
@@ -213,6 +218,7 @@ export  ; exports a define, enum, or struct (9.6)
 =>  ; separates a match arm's pattern from its value (5.7.1)
 _   ; the wildcard pattern (6.1)
 @   ; binds a whole value in a pattern (6.6)
+^   ; pins a name in a pattern, so it compares instead of binding (6.7)
 ..  ; skips items in a pattern, or copies fields in construction (4.4.4)
 =   ; binds: define, let, defaults, bindings, field patterns
 ;   ; starts a comment (1.1)
@@ -334,6 +340,7 @@ make_adder               ; type: [u32 -> [u32 -> u32]], written bare            
 ;; 2.5.3 arms and patterns
 <Pattern T>      ; a pattern that matches values of type T (6)
 <Field Pattern>  ; <Identifier> = <Pattern>: a field, and the pattern its value must match
+<Pin>            ; ^<Identifier>, or ^ and a qualified name: a name that compares (6.7)
 <Guard>          ; if <Value bool>
 <Arm T U>        ; <Pattern T> <Guard>? => <Value U>, or <Pattern T> <Guard>? => next
 
@@ -542,6 +549,28 @@ numbers.i        ; error: numbers.i is field access, and a list has no field i  
 ;    block to the end of the block.
 ; 4. When a block ends, the names it bound go out of scope, and their values
 ;    are dropped unless something still refers to them (9.2.2).
+; 5. A local binding may reuse the name of any local binding in scope, in
+;    the same block or an outer one. This is shadowing. The new binding may
+;    have a different type. Local bindings are made by let, by parameters
+;    (5.4.1, 5.8, 5.10) and by patterns (6).
+;    why?: bindings are immutable, so shadowing is how a value is refined
+;    step by step without inventing a new name for each step
+; 6. Shadowing changes no binding. The shadowed one is unreachable by name
+;    until the shadowing one goes out of scope. A fn that captured it
+;    (5.4.1.4) keeps it.
+; 7. Two top-level names may not be the same. This covers define, struct,
+;    enum, mod aliases (9.4) and the built-in names of sections 3 and 8.
+; 8. A local binding that hides a top-level or built-in name is a warning.
+;    A pattern never hides one: a top-level name in a pattern compares
+;    (6.2.2).
+;    why?: a new global or built-in can then never break local code, only
+;    warn
+; 9. No binding, top-level or local, may take the name of a keyword (2.2)
+;    or a special form (8.1.2). This covers let, parameters and patterns,
+;    and it is an error, not the warning of 8.
+;    why?: keywords and special forms are not values (2.2.1, 2.2.2), so a
+;    binding by one of their names could never be read the way the name
+;    reads elsewhere; a fixed, short list costs local code little
 
 (define is_even = {fn |n : u32 -> bool| (if (== n 0u32) true (is_odd (- n 1u32)))})
 (define is_odd = {fn |n : u32 -> bool| (if (== n 0u32) false (is_even (- n 1u32)))})
@@ -561,6 +590,32 @@ numbers.i        ; error: numbers.i is field access, and a list has no field i  
     (let total : u32 = 1)
     (= total 2)  ; error: there is no assignment; = only appears inside binding forms  [4.1.1]
     total)
+(do
+    (let n : u32 = 5)
+    (let n = (+ n 1u32))     ; the right side still sees the old n; n : u32  [4.1.5, 4.1.3]
+    (let n = (to_string n))  ; n : string; a shadow may change the type      [4.1.5]
+    n)                       ; returns "6"
+(do
+    (let x : u32 = 1)
+    (do (let x : u32 = 2) x)  ; returns 2; the inner x shadows the outer one  [4.1.5]
+    x)                        ; returns 1; the outer x is back                [4.1.6]
+(do
+    (let x : u32 = 1)
+    (let get_x = {fn |-> u32| x})
+    (let x : u32 = 2)
+    (get_x))  ; returns 1; get_x kept the x it captured  [4.1.6]
+(define MAX_SIZE : u32 = 10)
+(define MAX_SIZE : u32 = 20)  ; error: MAX_SIZE is already bound      [4.1.7]
+(struct MAX_SIZE |n : u32|)   ; error: MAX_SIZE is already bound      [4.1.7]
+(define list = 1)             ; error: list is a built-in name (8.7)  [4.1.7]
+(define greeting = "hi")
+(do (let greeting = "hey") greeting)
+    ; returns "hey"; warning: greeting hides a top-level name  [4.1.8]
+(do (let list = (list 1 2)) list)
+    ; returns the list; warning: list hides a built-in name   [4.1.8]
+(define debug = 1)             ; error: debug is a special form                [4.1.9]
+(do (let print = "hi") print)  ; error: print is a special form, not a warning [4.1.9]
+({fn |if : u32 -> u32| if} 1)  ; error: a parameter may not be named if        [4.1.9]
 
 ;;; 4.2 define
 (define <Annotated T> = <Value T>) -> Unit
@@ -597,6 +652,7 @@ numbers.i        ; error: numbers.i is field access, and a list has no field i  
 ; 3. let at the top level is legal, but it is an anti-pattern: use define.
 ;    why: a top-level define can be exported and used before the line it is
 ;    on, so a top-level let only adds an ordering constraint
+; 4. let may shadow an earlier binding (4.1.5).
 
 (do
     (let some_other_number : u32 = (+ [u32] 2 5))  ; annotated           [4.3.1]
@@ -604,6 +660,7 @@ numbers.i        ; error: numbers.i is field access, and a list has no field i  
     (let inc = {fn |x : u32 -> u32| (+ x 1u32)})   ; inc : [u32 -> u32]  [4.3.2]
     (inc some_other_number))                       ; returns 8
 (do (let doubled = (* 2 3)) doubled)  ; returns 6; doubled : i32                 [4.3.2]
+(do (let s = "hi") (let s = (+ s "!")) s)  ; returns "hi!"                       [4.3.4]
 (let top_level_number : u32 = 7)      ; legal at the top level, but use define  [4.3.3]
 
 ;;; 4.4 struct
@@ -886,6 +943,10 @@ bob.salary                                   ; returns 2.5, copied from jane    
 ;    function keeps those values alive (9.2.2).
 ; 5. The type F of the fn is built from its parameter and output types:
 ;    |x : u32 y : u32 -> u32| gives [u32 u32 -> u32].
+; 6. A parameter may shadow any local in scope where the fn is written
+;    (4.1.5). When fns nest, the innermost parameter wins. A parameter that
+;    hides a top-level or built-in name warns (4.1.8).
+; 7. Two parameters of one signature may not have the same name.
 
 {fn |x : u32 y : u32 -> u32| (+ x y)}  ; a simple adder, like + on u32s
 {                                   }  ; a fn is a function value, so it is wrapped in { }
@@ -904,6 +965,15 @@ bob.salary                                   ; returns 2.5, copied from jane    
 (define make_adder = {fn |x : u32 -> [u32 -> u32]|
     {fn |y : u32 -> u32| (+ x y)}})  ; the inner fn uses the outer x  [5.4.1.4]
 ({make_adder 10} 5)  ; returns 15; x = 10 lives on in the inner fn  [5.4.1.4]
+(define inner_wins = {fn |x : u32 -> [u32 -> u32]|
+    {fn |x : u32 -> u32| x}})  ; the inner x shadows the outer x  [5.4.1.6]
+({inner_wins 10} 5)  ; returns 5; the innermost x wins            [5.4.1.6]
+(do
+    (let n : u32 = 1)
+    ({fn |n : u32 -> u32| (* n 2u32)} 4))  ; returns 8; the parameter n shadows the let  [5.4.1.6]
+{fn |greeting : string -> string| greeting}
+    ; warning: greeting hides a top-level name (4.1.8)  [5.4.1.6]
+{fn |x : u32 x : u32 -> u32| x}  ; error: two parameters are named x  [5.4.1.7]
 
 ;; 5.4.2 default parameters
 ; 1. A parameter written name : Type = value has a default, used when a call
@@ -911,6 +981,9 @@ bob.salary                                   ; returns 2.5, copied from jane    
 ; 2. A default may be a function value. Its fn brings a second pair of bars
 ;    into the signature, kept apart by its { } (2.6.3).
 ;    why: "bracketing allows this to be possible"
+; 3. A default may use the parameters before it. As with let (4.1.3), each
+;    parameter is visible from the next parameter on, so a default never
+;    sees its own parameter or a later one.
 
 (define adder_default = {fn |x : u32 y : u32 = 5 -> u32| (+ x y)})
 (adder_default 2)    ; returns 7; y defaults to 5  [5.4.2.1]
@@ -920,6 +993,11 @@ bob.salary                                   ; returns 2.5, copied from jane    
     (f x)})
 (apply_or_inc 1)                  ; returns 2, using the default f  [5.4.2.2]
 (apply_or_inc 1 {make_adder 10})  ; returns 11                      [5.4.2.2]
+(define span = {fn |start : u32 stop : u32 = (+ start 10u32) -> u32| (- stop start)})
+(span 5)    ; returns 10; stop defaults to 15, using start  [5.4.2.3]
+(span 5 7)  ; returns 2                                     [5.4.2.3]
+{fn |x : u32 = y y : u32 = 1 -> u32| x}  ; error: y is not visible yet  [5.4.2.3]
+{fn |x : u32 = x -> u32| x}              ; error: x is not visible in its own default  [5.4.2.3]
 
 ;; 5.4.3 named functions
 ; 1. In {fn name <Signature> <Value T>}, name is bound to the function
@@ -928,6 +1006,10 @@ bob.salary                                   ; returns 2.5, copied from jane    
 ;    why: factorial in the example below is not bound until after the fn is
 ;    evaluated, so without fact the body could not refer to it
 ; 3. The name is not bound outside the fn.
+; 4. The name may not be the same as one of the fn's parameters.
+;    why?: the parameter would hide the name, so the fn could not call
+;    itself, and the name would be pointless
+; 5. The name may shadow a binding outside the fn (4.1.5).
 
 (do
     (let factorial = {fn fact |n : u64 -> u64|
@@ -942,6 +1024,10 @@ bob.salary                                   ; returns 2.5, copied from jane    
 (do
     (let factorial = {fn fact |n : u64 -> u64| (if (== n 0u64) 1 (* n (fact (- n 1u64))))})
     (fact 5))  ; error: fact is only bound inside the fn  [5.4.3.3]
+{fn n |n : u64 -> u64| n}  ; error: the fn's name n is also a parameter  [5.4.3.4]
+(do
+    (let fact = {fn fact |n : u64 -> u64| (if (== n 0u64) 1 (* n (fact (- n 1u64))))})
+    (fact 5))  ; returns 120; inside the body, fact is the fn itself  [5.4.3.5]
 
 ;;; 5.5 if
 (if <Value bool> <Value T> <Value T>) -> T
@@ -1011,7 +1097,7 @@ bob.salary                                   ; returns 2.5, copied from jane    
     (Weapon.Sword sword = sword)          => sword.legendary  ; binds sword      [5.7.1.3]
     (Weapon.Bow damage = d) if (> d 10.0) => true             ; a guard          [5.7.1.2]
     (Weapon.Bow damage = _)               => false            ; _ binds nothing  [5.7.1.6]
-    Weapon.Fist                           => false)           ; returns false    [5.7.1.1]
+    ^Weapon.Fist                          => false)           ; returns false    [5.7.1.1]
 (match 3
     n if (> n 2) => "big"
     n            => "small")  ; returns "big"; each n is a separate binding  [5.7.1.3]
@@ -1047,7 +1133,7 @@ bob.salary                                   ; returns 2.5, copied from jane    
 (match weapon
     (Weapon.Sword sword = _)               => false
     (Weapon.Bow damage = d) if (> d 10.0)  => true
-    Weapon.Fist                            => false)
+    ^Weapon.Fist                           => false)
     ; error: not exhaustive; the guarded arm does not cover every Bow  [5.7.2.3]
 
 ;; 5.7.3 next
@@ -1065,7 +1151,7 @@ bob.salary                                   ; returns 2.5, copied from jane    
 {match gunbow
     (Weapon.Sword sword = _) => {fn |-> string| "sword"}
     (Weapon.Bow damage = _)  => next
-    Weapon.Fist              => {fn |-> string| "other"}}
+    ^Weapon.Fist             => {fn |-> string| "other"}}
     ; type: [-> string]; gunbow gets the Fist arm's value         [5.7.3.1]
     ; the Bow and Fist arms both bind nothing, so they may share  [5.7.3.2]
 (match 2
@@ -1103,6 +1189,9 @@ bob.salary                                   ; returns 2.5, copied from jane    
 ;    that ends without calling recur.
 ; 5. When the output type is a function type, the loop is written in { },
 ;    and so are the forms inside that produce its value (2.4.2.1).
+; 6. Loop parameters follow the rules for fn parameters: they may shadow
+;    (5.4.1.6), may not repeat a name (5.4.1.7), and their defaults see the
+;    parameters before them (5.4.2.3).
 
 (loop |number : u32 = 1 -> Unit| (do
     (print (`hello ${number}` (to_string number)))
@@ -1124,6 +1213,8 @@ bob.salary                                   ; returns 2.5, copied from jane    
     {if (< n 3u32)
         {recur n = (+ n 1u32)}
         {make_adder n}}}  ; type: [u32 -> u32]; adds 3  [5.8.5]
+(loop |i : u32 = 0 i : u32 = 1 -> u32| i)  ; error: two parameters are named i  [5.8.6]
+(loop |lo : u32 = 2 hi : u32 = (* lo 3u32) -> u32| hi)  ; returns 6; hi's default uses lo  [5.8.6]
 
 ;;; 5.9 recur
 (recur <Binding>...) -> T
@@ -1190,6 +1281,7 @@ bob.salary                                   ; returns 2.5, copied from jane    
 ; 3. The condition is checked before every pass. If it holds, the body runs,
 ;    then the step starts the next pass. Otherwise the for returns ().
 ; 4. As in loop, every parameter needs a default (5.8.1).
+; 5. As in loop, the parameters follow the rules for fn parameters (5.8.6).
 
 (for |i : u32 = 0| (< i 3u32) (recur i = (+ i 1u32))
     (print (to_string i)))  ; prints: 0  [5.10.3]
@@ -1204,6 +1296,8 @@ bob.salary                                   ; returns 2.5, copied from jane    
     ; error: for takes no ->          [5.10.1]
 (for |i : u32| (< i 3u32) (recur i = (+ i 1u32)) (print "x"))
     ; error: i has no starting value  [5.10.4]
+(for |i : u32 = 0 i : u32 = 5| (< i 3u32) (recur i = (+ i 1u32)) (print "x"))
+    ; error: two parameters are named i (5.4.1.7)  [5.10.5]
 
 ;;;; 6 patterns
 ; A pattern either matches a value or does not. A pattern that matches may
@@ -1222,30 +1316,48 @@ _
 
 ;;; 6.2 identifiers
 <Identifier>
-; 1. An identifier that is not yet bound matches any value, and binds it to
-;    that name.
-; 2. An identifier that is already bound matches only a value equal to the
-;    one it is bound to (8.3). This is how fieldless variants such as
-;    Weapon.Fist, and constants such as PI, are matched.
+; 1. An identifier matches any value, and binds it to that name. If a local
+;    binding has the same name, the new binding shadows it (4.1.5).
+; 2. An identifier that names a top-level or built-in name does not bind.
+;    It matches only a value equal to that name's value (8.3), and warns
+;    unless it is pinned (6.7).
+;    why?: a pattern never hides a top-level name (4.1.8), and the warning
+;    makes every comparison visible as ^
+; 3. One pattern may not bind the same name twice. To require two parts to
+;    be equal, bind them to different names and compare them in a guard.
 
 (match 4
     n => (* n 2))  ; returns 8; n binds 4  [6.2.1]
-(define LUCKY : i32 = 7)
-(match 7
-    LUCKY => "lucky"
-    _     => "plain")  ; returns "lucky"; LUCKY is bound, so it is compared  [6.2.2]
-(match Weapon.Fist
-    Weapon.Fist => "fist"
-    _           => "armed")  ; returns "fist"  [6.2.2]
 (do
     (let target : i32 = 3)
     (match 5
         target => "hit"
-        _      => "miss"))  ; returns "miss": target is bound, so it compares  [6.2.2]
+        _      => "miss"))
+    ; returns "hit": target binds 5, shadowing the let;
+    ; warning: target is never used (5.7.1.6)  [6.2.1]
 (do
     (let target : i32 = 3)
     (match 5
-        n => (+ n target)))  ; returns 8: n is not bound yet, so it binds  [6.2.1]
+        ^target => "hit"
+        _       => "miss"))  ; returns "miss": ^target compares with 3  [6.7.1]
+(do
+    (let target : i32 = 3)
+    (match 5
+        n => (+ n target)))  ; returns 8: n binds, and target is the let  [6.2.1]
+(define LUCKY : i32 = 7)
+(match 7
+    ^LUCKY => "lucky"
+    _      => "plain")  ; returns "lucky"; LUCKY is pinned, so it compares  [6.2.2]
+(match 7
+    LUCKY => "lucky"
+    _     => "plain")
+    ; returns "lucky"; warning: LUCKY is top-level, so it compares; write ^LUCKY  [6.2.2]
+(match (list 1 1)
+    (list x x) => "same"
+    _          => "different")  ; error: x is bound twice in one pattern  [6.2.3]
+(match (list 1 1)
+    (list x y) if (== x y) => "same"
+    _                      => "different")  ; returns "same"  [6.2.3]
 
 ;;; 6.3 literals
 <Literal>
@@ -1261,7 +1373,7 @@ _
 (match (Option.Some [i32] value = 0)
     (Option.Some value = 0) => "zero"
     (Option.Some value = _) => "other"
-    Option.None             => "none")  ; returns "zero"; a literal inside a pattern  [6.3.1]
+    ^Option.None            => "none")  ; returns "zero"; a literal inside a pattern  [6.3.1]
 
 ;;; 6.4 constructor patterns
 (<Identifier> <Field Pattern>...)
@@ -1275,15 +1387,16 @@ _
 ; 4. Every field must be listed, unless the pattern ends with .., which
 ;    skips the remaining fields. .. may only come last.
 ; 5. A variant with no fields is matched by its name alone, without
-;    parentheses (6.2.2).
+;    parentheses. Like a top-level name, it compares, and warns unless it
+;    is pinned: ^Weapon.Fist (6.2.2, 6.7).
 
 (match (Option.Some [i32] value = 3)
     (Option.Some value = v) => v
-    Option.None             => 0)  ; returns 3  [6.4.1]
+    ^Option.None            => 0)  ; returns 3  [6.4.1]
 (match (Option.Some [Option i32] value = (Option.Some [i32] value = 3))
     (Option.Some value = (Option.Some value = x)) => x
-    (Option.Some value = Option.None)             => 0
-    Option.None                                   => -1)
+    (Option.Some value = ^Option.None)            => 0
+    ^Option.None                                  => -1)
     ; returns 3; patterns nest  [6.4.1]
 (match (Person.Hacker person = (Hacker skill = "backdoors" salary = 1.0))
     (Person.Hacker person = (Hacker skill = s ..))     => s
@@ -1310,7 +1423,7 @@ _
 (do
     (let nothing : [Option i32] = Option.None [i32])
     (match nothing
-        Option.None             => "none"
+        ^Option.None            => "none"
         (Option.Some value = _) => "some"))  ; returns "none"  [6.4.5]
 
 ;;; 6.5 list patterns
@@ -1362,16 +1475,70 @@ _
     e @ (Employee age = a ..) if (> a 18u32) => e.name
     _                                        => "minor")  ; returns "jane"  [6.6.1]
 
+;;; 6.7 pins
+<Pin>
+; 1. ^name matches only a value equal to the value bound to name (8.3). A
+;    pin binds nothing.
+; 2. The pinned name must already be bound outside the pattern: a local, a
+;    top-level or built-in name, or a variant with no fields, written in
+;    full. Pinning anything else is an error.
+; 3. Since a pin binds nothing, it may sit between two .. in a list pattern
+;    (6.5.3).
+; 4. The name before @ always binds (6.6), so it cannot be pinned.
+;    why?: with ^, a pattern's meaning is visible from the pattern alone.
+;    Adding a define or a let elsewhere never turns a binding into a
+;    comparison
+
+(match Weapon.Fist
+    ^Weapon.Fist => "fist"
+    _            => "armed")  ; returns "fist"  [6.7.2]
+(match Weapon.Fist
+    Weapon.Fist => "fist"
+    _           => "armed")  ; returns "fist"; warning: write ^Weapon.Fist  [6.4.5]
+(do
+    (let limit : i32 = 3)
+    (match (Option.Some [i32] value = 3)
+        (Option.Some value = ^limit) => "at the limit"
+        _                            => "elsewhere"))
+    ; returns "at the limit"; a pin inside a constructor pattern  [6.7.1]
+(match 5
+    ^missing => 1
+    _        => 0)  ; error: missing is not bound  [6.7.2]
+(do
+    (let middle : i32 = 3)
+    (match (list 1 2 3 4 5)
+        (list 1 .. ^middle .. 5) => "has it"
+        _                        => "lacks it"))
+    ; returns "has it"; a pin may sit between two ..  [6.7.3]
+(match jane
+    ^e @ (Employee ..) => e.name)  ; error: the name before @ always binds  [6.7.4]
+
 ;;;; 7 generics
 
 ;;; 7.1 type parameters
 ; 1. Every type parameter must be declared: in a type header for a struct or
 ;    enum (7.2), or in a forall list for a function (7.3).
+; 2. A type parameter may not reuse the name of a type parameter that is
+;    already in scope, such as one from an enclosing generic fn.
+;    why: it promotes messy code for no benefit
+; 3. A type parameter may not have the name of an existing type, built-in or
+;    defined. The error suggests the type's first letter, or its name with
+;    the suffix Type: E or EmployeeType for Employee.
 ; There is no way yet to require that a type parameter supports an
 ; operation such as + (11.7.1).
 
 (struct Box |item : T|)  ; error: T is not declared; write (struct [Box T] |item : T|)     [7.1.1]
 {fn |x : T -> T| x}      ; error: T is not declared; write {fn [forall T] |x : T -> T| x}  [7.1.1]
+{fn [forall T] |x : T -> T| (do
+    (let keep_x = {fn [forall U] |y : U -> T| x})
+    (keep_x [i32] 1))}  ; fine: U is a new name  [7.1.2]
+{fn [forall T] |x : T -> T| (do
+    (let keep_x = {fn [forall T] |y : T -> T| y})
+    (keep_x [i32] 1))}  ; error: T is already a type parameter here  [7.1.2]
+(struct [Holder Employee] |item : Employee|)
+    ; error: Employee is an existing type; write E or EmployeeType  [7.1.3]
+{fn [forall string] |x : string -> string| x}
+    ; error: string is a built-in type; write S or StringType     [7.1.3]
 
 ;;; 7.2 generic structs and enums
 (struct <Type Header> <Fields>) -> Unit
@@ -1428,7 +1595,7 @@ Pair.first                               ; type: [[forall A B] [Pair A B] -> A] 
 (define first_or = {fn [forall T] |xs : [List T] fallback : T -> T|
     (match (get xs 0)  ; ( ) even though T could be a function  [7.3.4]
         (Option.Some value = first) => first
-        Option.None                 => fallback)})
+        ^Option.None                => fallback)})
 first_or                                     ; type: [[forall T] [List T] T -> T]           [7.3.2]
 (first_or [i32] (list 4 5 6) 0)              ; returns 4; T is i32                          [7.3.3]
 (first_or [string] (list [string]) "none")   ; returns "none"; T is string                  [7.3.3]
@@ -1483,7 +1650,7 @@ first_or [i32]                     ; type: [[List i32] i32 -> i32]            [7
     ; error: type arguments follow a name; bind the fn first  [7.4.5]
 (match (Option.Some [i32] value = 3)
     (Option.Some value = v) => v
-    Option.None             => 0)  ; returns 3; the pattern takes no type arguments  [7.4.6]
+    ^Option.None            => 0)  ; returns 3; the pattern takes no type arguments  [7.4.6]
 
 ;;; 7.5 overloads
 ; 1. A built-in function that works on several types is overloaded: it has
@@ -1508,7 +1675,7 @@ first_or [i32]                     ; type: [[List i32] i32 -> i32]            [7
 ;    appears. Passing an overloaded built-in as a value always needs its
 ;    type arguments: + [u32].
 ; 7. Only built-ins are overloaded. A program cannot bind one name twice, so
-;    it cannot define overloads of its own (11.4.6).
+;    it cannot define overloads of its own (11.4.5).
 ;    why?: a call's member always follows from what is written in the call
 
 (let x : u32 = 7)
@@ -1532,8 +1699,9 @@ first_or [i32]                     ; type: [[List i32] i32 -> i32]            [7
 ;    side effects, is a function. Like any function value, it can be bound,
 ;    passed and returned.
 ; 2. The other built-ins are special forms: print, panic, assert and debug.
-;    Like keywords, they can only be called, never passed. A fn that calls
-;    one is still an ordinary function value.
+;    Like keywords, they can only be called, never passed, and no binding
+;    may take their names (4.1.9). A fn that calls one is still an ordinary
+;    function value.
 ; 3. A built-in function that works on several types, such as +, is
 ;    overloaded (7.5). A call picks its member from the types of its
 ;    arguments. Passing it as a value needs type arguments: + [u32].
@@ -1827,6 +1995,9 @@ first_or [i32]                     ; type: [[List i32] i32 -> i32]            [7
 ;    why?: the default is the last segment, not the last two, because
 ;    collisions are rare, and internal (9.5.1) would make many two-segment
 ;    aliases read internal::x
+; 9. An alias may not have the name of a define, struct or enum of the same
+;    module, or a built-in name (4.1.7). A local may hide an alias, with a
+;    warning (4.1.8).
 
 ; as a whole program, in src/main.tsc:
 (mod geometry::shapes::circle)                   ; binds the alias circle     [9.4.3]
@@ -1844,6 +2015,8 @@ first_or [i32]                     ; type: [[List i32] i32 -> i32]            [7
 (mod shapes)                           ; error: no module has the path shapes     [9.4.2]
 (define f = circle)                    ; error: an alias is not a value           [9.4.7]
 (circle::area)                         ; error: area needs its argument c         [9.4.6]
+(define circle = 1.0)                  ; error: circle is already an alias       [9.4.9]
+(do (let circle = 1.0) circle)         ; returns 1.0; warning: circle is also an alias  [9.4.9]
 
 ;;; 9.5 visibility of modules
 ; 1. A module whose path contains the segment internal can only be imported
@@ -1937,7 +2110,7 @@ circle::Shape.Round                      ; type: circle::Shape          [9.6.3]
             (Option.Some value = x) => (recur
                 i = (+ i 1u32)
                 total = (+ total x))              ; in tail position, so a jump  [5.9.7]
-            Option.None             => total))})  ; past the end of xs           [8.7.2.1]
+            ^Option.None            => total))})  ; past the end of xs           [8.7.2.1]
 (define main = {fn |-> Unit| (do
     (print (to_string (sum (list 3 4 5))))     ; prints: 12
     (print (to_string (sum (list [i32])))))})  ; prints: 0; an empty list needs [i32]  [8.7.1.3]
@@ -1998,7 +2171,7 @@ circle::Shape.Round                      ; type: circle::Shape          [9.6.3]
     (loop |i : u32 = 0 acc : U = init -> U|
         (match (get xs i)
             (Option.Some value = x) => (recur i = (+ i 1u32) acc = (step acc x))
-            Option.None             => acc))})
+            ^Option.None            => acc))})
 (define main = {fn |-> Unit| (do
     (let numbers : [List i32] = (list 1 2 3 4))
     (print (to_string (fold [i32] [i32] numbers 0 + [i32])))    ; prints: 10               [7.4.2]
@@ -2028,9 +2201,7 @@ circle::Shape.Round                      ; type: circle::Shape          [9.6.3]
 ; 6. What does a doc comment (;:) attach to, and what reads it?
 
 ;;; 11.2 grammar
-; 1. May a program bind a name used by a built-in special form, such as
-;    print?
-; 2. Which keywords are restricted to certain places? define is top level
+; 1. Which keywords are restricted to certain places? define is top level
 ;    only (4.2.1). May struct and enum appear inside a do? (old todo: "remove
 ;    status of certain keywords as Values so they can only be called in
 ;    certain contexts"; 2.2.1 now settles the Values part.)
@@ -2051,17 +2222,15 @@ circle::Shape.Round                      ; type: circle::Shape          [9.6.3]
 ;    written Empty or (Empty)?
 
 ;;; 11.4 declarations
-; 1. May let bind a name that is already bound (shadowing), in the same
-;    block or in an inner one?
-; 2. What happens with a cycle among defines, such as (define A : u32 = B)
+; 1. What happens with a cycle among defines, such as (define A : u32 = B)
 ;    with (define B : u32 = A)?
-; 3. May a define's value have side effects, such as a print? When do they
+; 2. May a define's value have side effects, such as a print? When do they
 ;    run?
-; 4. In (Employee ..source ...), must ..source come first? May it appear
+; 3. In (Employee ..source ...), must ..source come first? May it appear
 ;    more than once? May the source be any value, or only an identifier?
-; 5. Can a constructor such as Employee or Option.Some be passed as a
+; 4. Can a constructor such as Employee or Option.Some be passed as a
 ;    function value, given that it takes its arguments by name?
-; 6. May a program define overloads of its own: one name with several
+; 5. May a program define overloads of its own: one name with several
 ;    signatures, picked by the rules of 7.5? That would also need rules for
 ;    exporting them, and for which member an import brings in. (todo)
 
@@ -2081,8 +2250,8 @@ circle::Shape.Round                      ; type: circle::Shape          [9.6.3]
 ; 8. What does (clamp a b c) return when b > c?
 ; 9. May a call bind arguments by name, as in (f x = 1), the way recur and
 ;    constructors do?
-; 10. When is a default value evaluated: once, or at each call? May it
-;     refer to earlier parameters?
+; 10. When is a default value evaluated: once, or at each call? (Which
+;     parameters it may use is settled in 5.4.2.3.)
 ; 11. Does an arm that can never apply, such as one after a _ arm, warn?
 ; 12. Literal handling and arithmetic in general. (old todo)
 ; 13. Refine the number literal rules (1.3.1.3, 5.1.1). (todo)
@@ -2097,10 +2266,8 @@ circle::Shape.Round                      ; type: circle::Shape          [9.6.3]
 
 ;;; 11.6 patterns
 ; 1. May the fields of a constructor pattern appear in any order?
-; 2. A bound identifier in a pattern compares by value (6.2.2). What if it
-;    is bound to a function, which == cannot compare (8.3.2)?
-; 3. May a bound identifier, which compares rather than binds, sit between
-;    two .. in a list pattern (6.5.3)?
+; 2. A pin compares by value (6.7.1). What if the pinned name is bound to a
+;    function, which == cannot compare (8.3.2)? Is that a compile error?
 
 ;;; 11.7 generics and built-ins
 ; 1. How can a generic function require an operation on a type parameter,
@@ -2168,8 +2335,9 @@ circle::Shape.Round                      ; type: circle::Shape          [9.6.3]
 ;    Leaning (added during the rewrite, not yet confirmed): c.
 ;    Questions that follow from c:
 ;    - Is [Map K V] (3.5) in the prelude, or does it move to std::?
-;    - Can a program define a name the prelude already has, such as its own
-;      Option? Is that an error, a warning, or allowed?
+;    - Settled: a top-level name the prelude already has, such as a
+;      program's own Option, is an error, and a local one warns (4.1.7,
+;      4.1.8). The prelude counts as an import.
 ;    - Is std a reserved first segment, so a project cannot have a std/
 ;      directory? Do 9.5's sibling and internal rules apply inside std?
 ;    - Is the prelude a real module, std::prelude, that can also be written
