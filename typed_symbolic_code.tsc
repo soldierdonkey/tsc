@@ -1891,7 +1891,7 @@ first_or [i32]                     ; type: [[List i32] i32 -> i32]            [7
 (enum Shape
     Round
     Oval |stretch : f64|)
-(define area = {fn |c : Circle -> f64| (* 3.14 c.r c.r)})
+(define area = {fn |c : Circle -> f64| (* 3.14 (* c.r c.r))})
 (define helper = {fn |x : f64 -> f64| x})
 (export Circle Shape)  ; two names in one form                   [9.6.1]
 (export area)          ; a second export form                    [9.6.1]
