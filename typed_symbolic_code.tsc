@@ -41,6 +41,9 @@
 ;    Warnings that come only from an example being a fragment are not
 ;    shown: a binding that no later example reads (4.1.10), or a
 ;    declaration that ends the fragment (2.5.1.3).
+;    A define, struct or enum example has no doc unless the entry is about
+;    docs, and the warning for a missing doc (4.6.8.1) is not shown either.
+;    A doc that is there must still be complete.
 ; 2. A trailing comment states the outcome:
 ;      returns X     the example evaluates to X
 ;      type: T       the example has type T
@@ -63,16 +66,18 @@
 
 ;;; 1.1 comments
 ; 1. A comment starts with ; and runs to the end of the line. The compiler
-;    ignores it.
+;    ignores it, unless it is a doc comment (rule 3).
 ; 2. The number of semicolons at the start of a comment sets its level.
 ;    Levels are for readers and editors, for headers and folding. They never
 ;    change meaning.
 ; 3. A comment starting with exactly ;: is a doc comment. One starting with
-;    ;;: is an ordinary comment. What a doc comment attaches to is open
-;    (11.1.1).
+;    ;;: is an ordinary comment. What a doc comment attaches to, and what it
+;    must say, is in 4.6.
 
 (+ 1 2)  ; a comment after code  [1.1.1]
-;: a doc comment  [1.1.3]
+;: The answer to everything.
+(define ANSWER : u32 = 42)  ; a doc comment, attached to the define below it  [1.1.3]
+;;: an ordinary comment, not a doc  [1.1.3]
 ; this is a level-one comment; at the start of a line, ;; begins a level-two
 ; comment, which this file uses as a sub-entry header  [1.1.2]
 
@@ -379,6 +384,10 @@ true  ; type: bool  [1.3.2.1]
 ;    d. In a struct's field list spread over lines, field names may be
 ;       padded so that every field's : sits in the same column. Either
 ;       every field has one space before its :, or every : lines up.
+; 10. Every line of one doc (4.6.1) starts its ;: in the same column. For a
+;     doc that trails a field or variant, the lines below it are indented
+;     to the column of the first ;:. The text of an example (4.6.2.9) is
+;     indented two spaces past the text of its example: line.
 
 (enum Shape
     Square |side : i32|
@@ -741,19 +750,35 @@ string  ; text, written "like this" (1.3.4)
 Unit   ; a type with exactly one value, written ()
 Never  ; a type with no values
 ; 1. () is the value of an empty expression, such as (do) (5.3).
-; 2. Discarding a Unit value never warns. Discarding a value of any other
-;    type warns (5.3.4).
+; 2. Discarding a Unit or Never value never warns. Discarding a value of
+;    any other type warns (5.3.4).
 ;    why: a discarded non-Unit value was computed for nothing, which is
 ;    usually a mistake
+;    why: a Never expression produces no value, so nothing is discarded
 ; 3. No expression of type Never produces a value. panic returns Never
-;    (8.8). Whether Never fits where another type is expected is open
-;    (11.3.4).
+;    (8.8).
+; 4. A Never value fits wherever a value of any other type is expected:
+;    as an if branch, a match arm, a let's value, an argument or a
+;    function's result.
+;    why?: no Never value is ever produced, so it can never be a value of
+;    the wrong type
+; 5. Code that can only run after a Never expression is unreachable, and
+;    warns. In a do (5.3), every item after an item of type Never is
+;    unreachable.
+;    why?: unreachable code never runs, so it is usually a mistake, such as
+;    a panic left in by accident
 
 ()                  ; type: Unit                                  [3.2.1]
 (do)                ; returns ()                                  [3.2.1]
 (do (print "a") 1)  ; print's () is discarded without a warning   [3.2.2]
 (do (+ 1 2) 1)      ; warning: the i32 from (+ 1 2) is discarded  [3.2.2]
 (panic "stop")      ; type: Never; panics: stop                   [3.2.3]
+(if true 5 (panic))                ; returns 5; the branches fit as i32s  [3.2.4]
+(let size : u32 = (panic "no size"))  ; panics: no size                   [3.2.4]
+(do
+    (panic "stop")  ; the Never is discarded without a warning  [3.2.2]
+    (print "after")
+    1)  ; panics: stop; warning: (print "after") and 1 are unreachable  [3.2.5]
 
 ;;; 3.3 function types
 [T... -> U]  ; a function from parameters of types T... to a U
@@ -1115,6 +1140,385 @@ bob.salary                                   ; returns 2.5, copied from jane    
         salary = 1.0)))
     (print (to_string person_2)))  ; prints person_2 as text (11.7.4)  [4.5.2.1]
 
+;;; 4.6 doc comments
+; A doc comment (1.1.3) documents a define, struct or enum, and every part
+; of it. The compiler reads docs, checks that they are complete, and checks
+; their examples.
+
+;; 4.6.1 attachment
+; 1. A doc is one or more ;: lines with nothing else between them.
+; 2. A doc on the lines directly above a top-level define, struct or enum
+;    documents it. Nothing may come between them, not even a blank line or
+;    an ordinary comment.
+; 3. A field or variant on a line of its own may be documented in place:
+;    by a doc on the lines directly above it, or by a doc that trails it on
+;    its line and continues on the lines below.
+; 4. In one struct, or in one enum, the in-place docs are either all above
+;    or all trailing. A trailing doc runs until the next field or variant.
+;    why?: every ;: line between two fields then belongs to exactly one of
+;    them, without a rule about columns
+; 5. A field that shares its line with other fields is documented by a
+;    field entry (4.6.2.10) in the doc of the struct or variant that holds
+;    it. A variant that shares its line is documented by a variant entry
+;    (4.6.2.11) in the enum's doc.
+; 6. Any field or variant may be documented by an entry instead of in
+;    place. Either way, it is documented exactly once.
+; 7. A doc that documents nothing is an error: one above a let, an export,
+;    an expression or a blank line, one that trails anything other than a
+;    field or variant, or one at the end of a file.
+
+;: The ratio of a circle's circumference to its diameter.
+(define PI : f64 = 3.14)  ; the doc directly above documents PI  [4.6.1.2]
+;: Someone on the payroll.
+(struct Staff |
+    ;: Full legal name.
+    name : string
+    ;: Age in whole years.
+    age : u32
+    ;: The department they work in.
+    ;: default: not assigned to one yet
+    dept : string = "unknown"
+    ;: Yearly pay, in millions.
+    salary : f64|)  ; every field documented above it  [4.6.1.3]
+;: Something a player can attack with.
+(enum Arm
+    Blade |sword : Sword|  ;: A bladed weapon.
+                           ;: field sword: the blade's stats
+    Bow   |damage : f64|   ;: A ranged weapon.
+                           ;: field damage: damage per arrow
+    Fist)                  ;: No weapon at all.
+    ; every variant documented by a trailing doc; the variant's fields share
+    ; its line, so they are field entries  [4.6.1.3, 4.6.1.5]
+;: A point on the grid.
+;: field x: the column, counted from the left
+;: field y: the row, counted from the top
+(struct Cell |x : i32 y : i32|)  ; x and y share a line, so they are entries  [4.6.1.5]
+;: A size on the screen.
+(struct Extent |
+    ;: Pixels across.
+    width : u32
+    height : u32|)  ;: Pixels down.
+    ; error: Extent mixes docs above fields with trailing docs  [4.6.1.4]
+;: A size on the screen.
+;: field width: pixels across
+(struct Span |
+    ;: Pixels across.
+    width : u32
+    ;: Pixels down.
+    height : u32|)  ; error: width is documented twice  [4.6.1.6]
+;: How many so far.
+(let count : u32 = 0)       ; error: a doc may not document a let  [4.6.1.7]
+(define LIMIT : u32 = 10)   ;: The most allowed.
+    ; error: a doc may only trail a field or a variant  [4.6.1.7]
+
+;; 4.6.2 entries
+; 1. A doc starts with its summary, the text before its first entry. The
+;    summary is required.
+; 2. An entry is a ;: line that starts with an entry word in lowercase,
+;    then a name for the words that take one, then a :, then the entry's
+;    text. The text continues on the lines below, up to the next entry or
+;    the end of the doc. Any other line is text: in a summary, "Returns the
+;    first item" is not an entry.
+; 3. type T: describes the type parameter T, from a forall list (7.3) or a
+;    type header (7.2).
+; 4. param x: describes the parameter x. param 1: describes the first
+;    parameter of a function define whose value is not a fn literal
+;    (4.6.3.2), param 2: the second, and so on.
+; 5. default x: describes what leaving out the parameter or field x means.
+;    In the in-place doc of a field, it is written default:, with no name.
+; 6. returns: describes the value a function returns.
+; 7. errors: describes when a function returns a Result.Error, and what
+;    the error holds.
+; 8. panics: describes when a function panics (8.8), or says never.
+; 9. example: is followed by an example on the lines below (4.6.7).
+; 10. field x: describes the field x. In an enum's doc, the field x of the
+;     variant V is written field V.x:.
+; 11. variant V: describes the variant V.
+; 12. No summary or entry may be empty. An example: needs at least one line
+;     of code.
+; 13. Each name has at most one entry of each word. returns:, errors: and
+;     panics: appear at most once. example: may appear any number of times.
+; 14. Entries come in this order: type, param and default, variant and
+;     field, returns:, errors:, panics:, then example:. Entries of one word
+;     follow the order of the declaration. A default entry comes directly
+;     after the entry of its parameter or field.
+; 15. An entry that names something that does not exist, or a word that
+;     does not apply to what the doc documents (4.6.3 to 4.6.6), is an
+;     error.
+
+;: Adds y to x.
+;: param x: the starting value
+;: param y: how much to add
+;: default y: adds 5
+;: returns: the sum
+;: panics: never
+;: example:
+;:   (add_some 2 3)  ; returns 5
+(define add_some = {fn |x : u32 y : u32 = 5 -> u32| (+ x y)})  ; a complete doc  [4.6.2.4, 4.6.2.5]
+;: param n: the number
+;: returns: n doubled
+;: panics: never
+;: example:
+;:   (twice_of 2)  ; returns 4
+(define twice_of = {fn |n : u32 -> u32| (* n 2_u32)})  ; error: the doc has no summary  [4.6.2.1]
+;: Doubles a number.
+;: returns: n doubled
+;: param n: the number
+;: panics: never
+;: example:
+;:   (doubled 2)  ; returns 4
+(define doubled = {fn |n : u32 -> u32| (* n 2_u32)})  ; error: param n comes before returns:  [4.6.2.14]
+;: Adds one to a number.
+;: param n: the number
+;: returns: one more than n
+;: panics: never
+;: example:
+;:   (plus_one 1)  ; returns 2
+(define plus_one = {fn |x : u32 -> u32| (+ x 1_u32)})
+    ; error: plus_one has no parameter n, and x is not documented  [4.6.2.15]
+;: Adds one to a number.
+;: param x:
+;: returns: one more than x
+;: panics: never
+;: example:
+;:   (succ 1)  ; returns 2
+(define succ = {fn |x : u32 -> u32| (+ x 1_u32)})  ; error: param x is empty  [4.6.2.12]
+
+;; 4.6.3 function defines
+; 1. A define whose type is a function type is a function define. Its doc
+;    needs a summary, a type entry for each type parameter in its forall
+;    list, a param entry for each parameter, a default entry for each
+;    parameter with a default, returns:, errors: when its output type is a
+;    Result, panics:, and at least one example:.
+; 2. When the define's value is not a fn literal, its parameters have no
+;    names, and their entries are written param 1:, param 2:, and so on,
+;    in the order of the function type's inputs.
+; 3. The name of a named fn (5.4.3), and the bindings inside the body, take
+;    no entries.
+; 4. main is a function define like any other, with no exceptions.
+; 5. returns: is required even when the output type is Unit. Write
+;    returns: ().
+; 6. The compiler does not check panics: against the body. It is the
+;    author's word, written by the style of 4.6.9.
+;    why?: whether a function can panic depends on every function it calls,
+;    and the compiler cannot always tell
+
+;: Returns the first item of a list, or a fallback when the list is empty.
+;: type T: the type of the items
+;: param xs: the list to read
+;: param fallback: what to return when xs is empty
+;: returns: the item at index 0, or fallback
+;: panics: never
+;: example:
+;:   (head_or [i32] (list 4 5 6) 0)  ; returns 4
+;: example:
+;:   (head_or [i32] (list [i32]) 0)  ; returns 0
+(define head_or = {fn [forall T] |xs : [List T] fallback : T -> T|
+    (match (get xs 0)
+        (Option.Some value = first) => first
+        ^Option.None                => fallback)})  ; every part is documented  [4.6.3.1]
+;: Adds two u32s.
+;: param 1: the first number
+;: param 2: the second number
+;: returns: their sum
+;: panics: never
+;: example:
+;:   (sum_u32 2 3)  ; returns 5
+(define sum_u32 = + [u32])  ; not a fn literal, so parameters go by position  [4.6.3.2]
+;: Returns n factorial.
+;: param n: the number to take the factorial of
+;: returns: the product of 1 to n, or 1 when n is 0
+;: panics: never
+;: example:
+;:   (factorial 5)  ; returns 120
+(define factorial = {fn fact |n : u64 -> u64|
+    (if (== n 0_u64) 1 (* n (fact (- n 1_u64))))})  ; fact takes no entry  [4.6.3.3]
+;: Prints a greeting.
+;: returns: ()
+;: panics: never
+;: example:
+;:   (main)  ; prints: hello
+(define main = {fn |-> Unit| (print "hello")})  ; main is documented like any function  [4.6.3.4, 4.6.3.5]
+;: Wraps n in an Ok.
+;: param n: the number to wrap
+;: returns: n, as an Ok
+;: panics: never
+;: example:
+;:   (always_ok 3)  ; returns (Result.Ok [u32] [string] value = 3)
+(define always_ok = {fn |n : u32 -> [Result u32 string]| (Result.Ok [u32] [string] value = n)})
+    ; error: the output is a Result, so errors: is required  [4.6.3.1]
+;: Returns its input.
+;: param n: any number
+;: returns: n
+;: panics: never
+(define same = {fn |n : u32 -> u32| n})  ; error: the doc needs an example  [4.6.3.1]
+
+;; 4.6.4 value defines
+; 1. A define whose type is not a function type is a value define. Its doc
+;    needs a summary.
+; 2. It may have examples. Any other entry is an error.
+
+;: The most items a basket holds.
+(define BASKET_SIZE : u32 = 12)  ; a summary is all a value needs  [4.6.4.1]
+;: The first few primes.
+;: example:
+;:   (get FIRST_PRIMES 0)  ; returns (Option.Some [i32] value = 2)
+(define FIRST_PRIMES = (list 2 3 5))  ; an example is allowed  [4.6.4.2]
+;: How fast light goes, in meters per second.
+;: returns: 299792458
+(define LIGHT_SPEED : u64 = 299792458)  ; error: a value define takes no returns:  [4.6.4.2]
+
+;; 4.6.5 structs
+; 1. A struct's doc needs a summary and a type entry for each parameter in
+;    its type header. Each of its fields needs a doc, in place or by a field
+;    entry (4.6.1).
+; 2. A field with a default also needs a default entry: default: in its
+;    in-place doc, or default x: after its field entry.
+; 3. The struct's doc may have examples. Any other entry is an error.
+
+;: Two values of any types.
+;: type A: the type of the first value
+;: type B: the type of the second value
+;: field first: the first value
+;: field second: the second value
+(struct [Duo A B] |first : A second : B|)  ; [4.6.5.1]
+;: A sound to play.
+;: field pitch: how high, in hertz
+;: default pitch: concert A
+;: field length: how long, in milliseconds
+(struct Tone |pitch : u32 = 440 length : u32|)  ; a default, documented by an entry  [4.6.5.2]
+;: A sound to play.
+;: field pitch: how high, in hertz
+;: field length: how long, in milliseconds
+(struct Note |pitch : u32 = 440 length : u32|)  ; error: pitch has a default; add default pitch:  [4.6.5.2]
+;: A rectangle's size.
+;: field width: pixels across
+(struct Area |width : u32 height : u32|)  ; error: height is not documented  [4.6.5.1]
+
+;; 4.6.6 enums
+; 1. An enum's doc needs a summary and a type entry for each parameter in
+;    its type header. Each of its variants, and each field of each variant,
+;    needs a doc, in place or by an entry (4.6.1).
+; 2. A variant's in-place doc is a summary, then entries for its fields
+;    that are not documented in place.
+; 3. A variant field with a default needs a default entry, as a struct
+;    field does (4.6.5.2).
+; 4. The enum's doc may have examples. Any other entry is an error.
+
+;: A traffic light's color.
+;: variant Red: stop
+;: variant Amber: get ready to stop
+;: variant Green: go
+(enum Light Red Amber Green)  ; variants on one line are documented by entries  [4.6.6.1]
+;: A mark drawn on the grid.
+(enum Mark
+    Dot   |at : Cell|              ;: A single point.
+                                   ;: field at: where it is
+    Line  |from : Cell to : Cell|  ;: A straight line.
+                                   ;: field from: one end
+                                   ;: field to: the other end
+    Blank)                         ;: Nothing drawn.
+    ; [4.6.6.1, 4.6.6.2]
+;: A sound or its absence.
+;: variant Beep: a tone
+;: field Beep.pitch: how high, in hertz
+;: variant Hush: no tone
+(enum Chime
+    Beep |pitch : u32 = 440|
+    Hush)  ; error: Beep.pitch has a default; add default Beep.pitch:  [4.6.6.3]
+;: A choice of one of two values.
+;: variant Left: the first kind
+;: variant Right: the second kind
+(enum [Fork L R]
+    Left  |value : L|
+    Right |value : R|)  ; error: L, R, Left.value and Right.value are not documented  [4.6.6.1]
+
+;; 4.6.7 examples
+; 1. An example is the code on the lines after its example: entry, up to the
+;    next entry or the end of the doc. Its ;: is followed by two spaces
+;    more than the entry's (1.5.10).
+; 2. Each example is its own test: its lines are the items of one do, with
+;    every top-level name of the module in scope, private ones included.
+; 3. An example's trailing comments state outcomes as in 0.3.2. An example
+;    may show a mistake: an error: outcome means the code must not compile.
+; 4. Every example is compiled with its module. One that does not compile
+;    when no error: says so, or whose type:, error: or warning: outcome is
+;    wrong, is an error. A wrong returns, prints: or panics: outcome is
+;    found when the examples are run, and is an error then (11.1.2).
+
+;: Returns the larger of two numbers.
+;: param a: one number
+;: param b: the other number
+;: returns: whichever of a and b is larger, or a when they are equal
+;: panics: never
+;: example:
+;:   (larger 2 7)  ; returns 7
+;: example:
+;:   (larger 2 "7")  ; error: b is an i32, not a string
+(define larger = {fn |a : i32 b : i32 -> i32| (if (>= a b) a b)})  ; one example shows a mistake  [4.6.7.3]
+;: Doubles a number.
+;: param n: the number to double
+;: returns: n times 2
+;: panics: never
+;: example:
+;:   (double 4)  ; returns 9
+(define double = {fn |n : u32 -> u32| (* n 2_u32)})  ; error: the example returns 8, not 9  [4.6.7.4]
+
+;; 4.6.8 missing and incomplete docs
+; 1. A define, struct or enum with no doc at all, on it or on any of its
+;    fields or variants, is a warning.
+; 2. Once any of its docs is there, the declaration must be documented in
+;    full. Breaking any rule of 4.6.1 to 4.6.7 is an error.
+;    why?: a missing doc marks code that is not documented yet, which is
+;    normal in a draft; a doc that is there but partial or wrong misleads
+;    whoever reads it
+; 3. Private declarations follow the same rules as exported ones (9.6).
+
+(define triple = {fn |n : u32 -> u32| (* n 3_u32)})  ; warning: triple has no doc  [4.6.8.1]
+(struct Gap |
+    ;: Pixels across.
+    width : u32|)  ; error: Gap has a field doc, so it needs a summary too  [4.6.8.2]
+;: Returns n tripled.
+;: param n: the number to triple
+(define treble = {fn |n : u32 -> u32| (* n 3_u32)})
+    ; error: the doc needs returns:, panics: and an example  [4.6.8.2]
+
+;; 4.6.9 style
+; The recommended way to write a doc. None of it is checked.
+; 1. A summary is one sentence, with a capital and a period. A function's
+;    starts with what it does: "Returns ...", "Prints ...". A type's or a
+;    value's says what it is: "A sound to play."
+; 2. Entry text starts in lowercase and ends without a period, unless it
+;    holds more than one sentence.
+; 3. returns: says what the value means, not its type, which the signature
+;    already shows.
+; 4. default says what leaving the parameter or field out means, not only
+;    the value, which the code already shows.
+; 5. panics: lists each cause as a "when ..." clause, separated by ;, or
+;    says never. It counts panics in the functions it calls, as far as the
+;    author knows.
+; 6. errors: lists each cause as a "when ..." clause, and says what the
+;    error holds.
+; 7. Bad input is a Result.Error, documented under errors:. A panic is for
+;    a mistake in the program itself, such as a broken assumption.
+;    why?: a caller can handle an error, but not a panic (8.8)
+; 8. An example shows typical use first. Edge cases and mistakes come in
+;    later examples.
+
+;: Returns the item at index i.
+;: type T: the type of the items
+;: param xs: the list to read
+;: param i: the index, counted from 0
+;: returns: the item at i
+;: panics: when i is past the end of xs
+;: example:
+;:   (item_at [i32] (list 4 5 6) 1)  ; returns 5
+(define item_at = {fn [forall T] |xs : [List T] i : u32 -> T|
+    (match (get xs i)
+        (Option.Some value = x) => x
+        ^Option.None            => (panic "index past the end"))})
+    ; follows 4.6.9.5, but by 4.6.9.7 it would be better to return an [Option T]  [4.6.9.5, 4.6.9.7]
+
 ;;;; 5 expressions
 
 ;;; 5.1 literals
@@ -1226,8 +1630,9 @@ bob.salary                                   ; returns 2.5, copied from jane    
 ; 3. A let inside the block binds for the items after it, and the binding
 ;    is dropped when the block ends (4.1).
 ; 4. Every item but the last is discarded. Discarding a value that is not
-;    Unit warns (3.2.2). A declaration as the last item warns instead, since
-;    its () is used (2.5.1.3).
+;    Unit or Never warns (3.2.2). A declaration as the last item warns
+;    instead, since its () is used (2.5.1.3). Items after an item of type
+;    Never are unreachable, and warn (3.2.5).
 ; 5. An empty block returns ().
 
 (do
@@ -1360,7 +1765,7 @@ bob.salary                                   ; returns 2.5, copied from jane    
 ;    other branch is never evaluated.
 ;    why: this avoids runtime panics 
 ; 3. Both branches have the same type T. A mismatch is a compile error, and
-;    no choice of brackets fixes it.
+;    no choice of brackets fixes it. A Never branch fits any T (3.2.4).
 ; 4. The braced form is used exactly when T is a function type (2.4.2).
 
 (if (== 5 2) 4 3)                        ; returns 3                                  [5.5.2]
@@ -2037,15 +2442,15 @@ first_or [i32]                     ; type: [[List i32] i32 -> i32]            [7
 (define plus = +)              ; error: + is overloaded; write + [T]           [8.1.3]
 (define combine = {fn [forall T] |a : T b : T f : [T T -> T] -> T| (f a b)})
 (combine [i32] 2 3 + [i32])    ; returns 5; + [i32] is passed like any function  [8.1.1]
-(combine [string] "ab" "cd" + [string])  ; returns "abcd"                      [8.1.3]
-(combine [i32] 2 3 max [i32])  ; returns 3                                     [8.1.1]
+(combine [string] "ab" "cd" + [string])  ; returns "abcd"                        [8.1.3]
+(combine [i32] 2 3 max [i32])  ; returns 3                                       [8.1.1]
 (define three = {fn |a : i32 b : i32 c : i32 -> [List i32]| (list a b c)})
-(three 1 2 3)                  ; returns (list 1 2 3); list wrapped in a fn    [8.1.4]
+(three 1 2 3)                  ; returns (list 1 2 3); list wrapped in a fn      [8.1.4]
 (define bad_three : [i32 i32 i32 -> [List i32]] = list)
     ; error: list cannot be passed as a value  [8.1.4]
-(define say : [string -> Unit] = print)  ; error: print is a special form              [8.1.2]
-(define shout = {fn |s : string -> Unit| (print s)})  ; a fn that calls print is fine  [8.1.2]
-(as [i64] 5)                   ; the target type is a type argument            [8.1.5]
+(define say : [string -> Unit] = print)  ; error: print is a special form                     [8.1.2]
+(define shout = {fn |s : string -> Unit| (print s)})  ; a fn that calls print is fine         [8.1.2]
+(as [i64] 5)                                          ; the target type is a type argument    [8.1.5]
 
 ;;; 8.2 arithmetic
 (+ a b)        ; addition; numerical types and string
@@ -2429,12 +2834,26 @@ circle::Shape.Round                      ; type: circle::Shape          [9.6.3]
 ; relies on.
 
 ;;; 10.1 fizzbuzz
+;: Returns the fizzbuzz word for a number.
+;: param n: the number to name
+;: returns: "FizzBuzz" when n is a multiple of 15, "Fizz" when it is a
+;: multiple of 3, "Buzz" when it is a multiple of 5, and n as text otherwise
+;: panics: never
+;: example:
+;:   (fizzbuzz 9)  ; returns "Fizz"
+;: example:
+;:   (fizzbuzz 7)  ; returns "7"
 (define fizzbuzz = {fn |n : u32 -> string|
     (match n
         k if (== (% k 15_u32) 0_u32) => "FizzBuzz"        ; k is not bound yet, so it binds n      [6.2.1]
         k if (== (% k 3_u32) 0_u32)  => "Fizz"            ; arms are tried in order                [5.7.2.1]
         k if (== (% k 5_u32) 0_u32)  => "Buzz"            ; k is a u32, so the literals need u32   [5.1.1.3]
         k                            => (to_string k))})  ; the unguarded arm makes it exhaustive  [5.7.2.3]
+;: Prints fizzbuzz for 1 to 15.
+;: returns: ()
+;: panics: never
+;: example:
+;:   (main)  ; prints: 1, 2, Fizz and so on to FizzBuzz, one per line
 (define main = {fn |-> Unit|
     (for |i : u32 = 1| (<= i 15_u32) (recur i = (+ i 1_u32))
         (print (fizzbuzz i)))})  ; fizzbuzz is defined above, but could be below  [4.1.2]
@@ -2442,6 +2861,12 @@ circle::Shape.Round                      ; type: circle::Shape          [9.6.3]
                                  ;         11, Fizz, 13, 14, FizzBuzz, one per line
 
 ;;; 10.2 summing a list
+;: Returns the sum of a list of numbers.
+;: param xs: the numbers to add
+;: returns: the total of xs, or 0 when xs is empty
+;: panics: never
+;: example:
+;:   (sum (list 3 4 5))  ; returns 12
 (define sum = {fn |xs : [List i32] -> i32|
     (loop |i : u32 = 0 total : i32 = 0 -> i32|
         (match (get xs i)
@@ -2449,30 +2874,71 @@ circle::Shape.Round                      ; type: circle::Shape          [9.6.3]
                 i = (+ i 1_u32)
                 total = (+ total x))              ; in tail position, so a jump  [5.9.7]
             ^Option.None            => total))})  ; past the end of xs           [8.7.2.1]
+;: Prints the sums of two lists.
+;: returns: ()
+;: panics: never
+;: example:
+;:   (main)  ; prints: 12, then 0, one per line
 (define main = {fn |-> Unit| (do
     (print (to_string (sum (list 3 4 5))))     ; prints: 12
     (print (to_string (sum (list [i32])))))})  ; prints: 0; an empty list needs [i32]  [8.7.1.3]
 
 ;;; 10.3 shapes
+;: A point on the grid.
+;: field x: the column, counted from the left
+;: field y: the row, counted from the top
 (struct Point |x : i32 y : i32|)
+;: A shape on the grid.
+;: variant Square: a square
+;: field Square.side: the length of each side
+;: field Square.corner: the top-left corner
+;: variant Rect: a rectangle
+;: field Rect.width: the length across
+;: field Rect.height: the length down
+;: field Rect.corner: the top-left corner
+;: variant Dot: a single point
+;: field Dot.at: where the point is
 (enum Shape
     Square |side : i32 corner : Point|
     Rect   |width : i32 height : i32 corner : Point|
     Dot    |at : Point|)
+;: Returns the area of a shape.
+;: param shape: the shape to measure
+;: returns: the number of grid squares the shape covers, or 0 for a dot
+;: panics: never
+;: example:
+;:   (area (Shape.Rect width = 2 height = 3 corner = (Point x = 0 y = 0)))  ; returns 6
 (define area = {fn |shape : Shape -> i32|
     (match shape
         (Shape.Square side = s ..)           => (* s s)  ; .. skips corner               [6.4.4]
         (Shape.Rect width = w height = h ..) => (* w h)
         (Shape.Dot at = _)                   => 0)})  ; one arm per variant: exhaustive  [5.7.2.2]
+;: Returns the name of a shape's variant.
+;: param shape: the shape to name
+;: returns: "square", "rect" or "dot"
+;: panics: never
+;: example:
+;:   (name_of (Shape.Dot at = (Point x = 0 y = 0)))  ; returns "dot"
 (define name_of = {fn |shape : Shape -> string|
     (match shape
         (Shape.Square ..) => "square"
         (Shape.Rect ..)   => "rect"
         (Shape.Dot ..)    => "dot")})
+;: Returns a phrase that describes a shape.
+;: param shape: the shape to describe
+;: returns: the shape's name and area, as in "rect with area 6"
+;: panics: never
+;: example:
+;:   (describe (Shape.Dot at = (Point x = 0 y = 0)))  ; returns "dot with area 0"
 (define describe = {fn |shape : Shape -> string|
     (`${kind} with area ${size}`
         (name_of shape)
         (to_string (area shape)))})  ; kind first, then size  [5.1.2.1]
+;: Prints a description of three shapes.
+;: returns: ()
+;: panics: never
+;: example:
+;:   (main)  ; prints: rect with area 6, square with area 16, dot with area 0, one per line
 (define main = {fn |-> Unit| (do
     (let origin : Point = (Point x = 0 y = 0))
     (let corner : Point = (Point ..origin x = 5))  ; y is copied from origin  [4.4.4.2]
@@ -2483,33 +2949,86 @@ circle::Shape.Round                      ; type: circle::Shape          [9.6.3]
     (print (describe (Shape.Dot at = origin))))})  ; prints: dot with area 0
 
 ;;; 10.4 parsing with Result
+;: Reads an age from text.
+;: param text: the text to read
+;: returns: the age, as an Ok
+;: errors: when text is not a number, the error is "not a number: " and the
+;: text; when the number is over 150, it is "too old"
+;: panics: never
+;: example:
+;:   (parse_age "42")   ; returns (Result.Ok [u32] [string] value = 42)
+;: example:
+;:   (parse_age "200")  ; returns (Result.Error [u32] [string] error = "too old")
 (define parse_age = {fn |text : string -> [Result u32 string]|
     (match (parse [u32] text)
         (Result.Ok value = n) if (> n 150_u32) => (Result.Error [u32] [string] error = "too old")
-        (Result.Ok value = n)                 => (Result.Ok [u32] [string] value = n)
-        (Result.Error error = _)              =>
+        (Result.Ok value = n)                  => (Result.Ok [u32] [string] value = n)
+        (Result.Error error = _)               =>
             (Result.Error [u32] [string] error = (`not a number: ${t}` text)))})
     ; patterns take no type arguments; built values do  [7.4.6]
 ; The second arm rebuilds the Ok. Returning the matched value itself would
 ; not compile: it is a [Result u32 ParseError], not a [Result u32 string].
+;: Returns a line that reports the age read from text.
+;: param text: the text to read
+;: returns: "age " and the age, or "error: " and why no age was read
+;: panics: never
+;: example:
+;:   (report "abc")  ; returns "error: not a number: abc"
 (define report = {fn |text : string -> string|
     (match (parse_age text)
         (Result.Ok value = n)    => (`age ${n}` (to_string n))
         (Result.Error error = e) => (`error: ${e}` e))})
+;: Prints the reports for three texts.
+;: returns: ()
+;: panics: never
+;: example:
+;:   (main)  ; prints: age 42, error: too old, error: not a number: abc, one per line
 (define main = {fn |-> Unit| (do
     (print (report "42"))      ; prints: age 42
     (print (report "200"))     ; prints: error: too old
     (print (report "abc")))})  ; prints: error: not a number: abc
 
 ;;; 10.5 functions as values
+;: Returns a function that adds a fixed number.
+;: param x: the number the new function adds
+;: returns: a function that returns its input plus x
+;: panics: never
+;: example:
+;:   ({make_adder 10} 5)  ; returns 15
 (define make_adder = {fn |x : u32 -> [u32 -> u32]| {fn |y : u32 -> u32| (+ x y)}})
+;: Returns a function that applies one function, then another.
+;: type A: the type f takes
+;: type B: the type f returns and g takes
+;: type C: the type g returns
+;: param f: the function applied first
+;: param g: the function applied to f's result
+;: returns: a function that passes its input to f, then f's result to g
+;: panics: when f or g panics
+;: example:
+;:   ({compose [u32] [u32] [u32] {make_adder 1} {make_adder 2}} 0)  ; returns 3
 (define compose = {fn [forall A B C] |f : [A -> B] g : [B -> C] -> [A -> C]|
     {fn |x : A -> C| (g (f x))}})  ; ( ) twice: B and C are type parameters  [7.3.4]
+;: Combines the items of a list into one value, from first to last.
+;: type T: the type of the items
+;: type U: the type of the combined value
+;: param xs: the items to combine
+;: param init: the value to start from
+;: param step: combines the value so far with the next item
+;: returns: init, after step has combined it with every item of xs in turn;
+;: init itself when xs is empty
+;: panics: when step panics
+;: example:
+;:   (fold [i32] [i32] (list 1 2 3) 0 + [i32])  ; returns 6
 (define fold = {fn [forall T U] |xs : [List T] init : U step : [U T -> U] -> U|
     (loop |i : u32 = 0 acc : U = init -> U|
         (match (get xs i)
             (Option.Some value = x) => (recur i = (+ i 1_u32) acc = (step acc x))
             ^Option.None            => acc))})
+;: Prints the results of four folds and one composed function.
+;: returns: ()
+;: panics: never
+;: example:
+;:   (main)  ; prints: 10, 24, 4, abc, 12, one per line
 (define main = {fn |-> Unit| (do
     (let numbers : [List i32] = (list 1 2 3 4))
     (print (to_string (fold [i32] [i32] numbers 0 + [i32])))    ; prints: 10               [7.4.2]
@@ -2527,7 +3046,17 @@ circle::Shape.Round                      ; type: circle::Shape          [9.6.3]
 ; item from the previous todo list.
 
 ;;; 11.1 lexical
-; 1. What does a doc comment (;:) attach to, and what reads it?
+; 1. Settled: what a doc comment attaches to and what it must say is in
+;    4.6. Still open:
+;    - Can a module or file have a doc of its own, and where is it written?
+;    - Is the text of a doc plain, or Markdown? Can it link to other names?
+;    - Can a let-bound fn, or a fn passed as an argument, have a doc?
+;    - Can a doc example be marked compile-only, for code that should not
+;      run, such as one that reads input?
+;    - Should a field or variant with nothing to add to its name be allowed
+;      a shorter doc, or none?
+; 2. When do doc examples run (4.6.7.4)? In a test command, on every build,
+;    or only when asked? What does a failing example report?
 
 ;;; 11.2 grammar
 ; Nothing open. 11.2.1, where each keyword may appear, is settled by
@@ -2546,8 +3075,7 @@ circle::Shape.Round                      ; type: circle::Shape          [9.6.3]
 ;    as infinite two's complement, so (bit_not 0_ibig) is -1, but
 ;    (bit_not 0_ubig) would have infinitely many 1 bits.
 ; 3. Can chars be compared with <? (char is not numerical: 1.3.3.4.)
-; 4. Does Never fit wherever another type is expected? Is (if c 5 (panic))
-;    legal?
+; 4. Settled: Never fits wherever another type is expected (3.2.4).
 ; 5. What is ParseError?
 ; 6. How is a [Map K V] built, read and matched? (todo)
 ; 7. Type aliases. (old todo)
@@ -2691,12 +3219,14 @@ circle::Shape.Round                      ; type: circle::Shape          [9.6.3]
 ;    - Can a warning be silenced at one site, per file or per project, or
 ;      raised to an error?
 ;    - Current candidates: naming (1.4.4), hiding (4.1.8), never used
-;      (4.1.10), discarded values (5.3.4), a used declaration (2.5.1.3), a
-;      recur not in tail position (5.9.6), the default alias (9.4.5),
-;      layout (1.5), and whitespace around :: or a prefix .. (1.2.10).
+;      (4.1.10), discarded values (5.3.4), unreachable code (3.2.5), a used
+;      declaration (2.5.1.3), a recur not in tail position (5.9.6), the
+;      default alias (9.4.5),
+;      layout (1.5), whitespace around :: or a prefix .. (1.2.10), and a
+;      declaration with no doc (4.6.8.1).
 
 ;;; 11.9 hypothetical examples
 ; Examples marked hypothetical:, and what each one assumes.
 ; 1. 7.2: [Tree T] refers to itself (11.3.8).
 ; 2. 8.3: (/ 0.0 0.0) produces NaN (11.5.4).
-; 3. 8.7.2: len exists (11.7.5).
+; 4. 8.7.2: len exists (11.7.5).

@@ -118,7 +118,7 @@ const grammar = {
             2: { name: "punctuation.definition.comment.doc.tsc" },
           },
           name: "comment.line.documentation.tsc",
-          patterns: [{ include: "#comment-annotations" }],
+          patterns: [{ include: "#doc-entries" }, { include: "#comment-annotations" }],
         },
         {
           begin: ";+",
@@ -130,6 +130,33 @@ const grammar = {
             { match: "\\G\\s*(\\d+\\.|[a-z]\\.)(?=\\s)", captures: { 1: { name: "markup.list.numbered.tsc constant.numeric.rule.tsc" } } },
             { include: "#comment-annotations" },
           ],
+        },
+      ],
+    },
+    // 4.6.2: doc entries, and the code of a doc example (4.6.7)
+    "doc-entries": {
+      patterns: [
+        // type T:, param x:, param 1:, default x:, field V.x:, variant V:
+        {
+          match: `\\G\\s*(type|param|default|field|variant)\\s+(${ID}(?:\\.${ID})?|\\d+)\\s*(:)`,
+          captures: {
+            1: { name: "keyword.other.doc.entry.tsc" },
+            2: { name: "variable.parameter.doc.tsc" },
+            3: { name: "punctuation.separator.doc.tsc" },
+          },
+        },
+        // returns:, errors:, panics:, example:, and a field's own default:
+        {
+          match: "\\G\\s*(returns|errors|panics|example|default)(:)",
+          captures: {
+            1: { name: "keyword.other.doc.entry.tsc" },
+            2: { name: "punctuation.separator.doc.tsc" },
+          },
+        },
+        // example code: indented past the entry text (1.5.10), up to its outcome comment
+        {
+          match: "\\G(\\s{3,})(\\S.*?)(?=\\s{2,};|\\s*$)",
+          captures: { 2: { name: "markup.inline.raw.example.tsc" } },
         },
       ],
     },

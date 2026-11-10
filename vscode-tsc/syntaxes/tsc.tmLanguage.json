@@ -78,6 +78,9 @@
           "name": "comment.line.documentation.tsc",
           "patterns": [
             {
+              "include": "#doc-entries"
+            },
+            {
               "include": "#comment-annotations"
             }
           ]
@@ -104,6 +107,43 @@
               "include": "#comment-annotations"
             }
           ]
+        }
+      ]
+    },
+    "doc-entries": {
+      "patterns": [
+        {
+          "match": "\\G\\s*(type|param|default|field|variant)\\s+([A-Za-z_][A-Za-z0-9_]*(?:\\.[A-Za-z_][A-Za-z0-9_]*)?|\\d+)\\s*(:)",
+          "captures": {
+            "1": {
+              "name": "keyword.other.doc.entry.tsc"
+            },
+            "2": {
+              "name": "variable.parameter.doc.tsc"
+            },
+            "3": {
+              "name": "punctuation.separator.doc.tsc"
+            }
+          }
+        },
+        {
+          "match": "\\G\\s*(returns|errors|panics|example|default)(:)",
+          "captures": {
+            "1": {
+              "name": "keyword.other.doc.entry.tsc"
+            },
+            "2": {
+              "name": "punctuation.separator.doc.tsc"
+            }
+          }
+        },
+        {
+          "match": "\\G(\\s{3,})(\\S.*?)(?=\\s{2,};|\\s*$)",
+          "captures": {
+            "2": {
+              "name": "markup.inline.raw.example.tsc"
+            }
+          }
         }
       ]
     },

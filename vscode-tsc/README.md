@@ -18,6 +18,7 @@ What gets its own scope:
 
 - code: keywords, special forms (`print`, `panic`, `assert`, `debug`), built-ins and operators, types and type parameters, `[forall ...]`, signatures and field lists, struct/enum names and variants, module paths, `=`, `=>`, `->`, `@`, `^` pins, `..`, `_`, field bindings (`name = value`), char/string/fancy-string literals and number suffixes
 - grammar notation: `<Category T>`, `X...`, `X?`
+- doc comments (spec 4.6): the entries `type T:`, `param x:`, `default x:`, `field x:`, `variant V:`, `returns:`, `errors:`, `panics:` and `example:`, the name each entry documents, and the code of an example (`;:` followed by three or more spaces)
 - comments: header numbers and titles, `;:` doc comments, numbered rules, `[5.5.3]` rule tags, `(2.4.2)` references, `(todo)`, `why:` / `why?:`, `hypothetical:`, and the outcomes `returns`, `type:`, `prints:`, `warning:`, `error:`, `panics:`
 
 Optional: to style headers and annotations, add this to your user `settings.json`:
