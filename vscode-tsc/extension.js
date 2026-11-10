@@ -174,6 +174,19 @@ function activate(context) {
     vscode.languages.registerCodeActionsProvider("tsc", codeActions, {
       providedCodeActionKinds: [vscode.CodeActionKind.QuickFix, FIX_ALL],
     }),
+    vscode.commands.registerCommand("tsc.fixAllWhitespace", async () => {
+      const editor = vscode.window.activeTextEditor;
+      if (!editor || editor.document.languageId !== "tsc") {
+        vscode.window.showWarningMessage("Open a .tsc file to fix its whitespace.");
+        return;
+      }
+      const edit = fixAllEdit(editor.document);
+      if (!edit) {
+        vscode.window.setStatusBarMessage("tsc: no whitespace to fix", 3000);
+        return;
+      }
+      await vscode.workspace.applyEdit(edit);
+    }),
     vscode.languages.registerDocumentFormattingEditProvider("tsc", {
       provideDocumentFormattingEdits(doc) {
         const text = doc.getText();

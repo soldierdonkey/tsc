@@ -8,7 +8,7 @@ Syntax highlighting, folding and whitespace checks for the draft TSC language, f
 Whitespace (spec 1.2 and 1.5):
 
 - Spacing that breaks the layout rules is a warning; whitespace around `.` or after `^` is an error (1.2.5, 1.2.10). Each message names the rule it comes from.
-- Every warning has a quick fix (lightbulb, or Cmd+.), plus **Fix all whitespace in this file**. **Format Document** applies the same fixes.
+- Every warning has a quick fix (lightbulb, or Cmd+.), plus **Fix all whitespace in this file**. **Format Document** and the **TSC: Fix All Whitespace** command (Command Palette) apply the same fixes.
 - To fix on save, add `"editor.codeActionsOnSave": { "source.fixAll.tsc": "explicit" }` under `"[tsc]"` in `settings.json`, or turn on `editor.formatOnSave`.
 - Turn the checks off with `"tsc.whitespace.enable": false`.
 - Spec examples whose comment states a warning or error with a rule tag (`; warning: ...  [1.2.7]`), grammar notation (`<Value T>`), and the worked breakdowns of 2.6 are not checked.

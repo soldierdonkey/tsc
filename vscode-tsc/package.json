@@ -32,6 +32,18 @@
         "editor.bracketPairColorization.enabled": true
       }
     },
+    "commands": [
+      {
+        "command": "tsc.fixAllWhitespace",
+        "title": "Fix All Whitespace",
+        "category": "TSC"
+      }
+    ],
+    "menus": {
+      "commandPalette": [
+        { "command": "tsc.fixAllWhitespace", "when": "editorLangId == tsc" }
+      ]
+    },
     "configuration": {
       "title": "Typed Symbolic Code",
       "properties": {

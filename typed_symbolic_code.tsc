@@ -765,8 +765,8 @@ numbers.i        ; error: numbers.i is field access, and a list has no field i  
 [Option T]    ; either a T or nothing
 [Result T E]  ; either a success T or an error E
 ; Both are built-in generic enums (4.5, 7.2), defined as if by:
-(enum [Option T]   Some |value : T|   None)
-(enum [Result T E] Ok |value : T|     Error |error : E|)
+(enum [Option T]   Some |value : T| None)
+(enum [Result T E] Ok |value : T| Error |error : E|)
 ; 1. Their variants are qualified like any other: Option.Some, Option.None,
 ;    Result.Ok and Result.Error (4.5.2).
 ; 2. Option.None has no fields, so it is a value, not a function.
@@ -1035,7 +1035,7 @@ bob.salary                                   ; returns 2.5, copied from jane    
 
 (enum Weapon
     Sword |sword : Sword|
-    Bow |damage : f64|
+    Bow   |damage : f64|
     Fist)  ; variants Weapon.Sword, Weapon.Bow and Weapon.Fist  [4.5.1.2]
 (enum Person
     Employee |person : Employee|
@@ -1096,18 +1096,18 @@ bob.salary                                   ; returns 2.5, copied from jane    
 ;    literal can take a float type from where it is used is open (11.5.2).
 ; Refining these rules is open (11.5.12).
 
-(let small : u8 = 200)            ; 200 is a u8, from the annotation              [5.1.1.2]
-(+ small 1)                       ; error: a u8 and an i32; write 1_u8            [5.1.1.3]
-(+ small 1_u8)                    ; returns 201, a u8                             [5.1.1.1]
-(+ [u8] small 1)                  ; returns 201; [u8] makes + take u8s (7.5)      [5.1.1.2]
-(let ratio : f32 = 0.5)           ; 0.5 is an f32                                 [5.1.1.2]
-(let chosen : u8 = (if true 1 2)) ; 1 and 2 are u8s, through the if               [5.1.1.2]
-(define wide = {fn |-> u64| 7})   ; 7 is a u64, the fn's output type              [5.1.1.2]
-42                                ; type: i32                                     [5.1.1.3]
-3000000000                        ; type: i64, too large for an i32               [5.1.1.3]
-2.5                               ; type: f64                                     [5.1.1.3]
-42_u8                             ; type: u8                                      [5.1.1.1]
-(let tiny : u8 = 2.5)             ; error: a float literal is never a u8          [5.1.1.4]
+(let small : u8 = 200)             ; 200 is a u8, from the annotation              [5.1.1.2]
+(+ small 1)                        ; error: a u8 and an i32; write 1_u8            [5.1.1.3]
+(+ small 1_u8)                     ; returns 201, a u8                             [5.1.1.1]
+(+ [u8] small 1)                   ; returns 201; [u8] makes + take u8s (7.5)      [5.1.1.2]
+(let ratio : f32 = 0.5)            ; 0.5 is an f32                                 [5.1.1.2]
+(let chosen : u8 = (if true 1 2))  ; 1 and 2 are u8s, through the if               [5.1.1.2]
+(define wide = {fn |-> u64| 7})    ; 7 is a u64, the fn's output type              [5.1.1.2]
+42                                 ; type: i32                                     [5.1.1.3]
+3000000000                         ; type: i64, too large for an i32               [5.1.1.3]
+2.5                                ; type: f64                                     [5.1.1.3]
+42_u8                              ; type: u8                                      [5.1.1.1]
+(let tiny : u8 = 2.5)              ; error: a float literal is never a u8          [5.1.1.4]
 
 ;; 5.1.2 fancy strings
 ; 1. A fancy string is a function value. Each distinct ${name} is a
@@ -1744,7 +1744,7 @@ _
     _                 => 0)  ; returns 2; all is the whole list  [6.6.1]
 (match jane
     e @ (Employee age = a ..) if (> a 18_u32) => e.name
-    _                                        => "minor")  ; returns "jane"  [6.6.1]
+    _                                         => "minor")  ; returns "jane"  [6.6.1]
 
 ;;; 6.7 pins
 <Pin>
@@ -1840,7 +1840,7 @@ p.second                                 ; returns "one"                        
 Pair.first                               ; type: [[forall A B] [Pair A B] -> A]              [7.2.4]
 (Pair.first p)                           ; error: Pair.first needs its type arguments        [7.2.4]
 (enum [Either L R]
-    Left |value : L|
+    Left  |value : L|
     Right |value : R|)  ; a generic enum  [7.2.1]
 (let e = (Either.Right [i32] [string] value = "r"))  ; e : [Either i32 string]  [7.2.3]
 ; hypothetical: assumes a type may refer to itself (11.3.8)
@@ -2369,10 +2369,10 @@ circle::Shape.Round                      ; type: circle::Shape          [9.6.3]
 ;;; 10.1 fizzbuzz
 (define fizzbuzz = {fn |n : u32 -> string|
     (match n
-        k if (== (% k 15_u32) 0_u32) => "FizzBuzz"      ; k is not bound yet, so it binds n      [6.2.1]
-        k if (== (% k 3_u32) 0_u32) => "Fizz"           ; arms are tried in order                [5.7.2.1]
-        k if (== (% k 5_u32) 0_u32) => "Buzz"           ; k is a u32, so the literals need u32   [5.1.1.3]
-        k                          => (to_string k))})  ; the unguarded arm makes it exhaustive  [5.7.2.3]
+        k if (== (% k 15_u32) 0_u32) => "FizzBuzz"        ; k is not bound yet, so it binds n      [6.2.1]
+        k if (== (% k 3_u32) 0_u32)  => "Fizz"            ; arms are tried in order                [5.7.2.1]
+        k if (== (% k 5_u32) 0_u32)  => "Buzz"            ; k is a u32, so the literals need u32   [5.1.1.3]
+        k                            => (to_string k))})  ; the unguarded arm makes it exhaustive  [5.7.2.3]
 (define main = {fn |-> Unit|
     (for |i : u32 = 1| (<= i 15_u32) (recur i = (+ i 1_u32))
         (print (fizzbuzz i)))})  ; fizzbuzz is defined above, but could be below  [4.1.2]
