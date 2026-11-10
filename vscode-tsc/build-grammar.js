@@ -110,6 +110,27 @@ const grammar = {
           },
         })),
         {
+          // ;: example: and the code below it (4.6.7): each following ;:
+          // line with at least three spaces is ordinary code, so a form may
+          // span several lines (1.5.10)
+          begin: "(;)(:)\\s*(example)(:)\\s*$",
+          while: "^\\s*(;)(:)(?=\\s{3,}\\S)",
+          beginCaptures: {
+            0: { name: "comment.line.documentation.tsc" },
+            1: { name: "punctuation.definition.comment.tsc" },
+            2: { name: "punctuation.definition.comment.doc.tsc" },
+            3: { name: "keyword.other.doc.entry.tsc" },
+            4: { name: "punctuation.separator.doc.tsc" },
+          },
+          whileCaptures: {
+            0: { name: "comment.line.documentation.tsc" },
+            1: { name: "punctuation.definition.comment.tsc" },
+            2: { name: "punctuation.definition.comment.doc.tsc" },
+          },
+          name: "meta.embedded.example.tsc",
+          patterns: [{ include: "#value" }],
+        },
+        {
           // ;: doc comment (1.1.3); ;;: is an ordinary comment
           begin: "(;)(:)",
           end: "$",
@@ -133,7 +154,7 @@ const grammar = {
         },
       ],
     },
-    // 4.6.2: doc entries, and the code of a doc example (4.6.7)
+    // 4.6.2: doc entries
     "doc-entries": {
       patterns: [
         // type T:, param x:, param 1:, default x:, field V.x:, variant V:
@@ -152,11 +173,6 @@ const grammar = {
             1: { name: "keyword.other.doc.entry.tsc" },
             2: { name: "punctuation.separator.doc.tsc" },
           },
-        },
-        // example code: indented past the entry text (1.5.10), up to its outcome comment
-        {
-          match: "\\G(\\s{3,})(\\S.*?)(?=\\s{2,};|\\s*$)",
-          captures: { 2: { name: "markup.inline.raw.example.tsc" } },
         },
       ],
     },

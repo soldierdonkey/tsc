@@ -65,6 +65,44 @@
           }
         },
         {
+          "begin": "(;)(:)\\s*(example)(:)\\s*$",
+          "while": "^\\s*(;)(:)(?=\\s{3,}\\S)",
+          "beginCaptures": {
+            "0": {
+              "name": "comment.line.documentation.tsc"
+            },
+            "1": {
+              "name": "punctuation.definition.comment.tsc"
+            },
+            "2": {
+              "name": "punctuation.definition.comment.doc.tsc"
+            },
+            "3": {
+              "name": "keyword.other.doc.entry.tsc"
+            },
+            "4": {
+              "name": "punctuation.separator.doc.tsc"
+            }
+          },
+          "whileCaptures": {
+            "0": {
+              "name": "comment.line.documentation.tsc"
+            },
+            "1": {
+              "name": "punctuation.definition.comment.tsc"
+            },
+            "2": {
+              "name": "punctuation.definition.comment.doc.tsc"
+            }
+          },
+          "name": "meta.embedded.example.tsc",
+          "patterns": [
+            {
+              "include": "#value"
+            }
+          ]
+        },
+        {
           "begin": "(;)(:)",
           "end": "$",
           "beginCaptures": {
@@ -134,14 +172,6 @@
             },
             "2": {
               "name": "punctuation.separator.doc.tsc"
-            }
-          }
-        },
-        {
-          "match": "\\G(\\s{3,})(\\S.*?)(?=\\s{2,};|\\s*$)",
-          "captures": {
-            "2": {
-              "name": "markup.inline.raw.example.tsc"
             }
           }
         }

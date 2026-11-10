@@ -1229,7 +1229,9 @@ bob.salary                                   ; returns 2.5, copied from jane    
 ; 6. returns: describes the value a function returns.
 ; 7. errors: describes when a function returns a Result.Error, and what
 ;    the error holds.
-; 8. panics: describes when a function panics (8.8), or says never.
+; 8. panics: describes when a function panics (8.8). A function doc with
+;    no panics: says the function never panics. panics: never says the
+;    same, and is optional.
 ; 9. example: is followed by an example on the lines below (4.6.7).
 ; 10. field x: describes the field x. In an enum's doc, the field x of the
 ;     variant V is written field V.x:.
@@ -1254,24 +1256,27 @@ bob.salary                                   ; returns 2.5, copied from jane    
 ;: panics: never
 ;: example:
 ;:   (add_some 2 3)  ; returns 5
-(define add_some = {fn |x : u32 y : u32 = 5 -> u32| (+ x y)})  ; a complete doc  [4.6.2.4, 4.6.2.5]
+(define add_some = {fn |x : u32 y : u32 = 5 -> u32| (+ x y)})  ; a complete doc  [4.6.2.4, 4.6.2.5, 4.6.2.8]
+;: Adds one to a number.
+;: param x: the number
+;: returns: one more than x
+;: example:
+;:   (bump 1)  ; returns 2
+(define bump = {fn |x : u32 -> u32| (+ x 1_u32)})  ; no panics:, so bump never panics  [4.6.2.8]
 ;: param n: the number
 ;: returns: n doubled
-;: panics: never
 ;: example:
 ;:   (twice_of 2)  ; returns 4
 (define twice_of = {fn |n : u32 -> u32| (* n 2_u32)})  ; error: the doc has no summary  [4.6.2.1]
 ;: Doubles a number.
 ;: returns: n doubled
 ;: param n: the number
-;: panics: never
 ;: example:
 ;:   (doubled 2)  ; returns 4
 (define doubled = {fn |n : u32 -> u32| (* n 2_u32)})  ; error: param n comes before returns:  [4.6.2.14]
 ;: Adds one to a number.
 ;: param n: the number
 ;: returns: one more than n
-;: panics: never
 ;: example:
 ;:   (plus_one 1)  ; returns 2
 (define plus_one = {fn |x : u32 -> u32| (+ x 1_u32)})
@@ -1279,7 +1284,6 @@ bob.salary                                   ; returns 2.5, copied from jane    
 ;: Adds one to a number.
 ;: param x:
 ;: returns: one more than x
-;: panics: never
 ;: example:
 ;:   (succ 1)  ; returns 2
 (define succ = {fn |x : u32 -> u32| (+ x 1_u32)})  ; error: param x is empty  [4.6.2.12]
@@ -1289,7 +1293,8 @@ bob.salary                                   ; returns 2.5, copied from jane    
 ;    needs a summary, a type entry for each type parameter in its forall
 ;    list, a param entry for each parameter, a default entry for each
 ;    parameter with a default, returns:, errors: when its output type is a
-;    Result, panics:, and at least one example:.
+;    Result, panics: when it can panic (4.6.2.8), and at least one
+;    example:.
 ; 2. When the define's value is not a fn literal, its parameters have no
 ;    names, and their entries are written param 1:, param 2:, and so on,
 ;    in the order of the function type's inputs.
@@ -1308,7 +1313,6 @@ bob.salary                                   ; returns 2.5, copied from jane    
 ;: param xs: the list to read
 ;: param fallback: what to return when xs is empty
 ;: returns: the item at index 0, or fallback
-;: panics: never
 ;: example:
 ;:   (head_or [i32] (list 4 5 6) 0)  ; returns 4
 ;: example:
@@ -1321,28 +1325,24 @@ bob.salary                                   ; returns 2.5, copied from jane    
 ;: param 1: the first number
 ;: param 2: the second number
 ;: returns: their sum
-;: panics: never
 ;: example:
 ;:   (sum_u32 2 3)  ; returns 5
 (define sum_u32 = + [u32])  ; not a fn literal, so parameters go by position  [4.6.3.2]
 ;: Returns n factorial.
 ;: param n: the number to take the factorial of
 ;: returns: the product of 1 to n, or 1 when n is 0
-;: panics: never
 ;: example:
 ;:   (factorial 5)  ; returns 120
 (define factorial = {fn fact |n : u64 -> u64|
     (if (== n 0_u64) 1 (* n (fact (- n 1_u64))))})  ; fact takes no entry  [4.6.3.3]
 ;: Prints a greeting.
 ;: returns: ()
-;: panics: never
 ;: example:
 ;:   (main)  ; prints: hello
 (define main = {fn |-> Unit| (print "hello")})  ; main is documented like any function  [4.6.3.4, 4.6.3.5]
 ;: Wraps n in an Ok.
 ;: param n: the number to wrap
 ;: returns: n, as an Ok
-;: panics: never
 ;: example:
 ;:   (always_ok 3)  ; returns (Result.Ok [u32] [string] value = 3)
 (define always_ok = {fn |n : u32 -> [Result u32 string]| (Result.Ok [u32] [string] value = n)})
@@ -1350,7 +1350,6 @@ bob.salary                                   ; returns 2.5, copied from jane    
 ;: Returns its input.
 ;: param n: any number
 ;: returns: n
-;: panics: never
 (define same = {fn |n : u32 -> u32| n})  ; error: the doc needs an example  [4.6.3.1]
 
 ;; 4.6.4 value defines
@@ -1450,7 +1449,6 @@ bob.salary                                   ; returns 2.5, copied from jane    
 ;: param a: one number
 ;: param b: the other number
 ;: returns: whichever of a and b is larger, or a when they are equal
-;: panics: never
 ;: example:
 ;:   (larger 2 7)  ; returns 7
 ;: example:
@@ -1459,7 +1457,6 @@ bob.salary                                   ; returns 2.5, copied from jane    
 ;: Doubles a number.
 ;: param n: the number to double
 ;: returns: n times 2
-;: panics: never
 ;: example:
 ;:   (double 4)  ; returns 9
 (define double = {fn |n : u32 -> u32| (* n 2_u32)})  ; error: the example returns 8, not 9  [4.6.7.4]
@@ -1481,7 +1478,7 @@ bob.salary                                   ; returns 2.5, copied from jane    
 ;: Returns n tripled.
 ;: param n: the number to triple
 (define treble = {fn |n : u32 -> u32| (* n 3_u32)})
-    ; error: the doc needs returns:, panics: and an example  [4.6.8.2]
+    ; error: the doc needs returns: and an example  [4.6.8.2]
 
 ;; 4.6.9 style
 ; The recommended way to write a doc. None of it is checked.
@@ -1494,9 +1491,9 @@ bob.salary                                   ; returns 2.5, copied from jane    
 ;    already shows.
 ; 4. default says what leaving the parameter or field out means, not only
 ;    the value, which the code already shows.
-; 5. panics: lists each cause as a "when ..." clause, separated by ;, or
-;    says never. It counts panics in the functions it calls, as far as the
-;    author knows.
+; 5. panics: lists each cause as a "when ..." clause, separated by ;. A
+;    function that never panics leaves panics: out. It counts panics in
+;    the functions it calls, as far as the author knows.
 ; 6. errors: lists each cause as a "when ..." clause, and says what the
 ;    error holds.
 ; 7. Bad input is a Result.Error, documented under errors:. A panic is for
@@ -2838,7 +2835,6 @@ circle::Shape.Round                      ; type: circle::Shape          [9.6.3]
 ;: param n: the number to name
 ;: returns: "FizzBuzz" when n is a multiple of 15, "Fizz" when it is a
 ;: multiple of 3, "Buzz" when it is a multiple of 5, and n as text otherwise
-;: panics: never
 ;: example:
 ;:   (fizzbuzz 9)  ; returns "Fizz"
 ;: example:
@@ -2851,7 +2847,6 @@ circle::Shape.Round                      ; type: circle::Shape          [9.6.3]
         k                            => (to_string k))})  ; the unguarded arm makes it exhaustive  [5.7.2.3]
 ;: Prints fizzbuzz for 1 to 15.
 ;: returns: ()
-;: panics: never
 ;: example:
 ;:   (main)  ; prints: 1, 2, Fizz and so on to FizzBuzz, one per line
 (define main = {fn |-> Unit|
@@ -2864,7 +2859,6 @@ circle::Shape.Round                      ; type: circle::Shape          [9.6.3]
 ;: Returns the sum of a list of numbers.
 ;: param xs: the numbers to add
 ;: returns: the total of xs, or 0 when xs is empty
-;: panics: never
 ;: example:
 ;:   (sum (list 3 4 5))  ; returns 12
 (define sum = {fn |xs : [List i32] -> i32|
@@ -2876,7 +2870,6 @@ circle::Shape.Round                      ; type: circle::Shape          [9.6.3]
             ^Option.None            => total))})  ; past the end of xs           [8.7.2.1]
 ;: Prints the sums of two lists.
 ;: returns: ()
-;: panics: never
 ;: example:
 ;:   (main)  ; prints: 12, then 0, one per line
 (define main = {fn |-> Unit| (do
@@ -2905,7 +2898,6 @@ circle::Shape.Round                      ; type: circle::Shape          [9.6.3]
 ;: Returns the area of a shape.
 ;: param shape: the shape to measure
 ;: returns: the number of grid squares the shape covers, or 0 for a dot
-;: panics: never
 ;: example:
 ;:   (area (Shape.Rect width = 2 height = 3 corner = (Point x = 0 y = 0)))  ; returns 6
 (define area = {fn |shape : Shape -> i32|
@@ -2916,7 +2908,6 @@ circle::Shape.Round                      ; type: circle::Shape          [9.6.3]
 ;: Returns the name of a shape's variant.
 ;: param shape: the shape to name
 ;: returns: "square", "rect" or "dot"
-;: panics: never
 ;: example:
 ;:   (name_of (Shape.Dot at = (Point x = 0 y = 0)))  ; returns "dot"
 (define name_of = {fn |shape : Shape -> string|
@@ -2927,7 +2918,6 @@ circle::Shape.Round                      ; type: circle::Shape          [9.6.3]
 ;: Returns a phrase that describes a shape.
 ;: param shape: the shape to describe
 ;: returns: the shape's name and area, as in "rect with area 6"
-;: panics: never
 ;: example:
 ;:   (describe (Shape.Dot at = (Point x = 0 y = 0)))  ; returns "dot with area 0"
 (define describe = {fn |shape : Shape -> string|
@@ -2936,7 +2926,6 @@ circle::Shape.Round                      ; type: circle::Shape          [9.6.3]
         (to_string (area shape)))})  ; kind first, then size  [5.1.2.1]
 ;: Prints a description of three shapes.
 ;: returns: ()
-;: panics: never
 ;: example:
 ;:   (main)  ; prints: rect with area 6, square with area 16, dot with area 0, one per line
 (define main = {fn |-> Unit| (do
@@ -2954,7 +2943,6 @@ circle::Shape.Round                      ; type: circle::Shape          [9.6.3]
 ;: returns: the age, as an Ok
 ;: errors: when text is not a number, the error is "not a number: " and the
 ;: text; when the number is over 150, it is "too old"
-;: panics: never
 ;: example:
 ;:   (parse_age "42")   ; returns (Result.Ok [u32] [string] value = 42)
 ;: example:
@@ -2971,7 +2959,6 @@ circle::Shape.Round                      ; type: circle::Shape          [9.6.3]
 ;: Returns a line that reports the age read from text.
 ;: param text: the text to read
 ;: returns: "age " and the age, or "error: " and why no age was read
-;: panics: never
 ;: example:
 ;:   (report "abc")  ; returns "error: not a number: abc"
 (define report = {fn |text : string -> string|
@@ -2980,7 +2967,6 @@ circle::Shape.Round                      ; type: circle::Shape          [9.6.3]
         (Result.Error error = e) => (`error: ${e}` e))})
 ;: Prints the reports for three texts.
 ;: returns: ()
-;: panics: never
 ;: example:
 ;:   (main)  ; prints: age 42, error: too old, error: not a number: abc, one per line
 (define main = {fn |-> Unit| (do
@@ -2992,7 +2978,6 @@ circle::Shape.Round                      ; type: circle::Shape          [9.6.3]
 ;: Returns a function that adds a fixed number.
 ;: param x: the number the new function adds
 ;: returns: a function that returns its input plus x
-;: panics: never
 ;: example:
 ;:   ({make_adder 10} 5)  ; returns 15
 (define make_adder = {fn |x : u32 -> [u32 -> u32]| {fn |y : u32 -> u32| (+ x y)}})
@@ -3026,7 +3011,6 @@ circle::Shape.Round                      ; type: circle::Shape          [9.6.3]
             ^Option.None            => acc))})
 ;: Prints the results of four folds and one composed function.
 ;: returns: ()
-;: panics: never
 ;: example:
 ;:   (main)  ; prints: 10, 24, 4, abc, 12, one per line
 (define main = {fn |-> Unit| (do

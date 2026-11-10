@@ -11,6 +11,7 @@ Whitespace (spec 1.2 and 1.5):
 - Every warning has a quick fix (lightbulb, or Cmd+.), plus **Fix all whitespace in this file**. **Format Document** and the **TSC: Fix All Whitespace** command (Command Palette) apply the same fixes.
 - To fix on save, add `"editor.codeActionsOnSave": { "source.fixAll.tsc": "explicit" }` under `"[tsc]"` in `settings.json`, or turn on `editor.formatOnSave`.
 - Turn the checks off with `"tsc.whitespace.enable": false`.
+- The code of each doc `example:` (spec 4.6.7) is checked as code of its own, indented from the column it starts in (two spaces past the `example:` entry's text, 1.5.10).
 - Spec examples whose comment states a warning or error with a rule tag (`; warning: ...  [1.2.7]`), grammar notation (`<Value T>`), and the worked breakdowns of 2.6 are not checked.
 - The checks live in `whitespace.js`, which has no VS Code dependency. Run the tests with `node test/whitespace.test.js`.
 
@@ -18,7 +19,7 @@ What gets its own scope:
 
 - code: keywords, special forms (`print`, `panic`, `assert`, `debug`), built-ins and operators, types and type parameters, `[forall ...]`, signatures and field lists, struct/enum names and variants, module paths, `=`, `=>`, `->`, `@`, `^` pins, `..`, `_`, field bindings (`name = value`), char/string/fancy-string literals and number suffixes
 - grammar notation: `<Category T>`, `X...`, `X?`
-- doc comments (spec 4.6): the entries `type T:`, `param x:`, `default x:`, `field x:`, `variant V:`, `returns:`, `errors:`, `panics:` and `example:`, the name each entry documents, and the code of an example (`;:` followed by three or more spaces)
+- doc comments (spec 4.6): the entries `type T:`, `param x:`, `default x:`, `field x:`, `variant V:`, `returns:`, `errors:`, `panics:` and `example:`, and the name each entry documents. The code of an example (the `;:` lines after `example:` with three or more spaces) is highlighted as ordinary code, and a form may span several of those lines
 - comments: header numbers and titles, `;:` doc comments, numbered rules, `[5.5.3]` rule tags, `(2.4.2)` references, `(todo)`, `why:` / `why?:`, `hypothetical:`, and the outcomes `returns`, `type:`, `prints:`, `warning:`, `error:`, `panics:`
 
 Optional: to style headers and annotations, add this to your user `settings.json`:

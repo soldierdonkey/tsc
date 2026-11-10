@@ -506,7 +506,68 @@ function quietLines(text, starts, tokens) {
   return quiet;
 }
 
+// ---- doc examples (4.6.7) -------------------------------------------------
+
+// The code of a doc example: the lines after an example: entry whose ;: is
+// followed by at least two spaces more than the entry's (1.5.10). Returns
+// blocks of { lines: [{ start, prefix, code }] }, where start is the offset
+// of the line, prefix the length of its "  ;:   " and code the rest.
+const EXAMPLE_ENTRY = /;:( *)example:\s*$/;
+const DOC_LINE = /^([ \t]*;:)( *)/;
+
+function exampleBlocks(text) {
+  const blocks = [];
+  const lines = text.split("\n");
+  let offset = 0, block = null, base = 0;
+  for (const line of lines) {
+    const m = DOC_LINE.exec(line);
+    const isCode = block && m && m[2].length >= base && /\S/.test(line.slice(m[0].length));
+    if (isCode) {
+      const prefix = m[1].length + base;
+      block.lines.push({ start: offset, prefix, code: line.slice(prefix) });
+    } else {
+      if (block && block.lines.length) blocks.push(block);
+      block = null;
+      const entry = EXAMPLE_ENTRY.exec(line);
+      if (entry) {
+        block = { lines: [] };
+        base = entry[1].length + 2;
+      }
+    }
+    offset += line.length + 1;
+  }
+  if (block && block.lines.length) blocks.push(block);
+  return blocks;
+}
+
+// Checks each example as code of its own, indented from the column its
+// code starts in, and maps the issues back into text.
+function checkExamples(text) {
+  const issues = [];
+  for (const { lines } of exampleBlocks(text)) {
+    const sub = lines.map((l) => l.code).join("\n");
+    const subStarts = lineStartsOf(sub);
+    const map = (offset) => {
+      const l = lineOf(subStarts, offset);
+      return lines[l].start + lines[l].prefix + (offset - subStarts[l]);
+    };
+    for (const issue of checkCode(sub)) {
+      issues.push({
+        ...issue,
+        start: map(issue.start),
+        end: map(issue.end),
+        edits: issue.edits.map((e) => ({ ...e, start: map(e.start), end: map(e.end) })),
+      });
+    }
+  }
+  return issues;
+}
+
 function checkWhitespace(text) {
+  return [...checkCode(text), ...checkExamples(text)].sort((x, y) => x.start - y.start);
+}
+
+function checkCode(text) {
   const starts = lineStartsOf(text);
   const tokens = lex(text);
   const lineIndent = annotate(text, tokens, starts);

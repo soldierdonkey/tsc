@@ -46,6 +46,30 @@ const FIXES = [
     "(do\n    (f x)  ; one\n    (g x y)    ; two\n    (h))  ; three",
     "(do\n    (f x)    ; one\n    (g x y)  ; two\n    (h))     ; three",
   ],
+  // doc examples (4.6.7) are checked as code
+  ["spacing in a doc example", ";: example:\n;:   (f  x )  ; returns 1", ";: example:\n;:   (f x)  ; returns 1"],
+  ["no space around . in a doc example", ";: example:\n;:   (print jane . dept)", ";: example:\n;:   (print jane.dept)"],
+  ["a doc example starts at its own column", ";: example:\n;:    (f x)", ";: example:\n;:   (f x)"],
+  [
+    "indentation in a multi-line doc example",
+    ";: example:\n;:   (do\n;:     (f x)\n;:           (g x))",
+    ";: example:\n;:   (do\n;:       (f x)\n;:       (g x))",
+  ],
+  [
+    "a closer in a doc example moves up",
+    ";: example:\n;:   (do\n;:       (f x)\n;:   )",
+    ";: example:\n;:   (do\n;:       (f x))",
+  ],
+  [
+    "trailing comments in a doc example line up",
+    ";: example:\n;:   (f x)  ; one\n;:   (g x y)  ; two",
+    ";: example:\n;:   (f x)    ; one\n;:   (g x y)  ; two",
+  ],
+  [
+    "an indented doc's example",
+    "(struct P |\n    x : i32|)\n    ;: example:\n    ;:   (P x=1)",
+    "(struct P |\n    x : i32|)\n    ;: example:\n    ;:   (P x = 1)",
+  ],
 ];
 
 // Inputs that are already in layout.
@@ -67,6 +91,8 @@ const CLEAN = [
   // spec examples that state their warning or error are left alone
   "jane . dept  ; error: no whitespace around .  [1.2.10]",
   "(do\n    (print \"a\")\n)  ; warning: a closer never starts a line  [1.5.6]",
+  // doc text that is not an example is not code
+  ";: Adds x  to y.\n;: param x: the ( first\n;: example:\n;:   (add 1 2)  ; returns 3\n;: example:\n;:   (add 2 \"7\")  ; error: not a number",
   // grammar notation is not code
   "<Arm T U>  ; <Pattern T> <Guard>? => <Value U>",
   // a worked breakdown (spec 2.6)
