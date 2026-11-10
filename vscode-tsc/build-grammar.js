@@ -36,8 +36,8 @@ const BUILTINS = [
 const OPERATORS = ["==", "<=", ">=", "+", "-", "*", "/", "%", "<", ">"];
 // 3.1
 const PRIMITIVES = [
-  "u8", "u16", "u32", "u64", "u128", "u256", "ubig",
-  "i8", "i16", "i32", "i64", "i128", "i256", "ibig",
+  "u8", "u16", "u32", "u64", "u128", "u256", "ubig", "usize",
+  "i8", "i16", "i32", "i64", "i128", "i256", "ibig", "isize",
   "f32", "f64", "f128", "f256",
   "bool", "char", "string"];
 // 3.2, 3.4 - 3.6
@@ -72,7 +72,7 @@ const TYPE_ATOM = `(?:[a-z_][A-Za-z0-9_]*::)*${ID}`;
 // A - ends any identifier before it (1.2.6), so x-1 is x and -1.
 const DIGITS = (d) => `${d}(?:_?${d})*`;
 const DEC = DIGITS("\\d");
-const INT_SUFFIX = "_[ui](?:8|16|32|64|128|256|big)";
+const INT_SUFFIX = "_[ui](?:8|16|32|64|128|256|big|size)";
 const FLOAT_SUFFIX = "_f(?:32|64|128|256)";
 const FLOAT_LIT = `${DEC}(?:\\.${DEC}(?:e[+-]?${DEC})?|e[+-]?${DEC})(?:${FLOAT_SUFFIX})?`;
 const INT_LIT =
