@@ -1,9 +1,9 @@
 {
   "name": "typed-symbolic-code",
   "displayName": "Typed Symbolic Code",
-  "description": "Syntax highlighting and comment-header folding for Typed Symbolic Code (.tsc) drafts.",
+  "description": "Syntax highlighting, comment-header folding, and whitespace warnings with quick fixes for Typed Symbolic Code (.tsc) drafts.",
   "publisher": "local",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "engines": { "vscode": "^1.80.0" },
   "categories": ["Programming Languages"],
   "main": "./extension.js",
@@ -26,10 +26,20 @@
     ],
     "configurationDefaults": {
       "[tsc]": {
-        "editor.tabSize": 2,
+        "editor.tabSize": 4,
         "editor.insertSpaces": true,
         "editor.wordSeparators": "`()[]{}|\"',;:",
         "editor.bracketPairColorization.enabled": true
+      }
+    },
+    "configuration": {
+      "title": "Typed Symbolic Code",
+      "properties": {
+        "tsc.whitespace.enable": {
+          "type": "boolean",
+          "default": true,
+          "description": "Warn about whitespace that breaks the spec's layout rules (1.2, 1.5), with quick fixes."
+        }
       }
     }
   }

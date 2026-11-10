@@ -69,7 +69,7 @@
 ;    change meaning.
 ; 3. A comment starting with exactly ;: is a doc comment. One starting with
 ;    ;;: is an ordinary comment. What a doc comment attaches to is open
-;    (11.1.2).
+;    (11.1.1).
 
 (+ 1 2)  ; a comment after code  [1.1.1]
 ;: a doc comment  [1.1.3]
@@ -77,8 +77,9 @@
 ; comment, which this file uses as a sub-entry header  [1.1.2]
 
 ;;; 1.2 tokens and whitespace
-; 1. Whitespace separates tokens. It is optional next to the delimiters
-;    ( ) [ ] { } | and next to :.
+; 1. Whitespace separates tokens. It is required only where leaving it out
+;    would change the tokens (rule 9). Everywhere else it is optional, and
+;    how much to use is a matter of layout (1.5).
 ; 2. -> is always a token of its own, even between letters.
 ; 3. A token that starts with - followed by a digit is a number literal. A
 ;    literal's type suffix (1.3.1.6) is part of the same token.
@@ -89,20 +90,67 @@
 ; 6. - is never part of an identifier. Outside a number literal (rule 3)
 ;    and -> (rule 2), it is always a token of its own, even between letters.
 ;    why?: x-1 then has one reading, x followed by the literal -1
+; 7. The lexer always takes the longest token it can (maximal munch). The
+;    symbol tokens are a fixed set:
+;      ->  =>  ==  <=  >=  ::  ..  .  :  =  @  ^  _  +  -  *  /  %  <  >
+;    together with the delimiters (2.4). Any other run of symbols is read as
+;    several of these tokens, or is an error. A . belongs to a number only
+;    with a digit after it (1.3.1.3), so 1..3 is 1, .. and 3.
+;    why?: whitespace can then be left out almost everywhere, and since
+;    every token is known in advance, an error can name the token that was
+;    probably meant
+;    Macros (11.8.4), when they come, will have to work within this set.
+;    They cannot add symbol tokens of their own.
+; 8. For spacing, each token falls into one of four categories. These are
+;    separate from the token classes of 2.1.
+;      brackets    ( ) [ ] { } | |
+;      words       keywords, special forms, identifiers, literals, _, and
+;                  the operators + - * / % == < > <= >=
+;      separators  -> = => @ :, and .. in a pattern (6.5)
+;      joiners     . :: ^, and .. before a name (4.4.4)
+;    Layout (1.5) sets the spacing between the categories.
+; 9. Whitespace is required between two tokens when writing them together
+;    would lex as different tokens by rule 7. With the fixed set, this
+;    happens:
+;    a. between two words: (+ x y), (list _ _ ..)
+;    b. between = and a following ==, > or >=: = > written together reads
+;       as =>
+;    c. between < or > and a following ==: < == written together reads as
+;       <= =
+;    d. between - and a following > or >=: - > written together reads as ->
+;    (- 1) and (-1) differ by rule 3. That is a different meaning, not a
+;    missing space.
+; 10. Whitespace around . is an error, as it is after ^ (rule 5). Whitespace
+;     around :: or after a .. before a name is a warning.
+;     why?: otherwise (f a. b) would quietly read a field instead of passing
+;     two values
 
-(+ x y)        ; same as ( + x y )                   [1.2.1]
-|x: u32|       ; same as |x : u32|                   [1.2.1]
-first_or[i32]  ; same as first_or [i32] (7.4)        [1.2.1]
-string->u32    ; three tokens: string -> u32         [1.2.2]
--5             ; one token, a literal                [1.2.3]
--5_i8          ; one token, a literal with a suffix  [1.2.3]
-(- 5)          ; a call of - on 5; returns -5 (8.2)  [1.2.3]
+(+ x y)              ; same as ( + x y )                                  [1.2.1]
+|x: u32|             ; same as |x : u32|; warning: layout (1.5)           [1.2.1]
+first_or[i32]        ; same as first_or [i32] (7.4); warning: layout (1.5)  [1.2.1]
+string->u32          ; three tokens: string -> u32; warning: layout (1.5)  [1.2.2]
+-5                   ; one token, a literal                               [1.2.3]
+-5_i8                ; one token, a literal with a suffix                 [1.2.3]
+(- 5)                ; a call of - on 5; returns -5 (8.2)                 [1.2.3]
 (+ 1
-   2)  ; the line break is just whitespace; returns 3  [1.2.4]
-^LUCKY         ; two tokens: ^ and LUCKY             [1.2.5]
-^ LUCKY        ; error: ^ is written directly before the name  [1.2.5]
-x-1            ; two tokens: x and the literal -1    [1.2.6]
-first-name     ; three tokens: first, - and name     [1.2.6]
+    2)               ; the line break is just whitespace; returns 3       [1.2.4]
+^LUCKY               ; two tokens: ^ and LUCKY                            [1.2.5]
+^ LUCKY              ; error: ^ is written directly before the name       [1.2.5]
+x-1                  ; two tokens: x and the literal -1; warning: layout (1.5)  [1.2.6]
+first-name           ; three tokens: first, - and name; warning: layout (1.5)  [1.2.6]
+(let x=-1)           ; same as (let x = -1); warning: layout (1.5)        [1.2.7]
+(let add:[i32 i32 -> i32]=+)
+                     ; same as (let add : [i32 i32 -> i32] = +); warning: layout (1.5)  [1.2.7]
+(let numbers : [List i32] = (list 1 2 3))
+(match numbers
+    l@(list 1..3)=>l.0
+    _=>0)            ; same as l @ (list 1 .. 3) => l.0 and _ => 0; warning: layout (1.5)  [1.2.7]
+(let gt : [i32 i32 -> bool] =>)
+                     ; error: => is one token; write = >                  [1.2.9]
+; with jane : Employee, and (mod geometry::shapes::circle)
+jane . dept          ; error: no whitespace around .                      [1.2.10]
+circle :: Shape      ; warning: no whitespace around ::                   [1.2.10]
+(Employee .. jane)   ; same as (Employee ..jane); warning: no whitespace after ..  [1.2.10]
 
 ;;; 1.3 literals
 
@@ -283,6 +331,70 @@ true  ; type: bool  [1.3.2.1]
 (struct employee |name : string|)  ; warning: types are PascalCase                    [1.4.4]
 (define AddOne = {fn |x : u32 -> u32| (+ x 1_u32)})  ; warning: functions are snake_case  [1.4.4]
 
+;;; 1.5 layout
+; The recommended layout. Breaking it is a warning, and an editor can offer
+; to fix it. Whitespace that changes the tokens is covered by 1.2.9.
+; 1. Spacing between the categories of 1.2.8:
+;      bracket, bracket      none between two openers or two closers: ((
+;                            and )); one space between a closer and an
+;                            opener: ) (
+;      word, bracket         none inside the brackets: (+ and x); one space
+;                            outside them: first_or [i32]
+;      separator, bracket    none inside the brackets, one space outside
+;                            them: [-> u32], -> [u32], |-> Unit|
+;      word, separator       one space: x : u32, a = 1, l @ (list ..)
+;      word, word            one space
+;      joiner                no space on either side: jane.dept,
+;                            circle::Shape, ^LUCKY, ..jane
+; 2. Each level of nesting indents 4 spaces.
+; 3. A form too long for one line keeps its head, and the items that fit,
+;    on its first line. Each remaining item goes on a line of its own,
+;    indented 4 more than the line the form opens on.
+; 4. A form that opens a body stays at the end of its line, with the body
+;    below it: {fn |...|, (do, (match subject, (loop |...|.
+; 5. A form spread over lines puts one item on each line: each item of a
+;    do, each arm of a match, each variant of an enum, each binding of a
+;    constructor or a recur.
+; 6. Closers stack at the end of the last line. A closer never starts a
+;    line.
+; 7. An arm too long for one line breaks after =>. Its value goes on the
+;    next line, indented 4 more than the arm.
+; 8. A trailing comment has at least two spaces before its ;. Trailing
+;    comments on consecutive lines start in the same column.
+; 9. Exceptions, which win over rule 1:
+;    a. In a match spread over lines, patterns are padded so that every
+;       arm's => sits in the same column.
+;    b. In an enum spread over lines, variant names are padded so that each
+;       variant's opening | sits in the same column.
+;    c. Two spaces may separate the parameters of a signature:
+;       |x : u32  f : [u32 -> u32]|.
+;    d. In a struct's field list spread over lines, field names may be
+;       padded so that every field's : sits in the same column. Either
+;       every field has one space before its :, or every : lines up.
+
+(enum Shape
+    Square |side : i32|
+    Rect   |width : i32 height : i32|)  ; each variant's | in one column  [1.5.9]
+(struct Account |
+    owner   : string
+    balance : i64|)  ; every field's : in one column  [1.5.9]
+(define area = {fn |shape : Shape -> i32|
+    (match shape
+        (Shape.Square side = s)           => (* s s)
+        (Shape.Rect width = w height = h) => (* w h))})
+    ; 4 spaces per level, => in one column, closers stacked  [1.5.2, 1.5.6, 1.5.9]
+(define describe = {fn |shape : Shape -> string|
+    (match shape
+        (Shape.Square side = s) =>
+            (`a square of side ${side}` (to_string s))
+        (Shape.Rect ..)         => "a rectangle")})  ; the long arm breaks after =>  [1.5.7]
+(+ x y )                   ; warning: no space before a closer      [1.5.1]
+{fn |->Unit| ()}           ; warning: write |-> Unit|               [1.5.1]
+(let xs:[List i32] = (list 1 2))  ; warning: write xs : [List i32]  [1.5.1]
+(do
+    (print "a")
+)                          ; warning: a closer never starts a line  [1.5.6]
+
 ;;;; 2 grammar
 
 ;;; 2.1 token classes
@@ -348,6 +460,8 @@ _   ; the wildcard pattern (6.1), and a let or parameter that binds nothing (4.1
 ;    other value, call an accessor function (4.4.3) or get (8.7.2).
 ; 5. :: binds tighter than ., so it is read first. An alias followed by an
 ;    item, such as shapes::circle::Shape, counts as an identifier for rule 4.
+; 6. Where whitespace may go around these tokens is set by 1.2.9, 1.2.10
+;    and 1.5.
 
 ; with jane : Employee, numbers : [List i32], grid : [List [List i32]],
 ; make_employee : [-> Employee], and team : Team, where Team has a field
@@ -2122,7 +2236,7 @@ first_or [i32]                     ; type: [[List i32] i32 -> i32]            [7
 ; 1. Each .tsc file is exactly one module.
 ; 2. A module's path is its file path from the project root, without .tsc,
 ;    with each / written as ::. src/geometry/shapes.tsc has the path
-;    geometry::shapes. Where the project root is, is open (11.8.8).
+;    geometry::shapes. Where the project root is, is open (11.8.7).
 ; 3. A directory is only a namespace. It is not a module, and has no file of
 ;    its own. Having both geometry.tsc and a geometry/ directory is an error.
 ; 4. Every segment of a path is snake_case (1.4).
@@ -2351,14 +2465,7 @@ circle::Shape.Round                      ; type: circle::Shape          [9.6.3]
 ; item from the previous todo list.
 
 ;;; 11.1 lexical
-; 1. Which number formats exist besides 12 and 3.14: 0xFF, 0b1010, 1_000,
-;    1e10, 5., .5?
-; 2. Is a char a byte or a Unicode scalar value? What encoding do strings
-;    use?
-; 3. What does a backslash before any other character mean? Are \r, \0 or
-;    \u{...} needed?
-; 4. Is whitespace optional around other punctuation: ->, =, =>, ., .., @?
-; 5. What does a doc comment (;:) attach to, and what reads it?
+; 1. What does a doc comment (;:) attach to, and what reads it?
 
 ;;; 11.2 grammar
 ; Nothing open. 11.2.1, where each keyword may appear, is settled by
@@ -2369,7 +2476,7 @@ circle::Shape.Round                      ; type: circle::Shape          [9.6.3]
 ;    implemented later")
 ; 2. Which types are "stack types" for the bitwise operations? Do floats,
 ;    bool and char count?
-; 3. Is char a numerical type? Can chars be compared with <?
+; 3. Can chars be compared with <? (char is not numerical: 1.3.3.4.)
 ; 4. Does Never fit wherever another type is expected? Is (if c 5 (panic))
 ;    legal?
 ; 5. What is ParseError?
@@ -2394,28 +2501,24 @@ circle::Shape.Round                      ; type: circle::Shape          [9.6.3]
 
 ;;; 11.5 expressions
 ; 1. In what order are a call's arguments evaluated?
-; 2. Can an integer literal take a float type, as in (let x : f64 = 5)? If
-;    so, (let r : f64 = (if true 5 2.5)) would compile while
-;    (if true 5 2.5) does not (5.5.3).
-; 3. Is a literal that does not fit its type, such as 300_u8 or the 300 in
-;    (let x : u8 = 300), a compile error?
-; 4. What happens on overflow in +, - and *? wrap exists for wraparound on
+; 2. Can an unsuffixed integer literal take a float type from where it is
+;    used, as in (let x : f64 = 5)? A float suffix already allows it, as in
+;    5_f64 (1.3.1.7). If so, (let r : f64 = (if true 5 2.5)) would compile
+;    while (if true 5 2.5) does not (5.5.3).
+; 3. What happens on overflow in +, - and *? wrap exists for wraparound on
 ;    purpose.
-; 5. Does integer / round toward zero or down? What happens on division by
+; 4. Does integer / round toward zero or down? What happens on division by
 ;    zero, for integers and for floats?
-; 6. What sign does % give for negative operands?
-; 7. What does integer pow do with a negative exponent?
-; 8. What does (clamp a b c) return when b > c?
-; 9. May a call bind arguments by name, as in (f x = 1), the way recur and
+; 5. What sign does % give for negative operands?
+; 6. What does integer pow do with a negative exponent?
+; 7. What does (clamp a b c) return when b > c?
+; 8. May a call bind arguments by name, as in (f x = 1), the way recur and
 ;    constructors do?
-; 10. When is a default value evaluated: once, or at each call? (Which
-;     parameters it may use is settled in 5.4.2.3.)
-; 11. Does an arm that can never apply, such as one after a _ arm, warn?
-; 12. Literal handling and arithmetic in general. (old todo)
-; 13. Refine the number literal rules (1.3.1.3, 5.1.1). (todo)
-;     - Which suffixes exist, and how do they combine with other formats
-;       (11.1.1), as in 1_000u32 or 0xFFu8?
-;     - May an integer literal take a float suffix, as in 5_f64 (see 2)?
+; 9. When is a default value evaluated: once, or at each call? (Which
+;    parameters it may use is settled in 5.4.2.3.)
+; 10. Does an arm that can never apply, such as one after a _ arm, warn?
+; 11. Literal handling and arithmetic in general. (old todo)
+; 12. Refine the number literal rules (1.3.1, 5.1.1). (todo)
 ;     - Should an overloaded call let an unsuffixed literal take the type of
 ;       its other operands, so that (+ i 1) works with i : u32? Today it is
 ;       an error (7.5.5).
@@ -2438,7 +2541,9 @@ circle::Shape.Round                      ; type: circle::Shape          [9.6.3]
 ; 4. What text does to_string produce for floats, bools, structs, enums and
 ;    lists? What does debug print?
 ; 5. Which list operations exist: len, push, map, filter, fold? (len is used
-;    hypothetically in 8.7.2.) Does get work on strings or maps?
+;    hypothetically in 8.7.2.) Does get work on strings or maps? On a
+;    string, do len and get count UTF-8 bytes or chars (1.3.4.5)? Counting
+;    chars makes both take time proportional to the string's length.
 ; 6. May a generic function be passed without its type arguments, so that
 ;    the function receiving it gives them? Its parameter would need a type
 ;    such as [[forall T] T -> T]. Today every use needs them (7.4.4).
@@ -2501,16 +2606,16 @@ circle::Shape.Round                      ; type: circle::Shape          [9.6.3]
 ;    - Is the prelude a real module, std::prelude, that can also be written
 ;      qualified?
 ; 6. Can a module re-export items from a module it imports?
-; 7. Is whitespace allowed around :: as it is around : (1.2.1)?
-; 8. Where is the project root (9.3.2), and how does the compiler find it?
-; 9. Linting. (todo)
+; 7. Where is the project root (9.3.2), and how does the compiler find it?
+; 8. Linting. (todo)
 ;    - Which warnings belong to the compiler, and which to a separate
 ;      linter?
 ;    - Can a warning be silenced at one site, per file or per project, or
 ;      raised to an error?
 ;    - Current candidates: naming (1.4.4), hiding (4.1.8), never used
 ;      (4.1.10), discarded values (5.3.4), a used declaration (2.5.1.3), a
-;      recur not in tail position (5.9.6), and the default alias (9.4.5).
+;      recur not in tail position (5.9.6), the default alias (9.4.5),
+;      layout (1.5), and whitespace around :: or a prefix .. (1.2.10).
 
 ;;; 11.9 hypothetical examples
 ; Examples marked hypothetical:, and what each one assumes.

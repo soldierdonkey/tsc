@@ -1,9 +1,18 @@
 # Typed Symbolic Code (.tsc)
 
-Syntax highlighting and folding for the draft TSC language, following `typed_symbolic_code.tsc`.
+Syntax highlighting, folding and whitespace checks for the draft TSC language, following `typed_symbolic_code.tsc`.
 
 - Edit `build-grammar.js` (keywords, special forms, built-ins, primitive and built-in types, and grammar categories are lists at the top), then run `node build-grammar.js` and reload the VS Code window.
 - `;;;;` (section), `;;;` (entry) and `;;` (sub-entry) header comments fold. A header with N semicolons runs until the next header with N or more, so sections contain their entries. `;;:` is an ordinary comment, not a header. Multi-line `()`, `[]` and `{}` forms also fold.
+
+Whitespace (spec 1.2 and 1.5):
+
+- Spacing that breaks the layout rules is a warning; whitespace around `.` or after `^` is an error (1.2.5, 1.2.10). Each message names the rule it comes from.
+- Every warning has a quick fix (lightbulb, or Cmd+.), plus **Fix all whitespace in this file**. **Format Document** applies the same fixes.
+- To fix on save, add `"editor.codeActionsOnSave": { "source.fixAll.tsc": "explicit" }` under `"[tsc]"` in `settings.json`, or turn on `editor.formatOnSave`.
+- Turn the checks off with `"tsc.whitespace.enable": false`.
+- Spec examples whose comment states a warning or error with a rule tag (`; warning: ...  [1.2.7]`), grammar notation (`<Value T>`), and the worked breakdowns of 2.6 are not checked.
+- The checks live in `whitespace.js`, which has no VS Code dependency. Run the tests with `node test/whitespace.test.js`.
 
 What gets its own scope:
 
