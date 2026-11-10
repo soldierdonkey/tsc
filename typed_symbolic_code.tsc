@@ -177,9 +177,9 @@ circle :: Shape      ; warning: no whitespace around ::                   [1.2.1
 ;    numerical type (3.1.2), with no space: 42_u8, 2.5_f32. The _ is
 ;    required. The suffix gives the literal its type. Without a suffix, the
 ;    type comes from where the literal is used (5.1.1).
-; 7. An integer suffix (u8 to i64) only follows an integer literal. A float
-;    suffix (f32 or f64) follows any number literal, and makes an integer
-;    literal a float: 0_f32 is 0.0 as an f32.
+; 7. An integer suffix (u8 to u256, ubig, i8 to i256, ibig) only follows an
+;    integer literal. A float suffix (f32 to f256) follows any number
+;    literal, and makes an integer literal a float: 0_f32 is 0.0 as an f32.
 ; 8. When a radix literal ends in _ and a suffix name, the suffix wins over
 ;    the hex digits: 0x1_f32 is 1 as an f32, not 0x1F32. Write 0x1F32 or
 ;    0x1F_32 for the hex number.
@@ -188,7 +188,9 @@ circle :: Shape      ; warning: no whitespace around ::                   [1.2.1
 ;    radix literal is a value, not a bit pattern: 0xFF_i8 is 255, which does
 ;    not fit in an i8. A float literal, or an integer literal with a float
 ;    suffix, is rounded to the nearest value of its type, and is an error
-;    only when it is outside the type's range.
+;    only when it is outside the type's range. It is rounded once, from its
+;    exact decimal value: 0.1_f128 is the f128 nearest to one tenth, not the
+;    f64 0.1 widened.
 ;    why?: a literal never silently means another number; wrap (8.6.4)
 ;    wraps on purpose
 ; 10. A decimal integer, or the part of a float before the ., that starts
@@ -226,13 +228,19 @@ circle :: Shape      ; warning: no whitespace around ::                   [1.2.1
 1e10_f32     ; type: f32                                           [1.3.1.7]
 2.5_u8       ; error: an integer suffix on a float literal         [1.3.1.7]
 1e10_u32     ; error: 1e10 is a float literal                      [1.3.1.7]
+42_u128      ; type: u128                                          [1.3.1.7]
+2.5_f256     ; type: f256                                          [1.3.1.7]
+2.5_ibig     ; error: an integer suffix on a float literal         [1.3.1.7]
 0x1_f32      ; type: f32; returns 1.0                              [1.3.1.8]
+0x1_f128     ; type: f128; returns 1.0, not 0x1F128                [1.3.1.8]
 0x1F_32      ; returns 7986, which is 0x1F32                     [1.3.1.8]
 0xFF_i8      ; error: 255 does not fit in an i8                    [1.3.1.9]
 -0x80_i8     ; returns -128, an i8                                 [1.3.1.9]
 300_u8       ; error: 300 does not fit in a u8                     [1.3.1.9]
 -1_u8        ; error: a u8 cannot be negative                      [1.3.1.9]
+-1_ubig      ; error: a ubig cannot be negative                    [1.3.1.9]
 (let x : u8 = 300)  ; error: 300 does not fit in a u8              [1.3.1.9]
+0.1_f128     ; the f128 nearest to 0.1, not the f64 0.1 widened    [1.3.1.9]
 007          ; warning: a leading 0; write 7, or 0o7 for octal     [1.3.1.10]
 1e05         ; returns 100000.0; no warning in an exponent         [1.3.1.10]
 
@@ -668,12 +676,20 @@ u8      ; unsigned 8-bit integer
 u16     ; unsigned 16-bit integer
 u32     ; unsigned 32-bit integer
 u64     ; unsigned 64-bit integer
+u128    ; unsigned 128-bit integer, a quad
+u256    ; unsigned 256-bit integer, an oct
+ubig    ; unsigned integer of any size
 i8      ; signed 8-bit integer
 i16     ; signed 16-bit integer
 i32     ; signed 32-bit integer
 i64     ; signed 64-bit integer
+i128    ; signed 128-bit integer, a quad
+i256    ; signed 256-bit integer, an oct
+ibig    ; signed integer of any size
 f32     ; 32-bit float
 f64     ; 64-bit float
+f128    ; 128-bit float, a quad
+f256    ; 256-bit float, an oct
 bool    ; true or false
 char    ; a character, written 'c' (1.3.3)
 string  ; text, written "like this" (1.3.4)
@@ -683,13 +699,43 @@ string  ; text, written "like this" (1.3.4)
 ; 3. There are no implicit conversions. A value changes type only through an
 ;    explicit cast (8.6).
 ;    why: every change of type is visible in the code
-; 128-bit ("quad") and arbitrary-size ("big") numbers are planned (11.3.1).
+; 4. u8 to u256 and i8 to i256 are the fixed-size integer types. A u type
+;    of N bits holds 0 to 2^N - 1. An i type of N bits holds -2^(N-1) to
+;    2^(N-1) - 1, in two's complement.
+; 5. f32 to f256 are the fixed-size float types: the IEEE 754 binary32,
+;    binary64, binary128 and binary256 formats. Their significands hold 24,
+;    53, 113 and 237 bits.
+; 6. A fixed-size type gives the same results on every target. Where the
+;    hardware lacks a type, the compiler emulates it in software, which is
+;    slower. Most hardware lacks f128, and none has f256.
+;    why?: a program's results do not depend on the machine it runs on
+; 7. ubig and ibig are the big types. A ubig holds any integer from 0 up,
+;    and an ibig any integer. Each grows to fit its value, so an ibig never
+;    overflows, and a ubig overflows only below 0, like any unsigned type
+;    (11.5.3).
+; 8. A big type value's size is not known at compile time. Its digits sit
+;    on the heap in a buffer with a length and a capacity, as a List keeps
+;    its elements (3.4). When a result outgrows the capacity, the capacity
+;    doubles. When an operand is not used again (9.2), the result is written
+;    into that operand's buffer. Running out of memory panics (8.8). When a
+;    buffer shrinks is open (11.3.1).
+;    why?: a loop that grows one value, such as a factorial, takes linear
+;    time overall, instead of copying the value at every step
+; Floats of any precision are not built in. They will likely come from
+; the standard library (11.8.5) or a specific custom math library.
 
 (let count : u32 = 3)                 ; u32 is primitive, so lowercase               [3.1.1]
 (+ 2.5 1.5)                           ; f64 is numerical; returns 4.0                [3.1.2]
 (+ true false)                        ; error: + needs numerical or string operands  [3.1.2]
 (let wide : u64 = count)              ; error: count is a u32; write (as [u64] count)  [3.1.3]
 (let wider : u64 = (as [u64] count))  ; the explicit cast                              [3.1.3]
+340282366920938463463374607431768211455_u128  ; the largest u128, 2^128 - 1          [3.1.4]
+340282366920938463463374607431768211456_u128  ; error: 2^128 does not fit in a u128  [3.1.4]
+-1_i256                               ; type: i256                                   [3.1.4]
+1e400_f128                            ; type: f128                                   [3.1.5]
+1e400_f64                             ; error: outside the range of an f64           [3.1.5]
+(pow [ubig] 2 200)                    ; returns 2^200, a ubig; it grows to fit       [3.1.7]
+(* (pow [ibig] 10 40) -3_ibig)        ; returns -3 * 10^40, an ibig                  [3.1.7]
 
 ;;; 3.2 Unit and Never
 Unit   ; a type with exactly one value, written ()
@@ -1085,7 +1131,9 @@ bob.salary                                   ; returns 2.5, copied from jane    
 ;    A written type also reaches into the value positions of do, if and
 ;    match: the last item, both branches, and every arm.
 ; 3. Anywhere else, an integer literal is an i32, or an i64 if it is too
-;    large for an i32, and a float literal is an f64. This includes an
+;    large for an i32, and a float literal is an f64. An integer literal
+;    too large for an i64 is an error there; it needs a suffix or a written
+;    type, such as _i128 or _ibig. This includes an
 ;    argument of an overloaded built-in whose parameter type depends on the
 ;    member (7.5.5): in (+ x 1) with x : u8, the 1 is an i32, so the call is
 ;    an error.
@@ -1105,6 +1153,9 @@ bob.salary                                   ; returns 2.5, copied from jane    
 (define wide = {fn |-> u64| 7})    ; 7 is a u64, the fn's output type              [5.1.1.2]
 42                                 ; type: i32                                     [5.1.1.3]
 3000000000                         ; type: i64, too large for an i32               [5.1.1.3]
+100000000000000000000              ; error: too large for an i64; write a suffix   [5.1.1.3]
+100000000000000000000_i128         ; type: i128                                    [5.1.1.1]
+(let huge : ubig = 100000000000000000000)  ; 10^20 is a ubig, from the annotation  [5.1.1.2]
 2.5                                ; type: f64                                     [5.1.1.3]
 42_u8                              ; type: u8                                      [5.1.1.1]
 (let tiny : u8 = 2.5)              ; error: a float literal is never a u8          [5.1.1.4]
@@ -2088,8 +2139,9 @@ first_or [i32]                     ; type: [[List i32] i32 -> i32]            [7
 (bit_xor a b)  ; bitwise exclusive or
 (shl a n)      ; shift a left by n bits
 (shr a n)      ; shift a right by n bits
-; 1. These work on all stack types, which include the integer types. What
-;    else counts as a stack type is open (11.3.2).
+; 1. These work on all stack types, which include the fixed-size integer
+;    types (3.1.4). What else counts as a stack type, including whether
+;    ubig and ibig do, is open (11.3.2).
 ; 2. n defaults to 1 in shl and shr.
 ; 3. n is a u32 in every member of shl and shr (7.5.5).
 
@@ -2113,10 +2165,13 @@ first_or [i32]                     ; type: [[List i32] i32 -> i32]            [7
 ;    comes from the argument.
 ; 2. as only compiles when the target type is wider than the value's type,
 ;    so it never fails. u32 is wider than char: (as [u32] c) gives the code
-;    point of c (1.3.3.4). Which other conversions count as wider is open
-;    (11.7.3).
+;    point of c (1.3.3.4). Within each family, a larger type is wider:
+;    u8 to u256 then ubig, i8 to i256 then ibig, and f32 to f256. ibig is
+;    also wider than every u type and ubig. Which other conversions count as
+;    wider is open (11.7.3).
 ; 3. try_as returns Option.None when the value does not fit the target type.
-; 4. wrap wraps around on overflow. It is native for numerical types.
+; 4. wrap wraps around on overflow. It is native for numerical types. Its
+;    target may not be ubig or ibig: a big type has no size to wrap at.
 ; 5. parse reads a string as a value of the target type. It returns
 ;    Result.Error when the string is not a valid value of that type.
 ; 6. to_string turns a value of any type into text.
@@ -2131,7 +2186,14 @@ first_or [i32]                     ; type: [[List i32] i32 -> i32]            [7
 (as [u32] 'A')             ; returns 65, the code point of A                              [8.6.2]
 (try_as [char] 65_u32)     ; returns (Option.Some [char] value = 'A')                     [8.6.3]
 (try_as [char] 0xD800_u32) ; returns Option.None [char]: a surrogate is not a char        [8.6.3]
+(as [i128] 5)              ; returns 5 as an i128                                         [8.6.2]
+(as [ibig] 7_u64)          ; returns 7 as an ibig; ibig holds every integer               [8.6.2]
+(as [f256] 2.5)            ; returns 2.5 as an f256                                       [8.6.2]
+(as [u64] 7_ubig)          ; error: u64 is not wider than ubig; use try_as                [8.6.2]
+(try_as [u64] (pow [ubig] 2 64))  ; returns Option.None [u64]: 2^64 does not fit          [8.6.3]
 (wrap [u8] 300)            ; returns 44, which is 300 - 256                               [8.6.4]
+(wrap [u64] (pow [ubig] 2 64))    ; returns 0                                             [8.6.4]
+(wrap [ubig] -5)           ; error: ubig has no size to wrap at                           [8.6.4]
 (parse [u32] "42")         ; returns (Result.Ok [u32] [ParseError] value = 42)            [8.6.5]
 (parse [u32] "forty-two")  ; returns a Result.Error holding a ParseError                  [8.6.5]
 (to_string 42)             ; returns "42"                                                 [8.6.6]
@@ -2472,10 +2534,17 @@ circle::Shape.Round                      ; type: circle::Shape          [9.6.3]
 ; 2.5.1.3, 4.1.3, 4.1.10, 4.3.3, 4.4.1.4 and 4.5.1.5.
 
 ;;; 11.3 types
-; 1. 128-bit (quad) and arbitrary-size (big) numbers. (old notes: "will be
-;    implemented later")
+; 1. Big number storage. Settled: ubig and ibig grow a
+;    doubling buffer (3.1.8). Still open:
+;    - When does a ubig or ibig buffer shrink after a large value becomes
+;      small: never, when it falls below a quarter full, or only when the
+;      value is moved?
+;    - Should a value small enough for one word skip the heap? It saves an
+;      allocation for most values, at the cost of a second layout.
 ; 2. Which types are "stack types" for the bitwise operations? Do floats,
-;    bool and char count?
+;    bool and char count? Do ubig and ibig? If they do, an ibig could act
+;    as infinite two's complement, so (bit_not 0_ibig) is -1, but
+;    (bit_not 0_ubig) would have infinitely many 1 bits.
 ; 3. Can chars be compared with <? (char is not numerical: 1.3.3.4.)
 ; 4. Does Never fit wherever another type is expected? Is (if c 5 (panic))
 ;    legal?
@@ -2485,6 +2554,9 @@ circle::Shape.Round                      ; type: circle::Shape          [9.6.3]
 ; 8. May a type refer to itself, as [Tree T] does in 7.2?
 ; 9. Is a struct with no fields allowed, such as (struct Empty)? Is its value
 ;    written Empty or (Empty)?
+; 10. (speculative) Should types take numbers as well as types, as in a
+;     fixed-length [Array T N]? It would allow sizes in user types and
+;     integers of any fixed width, such as [u 24]. Nothing needs it yet.
 
 ;;; 11.4 declarations
 ; 1. What happens with a cycle among defines, such as (define A : u32 = B)
@@ -2506,7 +2578,8 @@ circle::Shape.Round                      ; type: circle::Shape          [9.6.3]
 ;    5_f64 (1.3.1.7). If so, (let r : f64 = (if true 5 2.5)) would compile
 ;    while (if true 5 2.5) does not (5.5.3).
 ; 3. What happens on overflow in +, - and *? wrap exists for wraparound on
-;    purpose.
+;    purpose. ibig never overflows. ubig overflows only below 0, as in
+;    (- 2_ubig 3_ubig), and wrap cannot help there (8.6.4).
 ; 4. Does integer / round toward zero or down? What happens on division by
 ;    zero, for integers and for floats?
 ; 5. What sign does % give for negative operands?
@@ -2524,6 +2597,8 @@ circle::Shape.Round                      ; type: circle::Shape          [9.6.3]
 ;       an error (7.5.5).
 ;     - Should a written type reach further into an expression than the
 ;       value positions of do, if and match (5.1.1.2)?
+;     - Should an unsuffixed integer literal too large for an i64 become an
+;       i128 or an ibig instead of an error (5.1.1.3)?
 
 ;;; 11.6 patterns
 ; 1. May the fields of a constructor pattern appear in any order?
@@ -2537,7 +2612,10 @@ circle::Shape.Round                      ; type: circle::Shape          [9.6.3]
 ;    a function field?
 ; 3. Which conversions count as wider for as? Is i32 to f64 wider? i64 to
 ;    f64? u32 to i64? What does try_as do with a float that has a fraction,
-;    and how are floats turned into integers?
+;    and how are floats turned into integers? (Settled: each family widens
+;    by size, and ibig is wider than every u type and ubig, 8.6.2.) Facts
+;    for the rest: f64 holds every i32 exactly, f128 every i64 and u64, and
+;    f256 every i128 and u128, but not every i256.
 ; 4. What text does to_string produce for floats, bools, structs, enums and
 ;    lists? What does debug print?
 ; 5. Which list operations exist: len, push, map, filter, fold? (len is used

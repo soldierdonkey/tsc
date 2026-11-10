@@ -35,7 +35,11 @@ const BUILTINS = [
 // 8.2, 8.3: built-in operators
 const OPERATORS = ["==", "<=", ">=", "+", "-", "*", "/", "%", "<", ">"];
 // 3.1
-const PRIMITIVES = ["u8", "u16", "u32", "u64", "i8", "i16", "i32", "i64", "f32", "f64", "bool", "char", "string"];
+const PRIMITIVES = [
+  "u8", "u16", "u32", "u64", "u128", "u256", "ubig",
+  "i8", "i16", "i32", "i64", "i128", "i256", "ibig",
+  "f32", "f64", "f128", "f256",
+  "bool", "char", "string"];
 // 3.2, 3.4 - 3.6
 const BUILTIN_TYPES = ["Unit", "Never", "List", "Map", "Option", "Result"];
 // 1.3.2
@@ -68,8 +72,8 @@ const TYPE_ATOM = `(?:[a-z_][A-Za-z0-9_]*::)*${ID}`;
 // A - ends any identifier before it (1.2.6), so x-1 is x and -1.
 const DIGITS = (d) => `${d}(?:_?${d})*`;
 const DEC = DIGITS("\\d");
-const INT_SUFFIX = "_[ui](?:8|16|32|64)";
-const FLOAT_SUFFIX = "_f(?:32|64)";
+const INT_SUFFIX = "_[ui](?:8|16|32|64|128|256|big)";
+const FLOAT_SUFFIX = "_f(?:32|64|128|256)";
 const FLOAT_LIT = `${DEC}(?:\\.${DEC}(?:e[+-]?${DEC})?|e[+-]?${DEC})(?:${FLOAT_SUFFIX})?`;
 const INT_LIT =
   `(?:0x${DIGITS("[0-9A-Fa-f]")}|0o${DIGITS("[0-7]")}|0b${DIGITS("[01]")}|${DEC})` +
