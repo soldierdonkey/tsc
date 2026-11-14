@@ -498,7 +498,9 @@ _   ; the wildcard pattern (6.1), a let or parameter that binds nothing (4.1.10)
 ; 1. A . between two identifiers forms a qualified name: Weapon.Bow,
 ;    Option.Some, Employee.dept. Qualified names chain, and are read left to
 ;    right: a.b.c is (a.b).c.
-; 2. name.field, where name is bound to a struct, reads that field (4.4.3).
+; 2. name.field, where name is bound to a struct, reads that field (4.4.3);
+;    where name is bound to an enum, reads a field shared by all its
+;    variants (4.5.3).
 ; 3. name.N, where name is bound to a list and N is an integer literal, reads
 ;    element N (3.4.2). Digits after a . are always an index, never part of
 ;    a float literal: grid.0.1 is (grid.0).1.
@@ -1302,6 +1304,26 @@ bob.salary                                   ; returns 2.5, copied from jane    
         skill = "backdoors"
         salary = 1.0)))
     (print (to_string person_2)))  ; prints person_2 as text (11.7.4)  [4.5.2.1]
+
+;; 4.5.3 field access
+; 1. A field F that every variant of an enum E has, with the same type T,
+;    is a shared field of E. The enum definition creates an accessor
+;    function E.F of type [E -> T], with the same scope as the enum.
+; 2. name.F reads the shared field F of the enum value bound to name, an
+;    identifier or a qualified name (2.3.1), whichever variant it is.
+; 3. A field that is missing from some variant, or has different types in
+;    different variants, is not shared. Read it by matching (6.8).
+; 4. The rest of the field access rules, including that . only works after
+;    an identifier or a qualified name, are those of 4.4.3.
+
+(enum Shape
+    Circle |name : string radius : f64|
+    Square |name : string side : f64|)
+; with ring : Shape, built as (Shape.Circle name = "ring" radius = 1.0)
+ring.name         ; returns "ring"; name is in every variant                      [4.5.3.2]
+Shape.name        ; type: [Shape -> string]                                       [4.5.3.1]
+ring.radius       ; error: Shape.Square has no field radius, so match instead     [4.5.3.3]
+Shape.Circle.name ; error: Shape.Circle is a variant, not a value                 [4.5.3.4]
 
 ;;; 4.6 doc comments
 ; A doc comment (1.1.3) documents a define, struct, enum, trait or impl, and
