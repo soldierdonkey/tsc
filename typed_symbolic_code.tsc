@@ -860,7 +860,7 @@ numbers.i        ; error: numbers.i is field access, and a list has no field i  
 [Option T]    ; either a T or nothing
 [Result T E]  ; either a success T or an error E
 ; Both are built-in generic enums (4.5, 7.2), defined as if by:
-(enum [Option T]   Some |value : T| None)
+(enum [Option T] Some |value : T| None)
 (enum [Result T E] Ok |value : T| Error |error : E|)
 ; 1. Their variants are qualified like any other: Option.Some, Option.None,
 ;    Result.Ok and Result.Error (4.5.2).
@@ -1134,7 +1134,7 @@ bob.salary                                   ; returns 2.5, copied from jane    
     Fist)  ; variants Weapon.Sword, Weapon.Bow and Weapon.Fist  [4.5.1.2]
 (enum Person
     Employee |person : Employee|
-    Hacker |person : Hacker|)  ; a Person is an Employee or a Hacker, never both  [4.5.1.1]
+    Hacker   |person : Hacker|)  ; a Person is an Employee or a Hacker, never both  [4.5.1.1]
 (enum Signal
     Beep |pitch : u32 = 440|
     Silence)  ; a variant field with a default  [4.5.1.3]
@@ -2606,33 +2606,33 @@ first_or [i32]                     ; type: [[List i32] i32 -> i32]            [7
 ; 6. to_string turns a value of any type into text.
 
 (let n : u32 = 7)
-(let m : u64 = n)          ; error: nothing converts implicitly; write (as [u64] n)       [8.6.1]
-(as u64 n)                 ; error: u64 is a type, not a value; write [u64]               [8.6.1]
-(as [i64] 5)               ; returns 5 as an i64; i64 is wider than i32                   [8.6.2]
-(as [u8] 5)                ; error: u8 is not wider than i32                              [8.6.2]
-(try_as [u8] 200)          ; returns (Option.Some [u8] value = 200)                       [8.6.3]
-(try_as [u8] 300)          ; returns Option.None [u8]: 300 does not fit in a u8           [8.6.3]
-(as [u32] 'A')             ; returns 65, the code point of A                              [8.6.2]
-(try_as [char] 65_u32)     ; returns (Option.Some [char] value = 'A')                     [8.6.3]
-(try_as [char] 0xD800_u32) ; returns Option.None [char]: a surrogate is not a char        [8.6.3]
-(as [i128] 5)              ; returns 5 as an i128                                         [8.6.2]
-(as [ibig] 7_u64)          ; returns 7 as an ibig; ibig holds every integer               [8.6.2]
-(as [f256] 2.5)            ; returns 2.5 as an f256                                       [8.6.2]
-(as [u64] 7_ubig)          ; error: u64 is not wider than ubig; use try_as                [8.6.2]
-(as [usize] 7_u32)         ; returns 7 as a usize; a usize has at least 32 bits           [8.6.2]
-(as [u64] 7_usize)         ; returns 7 as a u64; a usize has at most 64 bits              [8.6.2]
-(as [usize] 7_u64)         ; error: a usize may have only 32 bits; use try_as             [8.6.2]
-(as [isize] 7_usize)       ; error: isize is not in the u family; use try_as (11.7.3)     [8.6.2]
+(let m : u64 = n)                 ; error: nothing converts implicitly; write (as [u64] n)       [8.6.1]
+(as u64 n)                        ; error: u64 is a type, not a value; write [u64]               [8.6.1]
+(as [i64] 5)                      ; returns 5 as an i64; i64 is wider than i32                   [8.6.2]
+(as [u8] 5)                       ; error: u8 is not wider than i32                              [8.6.2]
+(try_as [u8] 200)                 ; returns (Option.Some [u8] value = 200)                       [8.6.3]
+(try_as [u8] 300)                 ; returns Option.None [u8]: 300 does not fit in a u8           [8.6.3]
+(as [u32] 'A')                    ; returns 65, the code point of A                              [8.6.2]
+(try_as [char] 65_u32)            ; returns (Option.Some [char] value = 'A')                     [8.6.3]
+(try_as [char] 0xD800_u32)        ; returns Option.None [char]: a surrogate is not a char        [8.6.3]
+(as [i128] 5)                     ; returns 5 as an i128                                         [8.6.2]
+(as [ibig] 7_u64)                 ; returns 7 as an ibig; ibig holds every integer               [8.6.2]
+(as [f256] 2.5)                   ; returns 2.5 as an f256                                       [8.6.2]
+(as [u64] 7_ubig)                 ; error: u64 is not wider than ubig; use try_as                [8.6.2]
+(as [usize] 7_u32)                ; returns 7 as a usize; a usize has at least 32 bits           [8.6.2]
+(as [u64] 7_usize)                ; returns 7 as a u64; a usize has at most 64 bits              [8.6.2]
+(as [usize] 7_u64)                ; error: a usize may have only 32 bits; use try_as             [8.6.2]
+(as [isize] 7_usize)              ; error: isize is not in the u family; use try_as (11.7.3)     [8.6.2]
 (try_as [u64] (pow [ubig] 2 64))  ; returns Option.None [u64]: 2^64 does not fit          [8.6.3]
 (try_as [usize] 5000000000_u64)   ; returns Option.None [usize] on a 32-bit target only   [8.6.3]
-(wrap [u8] 300)            ; returns 44, which is 300 - 256                               [8.6.4]
+(wrap [u8] 300)                   ; returns 44, which is 300 - 256                               [8.6.4]
 (wrap [u64] (pow [ubig] 2 64))    ; returns 0                                             [8.6.4]
-(wrap [ubig] -5)           ; error: ubig has no size to wrap at                           [8.6.4]
-(wrap [usize] -1)          ; returns 2^32 - 1 or 2^64 - 1, by the target's width          [8.6.4]
-(parse [u32] "42")         ; returns (Result.Ok [u32] [ParseError] value = 42)            [8.6.5]
-(parse [u32] "forty-two")  ; returns a Result.Error holding a ParseError                  [8.6.5]
-(to_string 42)             ; returns "42"                                                 [8.6.6]
-(to_string excalibur)      ; returns excalibur as text; the format is open (11.7.4)       [8.6.6]
+(wrap [ubig] -5)                  ; error: ubig has no size to wrap at                           [8.6.4]
+(wrap [usize] -1)                 ; returns 2^32 - 1 or 2^64 - 1, by the target's width          [8.6.4]
+(parse [u32] "42")                ; returns (Result.Ok [u32] [ParseError] value = 42)            [8.6.5]
+(parse [u32] "forty-two")         ; returns a Result.Error holding a ParseError                  [8.6.5]
+(to_string 42)                    ; returns "42"                                                 [8.6.6]
+(to_string excalibur)             ; returns excalibur as text; the format is open (11.7.4)       [8.6.6]
 
 ;;; 8.7 lists
 
