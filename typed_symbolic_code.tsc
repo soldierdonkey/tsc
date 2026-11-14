@@ -32,8 +32,9 @@
 ;    is not part of the syntax: (do) -> Unit means (do) is a Unit value.
 
 ;;; 0.3 example annotations
-; 1. Examples are fragments. A define, struct or enum example sits at the
-;    top level. Any other example reads as part of the body of main (9.1).
+; 1. Examples are fragments. A define, struct, enum, trait or impl example
+;    sits at the top level. Any other example reads as part of the body of
+;    main (9.1).
 ;    Earlier examples in the same entry are in scope.
 ;    The examples of an entry that are not top level read as items of one
 ;    do, which is main's body. A bare let example is therefore a do item,
@@ -41,9 +42,9 @@
 ;    Warnings that come only from an example being a fragment are not
 ;    shown: a binding that no later example reads (4.1.10), or a
 ;    declaration that ends the fragment (2.5.1.3).
-;    A define, struct or enum example has no doc unless the entry is about
-;    docs, and the warning for a missing doc (4.6.8.1) is not shown either.
-;    A doc that is there must still be complete.
+;    A define, struct, enum or trait example has no doc unless the entry is
+;    about docs, and the warning for a missing doc (4.6.10.1) is not shown
+;    either. A doc that is there must still be complete.
 ; 2. A trailing comment states the outcome:
 ;      returns X     the example evaluates to X
 ;      type: T       the example has type T
@@ -51,11 +52,19 @@
 ;      prints: X     the example writes X to the console
 ;      warning: ...  the example compiles, with this warning
 ;      error: ...    the example does not compile
-;      panics: ...   the example compiles, then stops at run time (8.8)
+;      panics: ...   the example compiles, then stops at run time (8.9)
 ; 3. A tag such as [5.5.3] at the end of the comment names the rule the
 ;    example exercises.
 ; 4. A comment starting with hypothetical: marks an example that relies on
 ;    something this file does not define yet. Each one is listed in 11.9.
+; 5. The operators and the other built-in functions of section 8 are methods
+;    of traits (7.5) that will be defined in the prelude (8.1.3, 11.8.5).
+;    An example that only calls them is not marked. An example that names
+;    a prelude trait, such as Add in a bound or an impl, is marked
+;    hypothetical.
+; 6. In an example, ... inside an impl or a fn stands for entries or a body
+;    that the example leaves out, where only the header or the signature
+;    matters.
 
 ;;; 0.4 reasons
 ; 1. A line starting with why: gives a reason the author stated.
@@ -66,18 +75,27 @@
 
 ;;; 1.1 comments
 ; 1. A comment starts with ; and runs to the end of the line. The compiler
-;    ignores it, unless it is a doc comment (rule 3).
+;    ignores it, unless it is a doc comment (rule 3) or a lint command
+;    (rule 4).
 ; 2. The number of semicolons at the start of a comment sets its level.
 ;    Levels are for readers and editors, for headers and folding. They never
 ;    change meaning.
 ; 3. A comment starting with exactly ;: is a doc comment. One starting with
 ;    ;;: is an ordinary comment. What a doc comment attaches to, and what it
 ;    must say, is in 4.6.
+; 4. A comment starting with exactly ;! is a lint command for the item
+;    below it, and one starting with exactly ;!! is a lint command for the
+;    whole module. One starting with ;;! is an ordinary comment. What a
+;    lint command attaches to, and what it may say, is in 4.7.
 
 (+ 1 2)  ; a comment after code  [1.1.1]
 ;: The answer to everything.
 (define ANSWER : u32 = 42)  ; a doc comment, attached to the define below it  [1.1.3]
 ;;: an ordinary comment, not a doc  [1.1.3]
+;: Half of the answer.
+;! allow naming
+(define half_answer : u32 = 21)  ; a lint command, after the doc and above the define  [1.1.4]
+;;! an ordinary comment, not a lint command  [1.1.4]
 ; this is a level-one comment; at the start of a line, ;; begins a level-two
 ; comment, which this file uses as a sub-entry header  [1.1.2]
 
@@ -90,7 +108,7 @@
 ;    literal's type suffix (1.3.1.6) is part of the same token.
 ; 4. A line break is whitespace, except that it ends a comment.
 ; 5. ^ is always a token of its own. It is written directly before the name
-;    it pins (6.7), with no whitespace between them.
+;    it pins (6.8), with no whitespace between them.
 ;    why?: ^name then reads as one unit, like -5
 ; 6. - is never part of an identifier. Outside a number literal (rule 3)
 ;    and -> (rule 2), it is always a token of its own, even between letters.
@@ -123,10 +141,12 @@
 ;    c. between < or > and a following ==: < == written together reads as
 ;       <= =
 ;    d. between - and a following > or >=: - > written together reads as ->
-;    (- 1) and (-1) differ by rule 3. That is a different meaning, not a
-;    missing space.
+;    (- 1) and (-1) differ by rule 3: the first calls - with one argument,
+;    which is an error (8.2.2), and the second is a literal. That is a
+;    different meaning, not a missing space.
 ; 10. Whitespace around . is an error, as it is after ^ (rule 5). Whitespace
-;     around :: or after a .. before a name is a warning.
+;     around :: or after a .. before a name is a warning (lint spacing,
+;     4.7.3).
 ;     why?: otherwise (f a. b) would quietly read a field instead of passing
 ;     two values
 
@@ -136,7 +156,7 @@ first_or[i32]        ; same as first_or [i32] (7.4); warning: layout (1.5)  [1.2
 string->u32          ; three tokens: string -> u32; warning: layout (1.5)  [1.2.2]
 -5                   ; one token, a literal                               [1.2.3]
 -5_i8                ; one token, a literal with a suffix                 [1.2.3]
-(- 5)                ; a call of - on 5; returns -5 (8.2)                 [1.2.3]
+(- 5)                ; a call of - on 5; error: - takes two arguments (8.2.2)  [1.2.3]
 (+ 1
     2)               ; the line break is just whitespace; returns 3       [1.2.4]
 ^LUCKY               ; two tokens: ^ and LUCKY                            [1.2.5]
@@ -200,8 +220,8 @@ circle :: Shape      ; warning: no whitespace around ::                   [1.2.1
 ;    why?: a literal never silently means another number; wrap (8.6.4)
 ;    wraps on purpose
 ; 10. A decimal integer, or the part of a float before the ., that starts
-;     with 0 and has more digits after it is a warning: 007. 0, 0.5, 0x0F
-;     and the exponent in 1e05 are not.
+;     with 0 and has more digits after it is a warning (lint leading_zero,
+;     4.7.3): 007. 0, 0.5, 0x0F and the exponent in 1e05 are not.
 ;     why: in C and several languages that copy it, 010 is octal for 8; the
 ;     warning catches numbers written with that habit. Octal is written
 ;     0o10.
@@ -275,7 +295,7 @@ true  ; type: bool  [1.3.2.1]
 'é'          ; type: char; one scalar value, U+00E9           [1.3.3.3]
 '日'         ; type: char; one scalar value, U+65E5           [1.3.3.3]
 'e\u{301}'   ; error: two scalar values, e and an accent      [1.3.3.3]
-(+ 'a' 'b')  ; error: char is not numerical                   [1.3.3.4]
+(+ 'a' 'b')  ; error: char is not numerical, so + has no impl for it (8.2)  [1.3.3.4]
 
 ;; 1.3.4 strings
 ; 1. A simple string is written between double quotes: "hello world!".
@@ -332,12 +352,12 @@ true  ; type: bool  [1.3.2.1]
 "costs \$5"          ; returns "costs $5"; \$ works though it is not needed        [1.3.5.6]
 
 ;;; 1.4 naming conventions
-; 1. PascalCase names types, enum variants and constructors: Employee,
-;    Weapon.Bow.
+; 1. PascalCase names types, enum variants, constructors and traits (7.5):
+;    Employee, Weapon.Bow, Shape.
 ; 2. snake_case names values and functions: add_one, person_1.
 ; 3. SCREAMING_SNAKE_CASE names constants. A constant is a define whose type
 ;    is a primitive type (3.1): PI, SOME_NUMBER.
-; 4. Breaking 1 to 3 is a warning, not an error.
+; 4. Breaking 1 to 3 is a warning (lint naming, 4.7.3), not an error.
 
 (struct Employee |name : string|)  ; a type                                           [1.4.1]
 (define add_one = {fn |x : u32 -> u32| (+ x 1_u32)})  ; a function                    [1.4.2]
@@ -348,8 +368,9 @@ true  ; type: bool  [1.3.2.1]
 (define AddOne = {fn |x : u32 -> u32| (+ x 1_u32)})  ; warning: functions are snake_case  [1.4.4]
 
 ;;; 1.5 layout
-; The recommended layout. Breaking it is a warning, and an editor can offer
-; to fix it. Whitespace that changes the tokens is covered by 1.2.9.
+; The recommended layout. Breaking it is a warning (lint layout, 4.7.3), and
+; an editor can offer to fix it. Whitespace that changes the tokens is
+; covered by 1.2.9.
 ; 1. Spacing between the categories of 1.2.8:
 ;      bracket, bracket      none between two openers or two closers: ((
 ;                            and )); one space between a closer and an
@@ -370,7 +391,7 @@ true  ; type: bool  [1.3.2.1]
 ;    below it: {fn |...|, (do, (match subject, (loop |...|.
 ; 5. A form spread over lines puts one item on each line: each item of a
 ;    do, each arm of a match, each variant of an enum, each binding of a
-;    constructor or a recur.
+;    constructor or a recur, each entry of a trait or an impl (7.5).
 ; 6. Closers stack at the end of the last line. A closer never starts a
 ;    line.
 ; 7. An arm too long for one line breaks after =>. Its value goes on the
@@ -433,7 +454,8 @@ Weapon.Bow                ; Identifier, Punctuation, Identifier  [2.1.2]
 ;;; 2.2 keywords
 do      ; a block (5.3)
 fn      ; a function value (5.4)
-forall  ; the type parameters of a generic function (7.3)
+forall  ; the type parameters of a generic function or impl (7.3, 7.5.3)
+with    ; starts the bounds of a forall list (7.5.4), or a trait's supertraits (7.5.5)
 define  ; a global binding (4.2)
 let     ; a local binding (4.3)
 if      ; a two-way choice (5.5), and the start of a guard (5.7.1)
@@ -441,13 +463,15 @@ when    ; a Unit body run if a condition holds (5.6)
 unless  ; a Unit body run unless a condition holds (5.6)
 struct  ; a struct type (4.4)
 enum    ; an enum type (4.5)
+trait   ; a trait: methods that types implement (7.5.1)
+impl    ; an implementation of a trait for some types (7.5.3)
 match   ; pattern matching (5.7)
 next    ; an arm that shares the following arm's value (5.7.3)
 loop    ; a loop (5.8)
 recur   ; a new pass of a loop or fn (5.9)
 for     ; a counting loop (5.10)
 mod     ; imports a module (9.4)
-export  ; exports a define, enum, or struct (9.6)
+export  ; exports a define, enum, struct or trait (9.6)
 ; 1. Keywords are reserved and are not values. A keyword cannot be bound,
 ;    passed or returned; it can only be the head of its own form.
 ; 2. The built-ins print, panic, assert and debug are not values either.
@@ -456,6 +480,7 @@ export  ; exports a define, enum, or struct (9.6)
 (define choose = if)  ; error: if is a keyword, not a value  [2.2.1]
 (let do : u32 = 1)    ; error: do is reserved                [2.2.1]
 (define say = print)  ; error: print is a special form       [2.2.2]
+(let with : u32 = 1)  ; error: with is reserved              [2.2.1]
 
 ;;; 2.3 punctuation
 .   ; qualified names, field access and literal indexing
@@ -463,9 +488,10 @@ export  ; exports a define, enum, or struct (9.6)
 ::  ; module paths and access (9.4)
 ->  ; separates inputs from the output in signatures and function types
 =>  ; separates a match arm's pattern from its value (5.7.1)
-_   ; the wildcard pattern (6.1), and a let or parameter that binds nothing (4.1.10)
-@   ; binds a whole value in a pattern (6.6)
-^   ; pins a name in a pattern, so it compares instead of binding (6.7)
+_   ; the wildcard pattern (6.1), a let or parameter that binds nothing (4.1.10),
+    ; and the mark of an optional parameter in a trait (7.5.2.8)
+@   ; binds a whole value in a pattern (6.7)
+^   ; pins a name in a pattern, so it compares instead of binding (6.8)
 ..  ; skips items in a pattern, or copies fields in construction (4.4.4)
 =   ; binds: define, let, defaults, bindings, field patterns
 ;   ; starts a comment (1.1)
@@ -503,7 +529,8 @@ circle::origin.x                 ; reads field x of circle::origin              
 ;; 2.4.1 what each delimiter wraps
 ()  ; an expression whose value is not a function (2.4.2)
 {}  ; an expression whose value is a function (2.4.2)
-[]  ; a type, a type header (7.2), a forall list (7.3) or a type argument (7.4)
+[]  ; a type, a type header (7.2), a forall list (7.3), a type argument (7.4),
+    ; or a trait header, bound or impl header (7.5)
 ||  ; a signature or a field list (2.5.2)
 ; 1. [ ] never wrap an expression, and ( ) and { } never wrap a type.
 ; 2. Bars pair up within one level of brackets. A | | pair inside a nested
@@ -553,7 +580,7 @@ make_adder               ; type: [u32 -> [u32 -> u32]], written bare            
 
 ;; 2.5.1 values and expressions
 <Special T>      ; a form whose head is a keyword (2.2) or a built-in special form (8.1.2)
-<Declaration>    ; a <Special Unit> that binds a name: define, let, struct, enum
+<Declaration>    ; a <Special Unit> that binds a name: define, let, struct, enum, trait
 <Callee T>       ; a <Value F> whose return type is T: the function being called
 <Application T>  ; (<Callee T> <Value>...), or {<Callee T> <Value>...} when T is a function type
 <Expression T>   ; a <Special T> or an <Application T>
@@ -564,8 +591,9 @@ make_adder               ; type: [u32 -> [u32 -> u32]], written bare            
 ; 2. Both function values and other values are <Value T>s. An identifier
 ;    bound to a function is a <Value F>.
 ; 3. A <Declaration>'s () is meant to be discarded. Using it as a value
-;    warns: as the last item of a do, a branch of an if, the body of a when,
-;    unless, fn or loop, an arm value, or an argument.
+;    warns (lint declaration_value, 4.7.3): as the last item of a do, a
+;    branch of an if, the body of a when, unless, fn or loop, an arm value,
+;    or an argument.
 ;    why?: only a do item that is not last can be followed by something
 ;    that reads the binding (4.1.3), so a used () marks a binding nothing
 ;    can read
@@ -573,7 +601,7 @@ make_adder               ; type: [u32 -> [u32 -> u32]], written bare            
 (let x : u32 = 1)  ; a <Declaration>; returns ()                                     [2.5.1.1]
 (+ 1 2)            ; an <Application i32>, so an <Expression i32> and a <Value i32>  [2.5.1.2]
 +                  ; an identifier bound to a function: a <Value F>                  [2.5.1.2]
-+ [u32]            ; + with a type argument: a <Value [u32 u32 -> u32]> (7.5)        [2.5.1.2]
++ [u32]            ; + with a type argument: a <Value [u32 u32 -> u32]> (7.4)        [2.5.1.2]
 (when true (let y : u32 = 1))
     ; warning: the let's () is used; warning: y is never used  [2.5.1.3, 4.1.10]
 
@@ -587,23 +615,37 @@ make_adder               ; type: [u32 -> [u32 -> u32]], written bare            
 <Binding>        ; <Identifier> = <Value>: a value given to a field or parameter by name
 <Constructor T>  ; (<Callee T> <Binding>...): builds a struct or variant value of type T
 <Type Header>    ; [<Identifier> <Identifier> <Identifier>...]: a generic type and its parameters
-<Forall>         ; [forall <Identifier> <Identifier>...]: a generic function's type parameters
-<Type Argument>  ; [<Type>]: one type given to a generic or overloaded name (7.4)
+<Forall>         ; [forall <Identifier> <Identifier>...], or
+                 ; [forall <Identifier> <Identifier>... with <Bound> <Bound>...]: the type
+                 ; parameters of a generic function or impl, and their bounds (7.5.4)
+<Bound>          ; [<Identifier> <Type> <Type>...]: a trait applied to types (7.5.4)
+<Type Argument>  ; [<Type>]: one type given to a generic name (7.4)
+<Trait Header>   ; [<Identifier> <Identifier> <Identifier>...]: a trait and its parameters (7.5.1)
+<Method Type>    ; a function type whose last parameters may be written <Type> = _ (7.5.2.8)
+<Trait Entry>    ; <Identifier> : <Method Type>, a required method, or
+                 ; <Identifier> = <Value F>, an auto-implemented one (7.5.1)
+<Impl Entry>     ; <Identifier> = <Value F>: a method's implementation (7.5.3)
 ; 1. A <Signature> always has an output type after ->. A bar list with no ->
 ;    is always a <Fields>.
 ; 2. A type identifier is read as a <Type> wherever a type is expected,
 ;    even though it is also an Identifier.
+; 3. A <Type Header>, a <Trait Header> and a <Bound> are written alike. What
+;    one is follows from where it stands: after struct or enum, after trait,
+;    or after with and at the head of an impl.
 
 {fn |x : u32 -> u32| x}   ; |x : u32 -> u32| is a <Signature>                           [2.5.2.1]
 {fn |x : u32| x}          ; error: fn needs a <Signature>, and |x : u32| has no output  [2.5.2.1]
 (struct Point |x : i32 y : i32|)  ; |x : i32 y : i32| is a <Fields>                     [2.5.2.1]
 (struct Pair |x : i32 -> i32|)  ; error: struct takes a <Fields>, which has no output   [2.5.2.1]
 (define E : f64 = 2.718)  ; f64 is read as a <Type>                                     [2.5.2.2]
+(trait [Shape T] area : [T -> f64])  ; [Shape T] is a <Trait Header>                    [2.5.2.3]
+{fn [forall T with [Shape T]] |s : T -> f64| (area s)}  ; [Shape T] is a <Bound>        [2.5.2.3]
 
 ;; 2.5.3 arms and patterns
 <Pattern T>      ; a pattern that matches values of type T (6)
 <Field Pattern>  ; <Identifier> = <Pattern>: a field, and the pattern its value must match
-<Pin>            ; ^<Identifier>, or ^ and a qualified name: a name that compares (6.7)
+<Box Pattern>    ; (box <Pattern T>): matches a [Box T] whose contents match (6.6)
+<Pin>            ; ^<Identifier>, or ^ and a qualified name: a name that compares (6.8)
 <Guard>          ; if <Value bool>
 <Arm T U>        ; <Pattern T> <Guard>? => <Value U>, or <Pattern T> <Guard>? => next
 
@@ -661,7 +703,8 @@ make_adder               ; type: [u32 -> [u32 -> u32]], written bare            
                                            (recur n = (* n 2_u32))      ; next pass, n doubled
                                                   n = (* n 2_u32)       ; <Binding>
                                                                    n    ; the value of the last pass
-; 9_u32 and 2_u32 need their suffixes: < and * are overloaded (5.1.1.3)
+; 9_u32 and 2_u32 need their suffixes: the parameters of < and * are type
+; parameters, so a literal there keeps its fixed type (5.1.1.3)
 
 ;; 2.6.6 a generic function
 {fn [forall T U] |x : T f : [T -> U] -> U| (f x)}  ; type: [[forall T U] T [T -> U] -> U]
@@ -711,7 +754,8 @@ string  ; text, written "like this" (1.3.4)
 ; 2. The integer and float types are the numerical types. bool and char are
 ;    not (1.3.3.4).
 ; 3. There are no implicit conversions. A value changes type only through an
-;    explicit cast (8.6).
+;    explicit cast (8.6). The casts are methods of traits over a target and
+;    a source type, such as [Widen To From] (7.5.2, 8.6.1).
 ;    why: every change of type is visible in the code
 ; 4. u8 to u256 and i8 to i256 are the fixed-size integer types. A u type
 ;    of N bits holds 0 to 2^N - 1. An i type of N bits holds -2^(N-1) to
@@ -731,7 +775,7 @@ string  ; text, written "like this" (1.3.4)
 ;    on the heap in a buffer with a length and a capacity, as a List keeps
 ;    its elements (3.4). When a result outgrows the capacity, the capacity
 ;    doubles. When an operand is not used again (9.2), the result is written
-;    into that operand's buffer. Running out of memory panics (8.8). When a
+;    into that operand's buffer. Running out of memory panics (8.9). When a
 ;    buffer shrinks is open (11.3.1).
 ;    why?: a loop that grows one value, such as a factorial, takes linear
 ;    time overall, instead of copying the value at every step
@@ -754,7 +798,7 @@ string  ; text, written "like this" (1.3.4)
 
 (let count : u32 = 3)                 ; u32 is primitive, so lowercase               [3.1.1]
 (+ 2.5 1.5)                           ; f64 is numerical; returns 4.0                [3.1.2]
-(+ true false)                        ; error: + needs numerical or string operands  [3.1.2]
+(+ true false)                        ; error: bool is not numerical; + has no impl for it  [3.1.2]
 (let wide : u64 = count)              ; error: count is a u32; write (as [u64] count)  [3.1.3]
 (let wider : u64 = (as [u64] count))  ; the explicit cast                              [3.1.3]
 340282366920938463463374607431768211455_u128  ; the largest u128, 2^128 - 1          [3.1.4]
@@ -775,20 +819,20 @@ Unit   ; a type with exactly one value, written ()
 Never  ; a type with no values
 ; 1. () is the value of an empty expression, such as (do) (5.3).
 ; 2. Discarding a Unit or Never value never warns. Discarding a value of
-;    any other type warns (5.3.4).
+;    any other type warns (5.3.4; lint discarded_value, 4.7.3).
 ;    why: a discarded non-Unit value was computed for nothing, which is
 ;    usually a mistake
 ;    why: a Never expression produces no value, so nothing is discarded
 ; 3. No expression of type Never produces a value. panic returns Never
-;    (8.8).
+;    (8.9).
 ; 4. A Never value fits wherever a value of any other type is expected:
 ;    as an if branch, a match arm, a let's value, an argument or a
 ;    function's result.
 ;    why?: no Never value is ever produced, so it can never be a value of
 ;    the wrong type
 ; 5. Code that can only run after a Never expression is unreachable, and
-;    warns. In a do (5.3), every item after an item of type Never is
-;    unreachable.
+;    warns (lint unreachable, 4.7.3). In a do (5.3), every item after an
+;    item of type Never is unreachable.
 ;    why?: unreachable code never runs, so it is usually a mistake, such as
 ;    a panic left in by accident
 
@@ -813,6 +857,15 @@ Never  ; a type with no values
 ;    type.
 ; 5. The type of a generic function starts with its forall list:
 ;    [[forall T] T -> T] (7.3).
+; 6. Function values cannot be compared: no function type has ==, and none
+;    ever will (8.3.2).
+; 7. A function value is a fixed size, whatever its type: it refers to its
+;    body and the values it keeps alive (9.2.2). So a function type counts
+;    as indirection (3.7.4).
+; 8. A function type does not record which parameters have defaults. Only a
+;    required method's type in a trait may mark a parameter optional
+;    (7.5.2.8). Whether a function value should keep its defaults in its
+;    type is open (11.3.13).
 
 [u32 u32 -> u32]                ; two u32 parameters, a u32 output                           [3.3.1]
 [u32 -> [u32 -> u32]]           ; returns a function                                         [3.3.1]
@@ -822,6 +875,8 @@ Never  ; a type with no values
 (if true {fn |-> u32| 1} {fn |-> u32| 2})  ; error: the value is a [-> u32]; write {if ...}  [3.3.3]
 {fn |-> Unit| ()}               ; type: [-> Unit]                                            [3.3.4]
 {fn [forall T] |x : T -> T| x}  ; type: [[forall T] T -> T]                                  [3.3.5]
+(== {fn |-> u32| 1} {fn |-> u32| 1})  ; error: functions cannot be compared                  [3.3.6]
+{fn |x : u32 n : u32 = 1 -> u32| x}   ; type: [u32 u32 -> u32]; the default is not in the type  [3.3.8]
 
 ;;; 3.4 List
 
@@ -855,6 +910,9 @@ numbers.i        ; error: numbers.i is field access, and a list has no field i  
 ;;; 3.5 Map (todo)
 [Map K V]  ; a map from keys of type K to values of type V
 ; Maps cannot be built or read yet (11.3.6).
+; 1. A Map keeps its contents on the heap in a buffer, as a List keeps its
+;    elements (3.1.8). So a [Map K V] is a fixed size whatever K and V are,
+;    and counts as indirection (3.7.4).
 
 ;;; 3.6 Option and Result
 [Option T]    ; either a T or nothing
@@ -868,6 +926,9 @@ numbers.i        ; error: numbers.i is field access, and a list has no field i  
 ; 3. Like any generic enum, they are built with their type arguments (7.4):
 ;    (Option.Some [i32] value = 5), Option.None [i32]. A Result.Ok or
 ;    Result.Error takes both T and E, even though it holds only one of them.
+; 4. Like any enum, they hold their fields inline: an Option.Some is as big
+;    as its value. They are not indirection, so a type that contains itself
+;    through one of them needs a Box (3.7.5).
 
 (Option.Some [i32] value = 5)                     ; type: [Option i32]                         [3.6.3]
 (let nothing : [Option i32] = Option.None [i32])  ; no parentheses                             [3.6.2]
@@ -877,11 +938,76 @@ numbers.i        ; error: numbers.i is field access, and a list has no field i  
 (Option.None [i32])                               ; error: Option.None is not a function       [3.6.2]
 (Option.Some value = 5)                           ; error: Option.Some needs its type argument  [3.6.3]
 
+;;; 3.7 Box
+[Box T]  ; a T stored on the heap, behind a pointer
+; 1. Box is a built-in generic type. A [Box T] is built with box and read
+;    with unbox (8.8), or with a box pattern (6.6). It is one pointer in
+;    size, whatever T is (9.2.5).
+;    why: no new grammar; a Box is a type, so it goes wherever a type can,
+;    and the allocation is visible where it happens
+; 2. Every type has a fixed size, so a type may not contain itself inline.
+;    A struct or enum that reaches itself by walking its fields, directly
+;    or through other types, before passing through indirection (rule 4)
+;    is an error.
+;    why: the cost of indirection is written where it is paid; nothing
+;    boxes a field automatically, which would hide an allocation
+; 3. A reading never sees through a box by itself. A [Box T] is not a T:
+;    unbox it, or match it with a box pattern.
+;    why?: seeing through would be an implicit conversion (3.1.3)
+; 4. Box, List, Map and function types are indirection. Each is a fixed
+;    size whatever its parameters are (3.4, 3.5.1, 3.3.7), so a type may
+;    contain itself through any of them, and the walk of rule 2 stops
+;    there. This list is written out for now. It will be expressed more
+;    generally later, so that a program's own containers can count too
+;    (11.7.17).
+;    - Cost: List and Map are committed to keeping their contents off the
+;      inline value.
+; 5. An enum such as Option is inline (3.6.4), so [Option [Tree T]] inside
+;    Tree is an error. The error suggests [Option [Box [Tree T]]]. A
+;    program's own [Maybe T] behaves exactly like Option.
+; 6. A type with no finite value is a warning (lint uninhabited, 4.7.3).
+;    The check, repeated until nothing changes: a struct can have a value
+;    if all its fields can, and an enum if some variant's fields all can.
+;    Type parameters are assumed to have values. Unit, the numerical types,
+;    bool, char and string always do, and Never never does. [List X] and
+;    [Map K V] always do (the empty one), as do [Option X] (None) and
+;    function types (a body can panic). [Box X] has one only if X does.
+;    why: values are acyclic (9.2.3), so a type whose every value needs
+;    another value of the same type can never be built; that is a mistake,
+;    cheap to find
+;    A type meant to be empty is written Never (3.2), and the check does
+;    not apply to it.
+; 7. Which types may refer to themselves at which type arguments is set by
+;    7.2.5.
+
+(enum [Tree T]
+    Leaf
+    Node |left : [Box [Tree T]] value : T right : [Box [Tree T]]|)  ; ok: through Box  [3.7.2]
+(struct Loop |next : Loop|)  ; error: Loop contains itself without a Box               [3.7.2]
+(struct Ping |pong : Pong|)
+(struct Pong |ping : Ping|)  ; error: Ping contains itself through Pong without a Box  [3.7.2]
+(struct [Rose T] |value : T kids : [List [Rose T]]|)  ; ok: List is indirection         [3.7.4]
+(struct Stream |head : u8 next : [-> Stream]|)        ; ok: a lazy stream               [3.7.4]
+(struct [Forest T] |trees : [List [Box [Tree T]]]|)   ; ok, but the Box is not needed   [3.7.4]
+(struct [Link T] |value : T next : [Option [Link T]]|)
+    ; error: Link contains itself through Option without a Box;
+    ; write [Option [Box [Link T]]]  [3.7.5]
+(struct [Chain T] |value : T next : [Option [Box [Chain T]]]|)  ; ok                   [3.7.5]
+(struct Spiral |next : [Box Spiral]|)  ; warning: Spiral has no finite value           [3.7.6]
+(struct Bush |kids : [List Bush]|)     ; ok: the empty list ends it                    [3.7.6]
+(let leaf = (box Tree.Leaf [u8]))      ; leaf : [Box [Tree u8]]                        [3.7.1]
+(let t = (Tree.Node [u8] left = leaf value = 1_u8 right = leaf))  ; t : [Tree u8]      [3.7.1]
+(let l : [Tree u8] = leaf)             ; error: leaf is a [Box [Tree u8]], not a [Tree u8]  [3.7.3]
+(unbox leaf)                           ; returns Tree.Leaf [u8]                        [3.7.1]
+
 ;;;; 4 declarations
 
 ;;; 4.1 bindings and scope
 ; 1. A binding gives a name to a value. Bindings are immutable: nothing in
-;    the language changes a binding once it is made.
+;    the language changes a binding once it is made. Mutable references
+;    will never be added. If anything like mutation ever arrives, it will
+;    only drop or assign, in place, a value nothing else refers to; it will
+;    never be a reference that is shared and written through (9.2.3).
 ; 2. define binds in the global scope. Global definitions are
 ;    order-independent: each may refer to any other, wherever it appears.
 ; 3. let binds inside the form that directly contains it. Its name is
@@ -900,10 +1026,14 @@ numbers.i        ; error: numbers.i is field access, and a list has no field i  
 ;    until the shadowing one goes out of scope. A fn that captured it
 ;    (5.4.1.4) keeps it.
 ; 7. Two top-level names may not be the same. This covers define, struct,
-;    enum, mod aliases (9.4) and the built-in names of sections 3 and 8.
-; 8. A local binding that hides a top-level or built-in name is a warning.
-;    A pattern never hides one: a top-level name in a pattern compares
-;    (6.2.2).
+;    enum, trait, the methods of every trait (7.5.2.1), mod aliases (9.4)
+;    and the built-in names of sections 3 and 8, which include the names
+;    of the prelude (11.8.5).
+; 8. A local binding that hides a top-level or built-in name is a warning
+;    (lint shadowing, 4.7.3). This includes a trait's method. A pattern
+;    never hides one: a top-level name in a pattern compares (6.2.2). A
+;    trait's own name cannot be hidden at all: a local binding or a type
+;    parameter with a trait's name is an error (7.5.1.7).
 ;    why?: a new global or built-in can then never break local code, only
 ;    warn
 ; 9. No binding, top-level or local, may take the name of a keyword (2.2)
@@ -912,10 +1042,11 @@ numbers.i        ; error: numbers.i is field access, and a list has no field i  
 ;    why?: keywords and special forms are not values (2.2.1, 2.2.2), so a
 ;    binding by one of their names could never be read the way the name
 ;    reads elsewhere; a fixed, short list costs local code little
-; 10. A local binding that is never read warns. This covers let, parameters
-;     (5.4.1, 5.8, 5.10) and patterns (6); 5.7.1.6 is this rule for arms.
+; 10. A local binding that is never read warns (lint unused_binding,
+;     4.7.3). This covers let, parameters (5.4.1, 5.8, 5.10), patterns (6)
+;     and the name of a named fn (5.4.3.7); 5.7.1.6 is this rule for arms.
 ;     Write _ instead of a name: _ binds nothing, so it never warns, and it
-;     may appear any number of times.
+;     may appear any number of times. For a named fn, drop the name.
 ;     - A parameter named _ still takes an argument by position, and may
 ;       have a default. It cannot be named in recur (5.9.3), so in a loop it
 ;       keeps its default on every pass.
@@ -971,6 +1102,12 @@ numbers.i        ; error: numbers.i is field access, and a list has no field i  
 (do (let _ = (to_string 5)) ())      ; returns (); no warning                    [4.1.10]
 {fn |_ : u32 x : u32 -> u32| x}      ; no warning: _ is never read               [4.1.10]
 {fn |n : u32 -> u32| 0_u32}          ; warning: n is never used                  [4.1.10]
+{fn helper |n : u32 -> u32| (+ n 1_u32)}
+    ; warning: helper is never used; drop the name  [4.1.10]
+(trait [Shape T] area : [T -> f64])
+(define area = {fn |r : f64 -> f64| r})  ; error: area is already bound, as Shape's method  [4.1.7]
+(do (let area = 2.0) area)  ; returns 2.0; warning: area hides Shape's method   [4.1.8]
+(do (let Shape = 2.0) Shape)  ; error: a trait's name cannot be hidden          [4.1.8]
 
 ;;; 4.2 define
 (define <Annotated T> = <Value T>) -> Unit
@@ -979,8 +1116,10 @@ numbers.i        ; error: numbers.i is field access, and a list has no field i  
 ;    level.
 ; 2. The annotation may be left out. The name then has its value's type,
 ;    which is worked out from the value itself.
-;    why?: nothing is inferred (5.1.1, 7.4, 7.5), so every value's type is
-;    known from the value alone
+;    why?: a value's type never depends on where the value is used: a
+;    literal's type is written or fixed (5.1.1), and a call's types come
+;    from its type arguments and its arguments alone (7.4.7). So every
+;    value's type is known from the value alone
 ; 3. Defines without annotations may not need each other's types in a cycle,
 ;    since then none of the types can be worked out. The error names every
 ;    define in the cycle. Annotating one of them breaks it. A fn literal's
@@ -1165,18 +1304,21 @@ bob.salary                                   ; returns 2.5, copied from jane    
     (print (to_string person_2)))  ; prints person_2 as text (11.7.4)  [4.5.2.1]
 
 ;;; 4.6 doc comments
-; A doc comment (1.1.3) documents a define, struct or enum, and every part
-; of it. The compiler reads docs, checks that they are complete, and checks
-; their examples.
+; A doc comment (1.1.3) documents a define, struct, enum, trait or impl, and
+; every part of it. The compiler reads docs, checks that they are complete,
+; and checks their examples.
 
 ;; 4.6.1 attachment
 ; 1. A doc is one or more ;: lines with nothing else between them.
-; 2. A doc on the lines directly above a top-level define, struct or enum
-;    documents it. Nothing may come between them, not even a blank line or
-;    an ordinary comment.
+; 2. A doc on the lines directly above a top-level define, struct, enum,
+;    trait or impl documents it. Nothing may come between them, not even a
+;    blank line or an ordinary comment, except the item's lint commands,
+;    which come after the doc (4.7.1.3).
 ; 3. A field or variant on a line of its own may be documented in place:
 ;    by a doc on the lines directly above it, or by a doc that trails it on
-;    its line and continues on the lines below.
+;    its line and continues on the lines below. An entry in the body of a
+;    trait or an impl (7.5) is documented in place too, by a doc on the
+;    lines directly above it.
 ; 4. In one struct, or in one enum, the in-place docs are either all above
 ;    or all trailing. A trailing doc runs until the next field or variant.
 ;    why?: every ;: line between two fields then belongs to exactly one of
@@ -1189,7 +1331,8 @@ bob.salary                                   ; returns 2.5, copied from jane    
 ;    place. Either way, it is documented exactly once.
 ; 7. A doc that documents nothing is an error: one above a let, an export,
 ;    an expression or a blank line, one that trails anything other than a
-;    field or variant, or one at the end of a file.
+;    field or variant, or one at the end of a file. A ;: line after a lint
+;    command of the same item is an error too (4.7.1.3).
 
 ;: The ratio of a circle's circumference to its diameter.
 (define PI : f64 = 3.14)  ; the doc directly above documents PI  [4.6.1.2]
@@ -1243,33 +1386,45 @@ bob.salary                                   ; returns 2.5, copied from jane    
 ;    text. The text continues on the lines below, up to the next entry or
 ;    the end of the doc. Any other line is text: in a summary, "Returns the
 ;    first item" is not an entry.
-; 3. type T: describes the type parameter T, from a forall list (7.3) or a
-;    type header (7.2).
+; 3. type T: describes the type parameter T, from a forall list (7.3), a
+;    type header (7.2) or a trait header (7.5.1).
 ; 4. param x: describes the parameter x. param 1: describes the first
 ;    parameter of a function define whose value is not a fn literal
-;    (4.6.3.2), param 2: the second, and so on.
+;    (4.6.3.2) or of a required method (4.6.7.3), param 2: the second, and
+;    so on.
 ; 5. default x: describes what leaving out the parameter or field x means.
 ;    In the in-place doc of a field, it is written default:, with no name.
+;    Where parameters go by position, it is written default 1:, default 2:,
+;    matching param 1:.
 ; 6. returns: describes the value a function returns.
 ; 7. errors: describes when a function returns a Result.Error, and what
 ;    the error holds.
-; 8. panics: describes when a function panics (8.8). A function doc with
+; 8. panics: describes when a function panics (8.9). A function doc with
 ;    no panics: says the function never panics. panics: never says the
 ;    same, and is optional.
-; 9. example: is followed by an example on the lines below (4.6.7).
+; 9. example: is followed by an example on the lines below (4.6.9).
 ; 10. field x: describes the field x. In an enum's doc, the field x of the
 ;     variant V is written field V.x:.
 ; 11. variant V: describes the variant V.
-; 12. No summary or entry may be empty. An example: needs at least one line
+; 12. law: states a property that every impl of a trait must keep, such as
+;     "area is never negative". It appears only in a trait's doc (4.6.7).
+;     The compiler does not check laws: an impl that breaks one is a bug in
+;     the impl, as with panics: (4.6.3.6).
+;     why: laws are the contract that makes generic code over a trait
+;     correct, so they get an entry that tools and readers can find
+; 13. No summary or entry may be empty. An example: needs at least one line
 ;     of code.
-; 13. Each name has at most one entry of each word. returns:, errors: and
-;     panics: appear at most once. example: may appear any number of times.
-; 14. Entries come in this order: type, param and default, variant and
-;     field, returns:, errors:, panics:, then example:. Entries of one word
-;     follow the order of the declaration. A default entry comes directly
-;     after the entry of its parameter or field.
-; 15. An entry that names something that does not exist, or a word that
-;     does not apply to what the doc documents (4.6.3 to 4.6.6), is an
+; 14. Each name has at most one entry of each word. returns:, errors: and
+;     panics: appear at most once. law: and example: may appear any number
+;     of times.
+; 15. Entries come in this order: type, law:, param and default, variant
+;     and field, returns:, errors:, panics:, then example:. Entries of one
+;     word follow the order of the declaration. A default entry comes
+;     directly after the entry of its parameter or field. In the doc of a
+;     method inside an impl, which has no param entries (4.6.8.3), default
+;     entries come after the summary, in parameter order.
+; 16. An entry that names something that does not exist, or a word that
+;     does not apply to what the doc documents (4.6.3 to 4.6.8), is an
 ;     error.
 
 ;: Adds y to x.
@@ -1297,20 +1452,20 @@ bob.salary                                   ; returns 2.5, copied from jane    
 ;: param n: the number
 ;: example:
 ;:   (doubled 2)  ; returns 4
-(define doubled = {fn |n : u32 -> u32| (* n 2_u32)})  ; error: param n comes before returns:  [4.6.2.14]
+(define doubled = {fn |n : u32 -> u32| (* n 2_u32)})  ; error: param n comes before returns:  [4.6.2.15]
 ;: Adds one to a number.
 ;: param n: the number
 ;: returns: one more than n
 ;: example:
 ;:   (plus_one 1)  ; returns 2
 (define plus_one = {fn |x : u32 -> u32| (+ x 1_u32)})
-    ; error: plus_one has no parameter n, and x is not documented  [4.6.2.15]
+    ; error: plus_one has no parameter n, and x is not documented  [4.6.2.16]
 ;: Adds one to a number.
 ;: param x:
 ;: returns: one more than x
 ;: example:
 ;:   (succ 1)  ; returns 2
-(define succ = {fn |x : u32 -> u32| (+ x 1_u32)})  ; error: param x is empty  [4.6.2.12]
+(define succ = {fn |x : u32 -> u32| (+ x 1_u32)})  ; error: param x is empty  [4.6.2.13]
 
 ;; 4.6.3 function defines
 ; 1. A define whose type is a function type is a function define. Its doc
@@ -1328,7 +1483,7 @@ bob.salary                                   ; returns 2.5, copied from jane    
 ; 5. returns: is required even when the output type is Unit. Write
 ;    returns: ().
 ; 6. The compiler does not check panics: against the body. It is the
-;    author's word, written by the style of 4.6.9.
+;    author's word, written by the style of 4.6.11.
 ;    why?: whether a function can panic depends on every function it calls,
 ;    and the compiler cannot always tell
 
@@ -1456,7 +1611,102 @@ bob.salary                                   ; returns 2.5, copied from jane    
     Left  |value : L|
     Right |value : R|)  ; error: L, R, Left.value and Right.value are not documented  [4.6.6.1]
 
-;; 4.6.7 examples
+;; 4.6.7 traits
+; 1. A trait's doc needs a summary and a type entry for each parameter in
+;    its header. It may have law: entries (4.6.2.12) and examples. Any
+;    other entry is an error. Supertraits (7.5.5) take no entry, since the
+;    header already names them.
+; 2. Every method in the trait's body needs a doc, in place (4.6.1.3). A
+;    method's doc follows the rules for a function define (4.6.3), with the
+;    differences of rules 3 to 5. The trait's parameters are documented by
+;    the trait's doc, so a method's doc has type entries only for type
+;    parameters of its own (7.5.2.4).
+; 3. A required method has no fn, so its parameters go by position:
+;    param 1:, param 2: (4.6.2.4). An auto-implemented method names its
+;    parameters from its fn.
+; 4. Examples are optional on a required method, since the trait's module
+;    may have no impl to run them against. They are required on an
+;    auto-implemented method, as on any function.
+; 5. A parameter that the trait marks optional (7.5.2.8) needs a default
+;    entry, default x: or default 1:, that says what leaving it out means.
+;    Each impl keeps to that meaning.
+; 6. An example in a trait's doc runs in the trait's module (4.6.9.2), so
+;    it can only use impls that module can find (7.5.6.4).
+; 7. Bounds (7.5.4) take no entry anywhere: a generic function's type entry
+;    covers its parameter, and its bounds are in the signature.
+
+; with (struct Square |side : f64|) in the same module
+;: Things with an area.
+;: type T: the type of the shape
+;: law: (area s) is never negative
+(trait [Shape T]
+    ;: Returns a shape's area.
+    ;: param 1: the shape
+    ;: returns: its area, in square units
+    area : [T -> f64]
+
+    ;: Returns the area of two copies of a shape.
+    ;: param s: the shape
+    ;: returns: twice its area
+    ;: example:
+    ;:   (double_area (Square side = 2.0))  ; returns 8.0
+    double_area = {fn |s : T -> f64| (* (area s) 2.0)})
+    ; a law, a required method by position, and an auto-implemented method
+    ; with its example  [4.6.7.1, 4.6.7.3, 4.6.7.4]
+;: Things that can grow.
+;: type T: the type that grows
+(trait [Grow T]
+    ;: Returns a value grown by some amount.
+    ;: param 1: the value to grow
+    ;: param 2: how much to grow it by
+    ;: default 2: grows by one unit
+    ;: returns: the grown value
+    grow : [T f64 = _ -> T])  ; an optional parameter needs its default entry  [4.6.7.5]
+;: Things with a name.
+(trait [Named T]
+    ;: Returns the name.
+    ;: param 1: the thing to name
+    ;: returns: its name
+    name_of : [T -> string])  ; error: the doc needs type T:  [4.6.7.1]
+;: Things with a weight.
+;: type T: the type that is weighed
+(trait [Weigh T]
+    weigh : [T -> f64])  ; error: the method weigh is not documented  [4.6.7.2]
+
+;; 4.6.8 impls
+; 1. An impl's doc is optional, and an impl with no doc gets no warning
+;    (4.6.10.1). If it has one, the doc needs a summary and may have
+;    examples, like a value define (4.6.4). Any other entry is an error.
+;    why: the trait already says what each method does; an impl's doc is
+;    the natural place for examples that run, since the impl's module has
+;    the impl
+; 2. A doc on a method inside an impl is optional too. If present, it has
+;    a summary, a default x: entry for each default the impl gives (the
+;    value belongs to the impl, 7.5.3.7), and may have examples.
+; 3. param and returns: entries inside an impl would repeat the trait, so
+;    they are errors.
+
+;: A square's area is its side squared.
+;: example:
+;:   (area (Square side = 3.0))  ; returns 9.0
+(impl [Shape Square]
+    area = {fn |s : Square -> f64| (* s.side s.side)})  ; an impl's doc, with an example  [4.6.8.1]
+(struct Disc |r : f64|)
+(impl [Shape Disc]
+    area = {fn |d : Disc -> f64| (* 3.14 (* d.r d.r))})  ; no doc, and no warning  [4.6.8.1]
+(impl [Grow Square]
+    ;: Grows a square's side.
+    ;: default by: one unit longer
+    grow = {fn |s : Square by : f64 = 1.0 -> Square| (Square side = (+ s.side by))})
+    ; a method doc inside an impl: a summary and the default  [4.6.8.2]
+(impl [Grow Disc]
+    ;: Grows a disc's radius.
+    ;: param d: the disc
+    ;: default by: one unit wider
+    grow = {fn |d : Disc by : f64 = 1.0 -> Disc| (Disc r = (+ d.r by))})
+    ; error: param repeats the trait's doc  [4.6.8.3]
+
+;; 4.6.9 examples
 ; 1. An example is the code on the lines after its example: entry, up to the
 ;    next entry or the end of the doc. Its ;: is followed by two spaces
 ;    more than the entry's (1.5.10).
@@ -1477,34 +1727,36 @@ bob.salary                                   ; returns 2.5, copied from jane    
 ;:   (larger 2 7)  ; returns 7
 ;: example:
 ;:   (larger 2 "7")  ; error: b is an i32, not a string
-(define larger = {fn |a : i32 b : i32 -> i32| (if (>= a b) a b)})  ; one example shows a mistake  [4.6.7.3]
+(define larger = {fn |a : i32 b : i32 -> i32| (if (>= a b) a b)})  ; one example shows a mistake  [4.6.9.3]
 ;: Doubles a number.
 ;: param n: the number to double
 ;: returns: n times 2
 ;: example:
 ;:   (double 4)  ; returns 9
-(define double = {fn |n : u32 -> u32| (* n 2_u32)})  ; error: the example returns 8, not 9  [4.6.7.4]
+(define double = {fn |n : u32 -> u32| (* n 2_u32)})  ; error: the example returns 8, not 9  [4.6.9.4]
 
-;; 4.6.8 missing and incomplete docs
-; 1. A define, struct or enum with no doc at all, on it or on any of its
-;    fields or variants, is a warning.
+;; 4.6.10 missing and incomplete docs
+; 1. A define, struct, enum or trait with no doc at all, on it or on any of
+;    its fields, variants or methods, is a warning (lint missing_doc,
+;    4.7.3). An impl with no doc is not (4.6.8.1).
 ; 2. Once any of its docs is there, the declaration must be documented in
-;    full. Breaking any rule of 4.6.1 to 4.6.7 is an error.
+;    full. Breaking any rule of 4.6.1 to 4.6.9 is an error.
 ;    why?: a missing doc marks code that is not documented yet, which is
 ;    normal in a draft; a doc that is there but partial or wrong misleads
 ;    whoever reads it
 ; 3. Private declarations follow the same rules as exported ones (9.6).
 
-(define triple = {fn |n : u32 -> u32| (* n 3_u32)})  ; warning: triple has no doc  [4.6.8.1]
+(define triple = {fn |n : u32 -> u32| (* n 3_u32)})  ; warning: triple has no doc  [4.6.10.1]
 (struct Gap |
     ;: Pixels across.
-    width : u32|)  ; error: Gap has a field doc, so it needs a summary too  [4.6.8.2]
+    width : u32|)  ; error: Gap has a field doc, so it needs a summary too  [4.6.10.2]
 ;: Returns n tripled.
 ;: param n: the number to triple
 (define treble = {fn |n : u32 -> u32| (* n 3_u32)})
-    ; error: the doc needs returns: and an example  [4.6.8.2]
+    ; error: the doc needs returns: and an example  [4.6.10.2]
+(trait [Shape T] area : [T -> f64])  ; warning: Shape has no doc  [4.6.10.1]
 
-;; 4.6.9 style
+;; 4.6.11 style
 ; The recommended way to write a doc. None of it is checked.
 ; 1. A summary is one sentence, with a capital and a period. A function's
 ;    starts with what it does: "Returns ...", "Prints ...". A type's or a
@@ -1522,7 +1774,7 @@ bob.salary                                   ; returns 2.5, copied from jane    
 ;    error holds.
 ; 7. Bad input is a Result.Error, documented under errors:. A panic is for
 ;    a mistake in the program itself, such as a broken assumption.
-;    why?: a caller can handle an error, but not a panic (8.8)
+;    why?: a caller can handle an error, but not a panic (8.9)
 ; 8. An example shows typical use first. Edge cases and mistakes come in
 ;    later examples.
 
@@ -1538,7 +1790,152 @@ bob.salary                                   ; returns 2.5, copied from jane    
     (match (get xs i)
         (Option.Some value = x) => x
         ^Option.None            => (panic "index past the end"))})
-    ; follows 4.6.9.5, but by 4.6.9.7 it would be better to return an [Option T]  [4.6.9.5, 4.6.9.7]
+    ; follows 4.6.11.5, but by 4.6.11.7 it would be better to return an [Option T]  [4.6.11.5, 4.6.11.7]
+
+;;; 4.7 lint commands
+; Every warning has a name, called its lint. A lint command (1.1.4) changes
+; how a lint is reported: for one item, or for a whole module.
+
+;; 4.7.1 form and attachment
+;! <Level> <Lint> <Argument>?   ; for the item below
+;!! <Level> <Lint> <Argument>?  ; for the whole module
+<Level>  ; allow, warn or deny
+<Lint>   ; the name of a lint (4.7.3)
+; 1. A ;! comment is a lint command for one item. It attaches by the rules
+;    for a doc (4.6.1): on the lines directly above the item, with nothing
+;    between, or trailing a field or variant.
+; 2. An item is anything a doc can attach to: a define, struct, enum, trait
+;    or impl, an entry in a trait or impl body, or a field or variant. A ;!
+;    that attaches to nothing is an error, like a doc (4.6.1.7).
+; 3. When an item has a doc and lint commands, the doc comes first. The ;!
+;    lines come directly after the doc's last ;: line and directly above
+;    the item. A ;: line after a ;! line is an error.
+;    why: the summary stays the first line a reader sees, and a doc is
+;    still ;: lines with nothing else between them (4.6.1.1)
+; 4. A ;! applies to every warning inside its item: in a define's body, a
+;    struct's fields, every entry of a trait or impl. A warning inside an
+;    expression is silenced by a ;! on the item that holds it.
+;    why: lets and expressions cannot take a doc (4.6.1.7), so they cannot
+;    take a ;! either; covering the whole item reaches every warning
+;    without new attachment rules
+;    - Cost: a ;! on a large item silences more than the one site it was
+;      written for. Keep items small, or use the lint's argument where it
+;      has one.
+; 5. A ;!! comment is a lint command for the whole module. It never
+;    attaches to anything. Every ;!! line comes before the module's first
+;    form. Blank lines and ordinary comments may come before it or between
+;    ;!! lines. A ;!! after the first form is an error. A doc for the
+;    first form still goes directly above that form, after the ;!! lines.
+;    why: a module's lint settings are all in one place, before any code
+;    they affect, without forcing them above a file's header comment
+; 6. The levels are allow, which silences the lint, warn, which is the
+;    default for every lint, and deny, which makes it an error.
+; 7. Some lints take an argument after their name. The latent-overlap
+;    lints take a goal (7.5.8.5).
+; 8. An unknown lint is an error, and so is an argument that does not
+;    resolve.
+;    why: a mistyped allow must not silently do nothing
+
+; as a whole module:
+; geometry helpers
+;!! allow layout
+;!! deny shadowing
+;: The ratio of a circle's circumference to its diameter.
+(define PI : f64 = 3.14)    ; two module-wide commands, then the first form's doc  [4.7.1.5]
+;: Returns n plus one.
+;: param n: the number
+;: returns: n plus 1
+;: example:
+;:   (bump 1)  ; returns 2
+;! allow unused_binding
+(define bump = {fn |n : u32 -> u32| (do
+    (let scratch = 5_u32)   ; no warning: silenced by the ;! on bump  [4.7.1.4]
+    (+ n 1_u32))})          ; the doc first, then the ;!              [4.7.1.3]
+;!! allow naming            ; error: a ;!! comes before the first form  [4.7.1.5]
+;! allow unused_binding
+;: Returns n minus one.
+(define dip = {fn |n : u32 -> u32| (- n 1_u32)})  ; error: a ;: line after a ;! line  [4.7.1.3]
+;! allow unused_bindings
+(define dop = {fn |n : u32 -> u32| n})  ; error: unused_bindings is not a lint  [4.7.1.8]
+;! allow naming
+
+(define dup = {fn |n : u32 -> u32| n})  ; error: the ;! attaches to nothing  [4.7.1.2]
+
+;; 4.7.2 which command applies
+; 1. The closest command wins. A ;! on an item beats a ;!! in the module,
+;    which beats the default. When items nest, the innermost wins: a ;! on
+;    a trait entry, field or variant beats a ;! on the trait, struct or
+;    enum around it.
+; 2. Two commands for one lint at the same place are an error.
+; 3. An unused lint command is a warning (lint unused_lint). A ;!! is
+;    unused when it silences or changes nothing in its module. A ;! is
+;    unused when it silences or changes nothing inside its item. Both are
+;    checked in the module itself.
+; 4. The one exception to rule 3: a ;! for a latent-overlap lint on an impl
+;    (7.5.8.5) is unused when it silences nothing anywhere in the program.
+;    It is the one warning reported after every module is checked.
+;    why: the two impls may sit in modules that do not import each other,
+;    so the pair first meets in a module downstream; checking only the
+;    impl's own module would flag a ;! that is doing its job
+;    - Cost: deleting a downstream module can make a ;! upstream start
+;      warning.
+; 5. Every warning names its lint in its message, as in
+;    warning[unused_binding]: scratch is never used, so the ;! to write is
+;    always shown. The wording of the messages is open (11.8.8).
+
+;!! allow unused_binding
+;! warn unused_binding
+(define near = {fn |n : u32 -> u32| (do
+    (let spare = 1_u32)  ; warning: spare is never used; the ;! beats the ;!!  [4.7.2.1]
+    n)})
+;! allow naming
+;! deny naming
+(define Far = {fn |n : u32 -> u32| n})  ; error: two commands for naming  [4.7.2.2]
+;! allow unreachable
+(define calm = {fn |n : u32 -> u32| n})
+    ; warning: the ;! silences nothing (unused_lint)  [4.7.2.3]
+
+;; 4.7.3 the lints
+; Each warning in this file belongs to exactly one lint.
+;   spacing                 whitespace around ::, or after .. before a name
+;                           (1.2.10)
+;   leading_zero            a number with a leading zero, such as 007
+;                           (1.3.1.10)
+;   naming                  naming conventions, for names (1.4.4) and path
+;                           segments (9.3.4)
+;   layout                  the recommended layout (1.5)
+;   declaration_value       a declaration's () used as a value, including
+;                           as the last item of a do (2.5.1.3, 5.3.4)
+;   discarded_value         a discarded value that is not Unit or Never
+;                           (3.2.2)
+;   unreachable             code after a Never expression (3.2.5)
+;   uninhabited             a type with no finite value (3.7.6)
+;   shadowing               a local that hides a top-level name, a built-in
+;                           or prelude name, an alias or a trait method
+;                           (4.1.8, 5.4.1.6, 7.5.2.7, 9.4.9, 11.8.5)
+;   unused_binding          a binding that is never read, including a named
+;                           fn's name (4.1.10, 5.4.3.7, 5.7.1.6)
+;   missing_doc             a declaration with no doc (4.6.10.1)
+;   unused_lint             a lint command that changes nothing (4.7.2.3)
+;   recur_not_tail          recur not in tail position (5.9.6)
+;   unpinned_name           a name in a pattern that compares without a pin
+;                           (6.2.2, 6.4.5)
+;   latent_overlap          two impls kept apart only by a goal with no
+;                           type parameter (7.5.8.1)
+;   latent_overlap_generic  two impls kept apart only by goals over type
+;                           parameters (7.5.8.1)
+;   explicit_default_alias  a mod alias written out when it is the default
+;                           (9.4.5)
+; 1. Every warning added to the language gets a lint of its own.
+; 2. 2.5.1.3 and 5.3.4 describe one warning seen from two rules, so they
+;    share declaration_value.
+; 3. A local named like a prelude name (11.8.5), one that hides an alias
+;    (9.4.9), and a parameter that hides a top-level name (5.4.1.6) all
+;    warn by 4.1.8, so they are shadowing, not lints of their own.
+;    why: the list is short and fixed, and since a ;! covers its whole
+;    item, ;! allow works for every warning
+;    why: a lint is named by a word, not a rule number, so renumbering
+;    this file breaks no program
 
 ;;;; 5 expressions
 
@@ -1558,21 +1955,31 @@ bob.salary                                   ; returns 2.5, copied from jane    
 ; 3. Anywhere else, an integer literal is an i32, or an i64 if it is too
 ;    large for an i32, and a float literal is an f64. An integer literal
 ;    too large for an i64 is an error there; it needs a suffix or a written
-;    type, such as _i128 or _ibig. This includes an
-;    argument of an overloaded built-in whose parameter type depends on the
-;    member (7.5.5): in (+ x 1) with x : u8, the 1 is an i32, so the call is
-;    an error.
+;    type, such as _i128 or _ibig. This includes an argument whose
+;    parameter type is a type parameter that the call does not give
+;    (7.4.10): a literal never takes its type from the other arguments. In
+;    (+ x 1) with x : u8, the 1 is an i32, so the call is an error. A
+;    parameter whose type is written in the signature, such as get's u32
+;    index, is covered by rule 2.
 ;    why?: a literal's type is always written in the code or fixed, never
 ;    worked out from its neighbors
 ; 4. A float literal never takes an integer type. An integer literal takes a
 ;    float type from a float suffix (1.3.1.7). Whether an unsuffixed integer
 ;    literal can take a float type from where it is used is open (11.5.2).
-; Refining these rules is open (11.5.12).
+; 5. A literal is never a value of a type parameter. Inside a generic body,
+;    a literal where a T is expected keeps its fixed type, which is an
+;    error. Generic code gets 0 and 1 from zero and one (8.2.6), and any
+;    other constant by casting a suffixed literal under a bound (8.6.7).
+;    why: a generic body is checked once, before T is known (7.5.4.4), and
+;    whether 300 fits a T is known only for each T
+; Refining these rules is open (11.5.12). Sugar that relaxes them may come
+; later (11.7.15).
 
 (let small : u8 = 200)             ; 200 is a u8, from the annotation              [5.1.1.2]
-(+ small 1)                        ; error: a u8 and an i32; write 1_u8            [5.1.1.3]
+(+ small 1)                        ; error: T is u8 from small but i32 from 1; write 1_u8  [5.1.1.3]
 (+ small 1_u8)                     ; returns 201, a u8                             [5.1.1.1]
-(+ [u8] small 1)                   ; returns 201; [u8] makes + take u8s (7.5)      [5.1.1.2]
+(+ [u8] small 1)                   ; returns 201; [u8] makes + take u8s (7.4)      [5.1.1.2]
+(get (list 4 5) 1)                 ; the 1 is a u32: get's index is written as u32  [5.1.1.2]
 (let ratio : f32 = 0.5)            ; 0.5 is an f32                                 [5.1.1.2]
 (let chosen : u8 = (if true 1 2))  ; 1 and 2 are u8s, through the if               [5.1.1.2]
 (define wide = {fn |-> u64| 7})    ; 7 is a u64, the fn's output type              [5.1.1.2]
@@ -1584,6 +1991,7 @@ bob.salary                                   ; returns 2.5, copied from jane    
 2.5                                ; type: f64                                     [5.1.1.3]
 42_u8                              ; type: u8                                      [5.1.1.1]
 (let tiny : u8 = 2.5)              ; error: a float literal is never a u8          [5.1.1.4]
+{fn [forall T] |x : T -> T| 0}     ; error: the body is an i32, not a T            [5.1.1.5]
 
 ;; 5.1.2 fancy strings
 ; 1. A fancy string is a function value. Each distinct ${name} is a
@@ -1621,10 +2029,11 @@ bob.salary                                   ; returns 2.5, copied from jane    
 ;    fixed number of parameters, and passing more is a compile error.
 ; 3. Trailing parameters that have defaults may be left out, and take their
 ;    defaults. Leaving out a parameter with no default is a compile error.
-; 4. The built-in - is the one exception: called with one argument, its
-;    first parameter takes the default 0 (8.2.2).
-; 5. A built-in that works on several types is overloaded. A call picks its
-;    member from the types of its arguments (7.5).
+; 4. No name has more than one function behind it: there are no overloads.
+;    An operator that works on several types, such as +, is one generic
+;    function, the method of a trait (7.5.2). A call settles its type
+;    parameters from its arguments (7.4), then uses the impl for those
+;    types (7.5.3).
 
 ; with x, y, z : i32
 (+ x y)        ; x + y                                      [5.2.1]
@@ -1632,15 +2041,15 @@ bob.salary                                   ; returns 2.5, copied from jane    
 (+ x y z)      ; error: + takes two arguments               [5.2.2]
 (shl 5)        ; returns 10; n takes its default 1          [5.2.3]
 (shl 5 2)      ; returns 20                                 [5.2.3]
-(- 5)          ; returns -5, the same as (- 0 5)            [5.2.4]
-(+ 1 2)        ; + on i32s; returns 3                       [5.2.5]
-(+ "a" "b")    ; + on strings; returns "ab"                 [5.2.5]
+(- 5)          ; error: - takes two arguments; write (neg 5) (8.2.2)  [5.2.3]
+(+ 1 2)        ; + at i32, using i32's impl; returns 3      [5.2.4]
+(+ "a" "b")    ; + at string, using string's impl; returns "ab"  [5.2.4]
 (define pick = {fn |x : u32 = 1 y : u32 -> u32| (+ x y)})
 (pick 5 6)     ; returns 11                                 [5.2.2]
 (pick 5)       ; error: 5 binds to x, and y has no default  [5.2.3]
-(define one = {fn |-> u32| 1})
-(one)          ; returns 1; a call with no arguments        [5.2.1]
-(one 1)        ; error: one takes no arguments              [5.2.2]
+(define always_one = {fn |-> u32| 1})
+(always_one)    ; returns 1; a call with no arguments       [5.2.1]
+(always_one 1)  ; error: always_one takes no arguments      [5.2.2]
 
 ;;; 5.3 do
 (do <Value>... <Value T>) -> T
@@ -1651,9 +2060,10 @@ bob.salary                                   ; returns 2.5, copied from jane    
 ; 3. A let inside the block binds for the items after it, and the binding
 ;    is dropped when the block ends (4.1).
 ; 4. Every item but the last is discarded. Discarding a value that is not
-;    Unit or Never warns (3.2.2). A declaration as the last item warns
-;    instead, since its () is used (2.5.1.3). Items after an item of type
-;    Never are unreachable, and warn (3.2.5).
+;    Unit or Never warns (3.2.2; lint discarded_value). A declaration as
+;    the last item warns instead, since its () is used (2.5.1.3; lint
+;    declaration_value). Items after an item of type Never are unreachable,
+;    and warn (3.2.5; lint unreachable).
 ; 5. An empty block returns ().
 
 (do
@@ -1688,12 +2098,14 @@ bob.salary                                   ; returns 2.5, copied from jane    
 ; 3. The parameters are bound in the body. The body can be any value,
 ;    function or not, and its type must be the output type.
 ; 4. The body may also use any binding in scope where the fn is written. The
-;    function keeps those values alive (9.2.2).
+;    function keeps those values alive (9.2.2). A top-level name is not
+;    kept alive this way: the function refers to it directly, since
+;    top-level values live for the whole program (9.2.4).
 ; 5. The type F of the fn is built from its parameter and output types:
 ;    |x : u32 y : u32 -> u32| gives [u32 u32 -> u32].
 ; 6. A parameter may shadow any local in scope where the fn is written
 ;    (4.1.5). When fns nest, the innermost parameter wins. A parameter that
-;    hides a top-level or built-in name warns (4.1.8).
+;    hides a top-level or built-in name warns (4.1.8; lint shadowing).
 ; 7. Two parameters of one signature may not have the same name.
 
 {fn |x : u32 y : u32 -> u32| (+ x y)}  ; a simple adder, like + on u32s
@@ -1758,6 +2170,14 @@ bob.salary                                   ; returns 2.5, copied from jane    
 ;    why?: the parameter would hide the name, so the fn could not call
 ;    itself, and the name would be pointless
 ; 5. The name may shadow a binding outside the fn (4.1.5).
+; 6. The name refers to the function being called. It is supplied to the
+;    body on each call, not stored in the function value, so a named fn
+;    does not refer to itself. An inner fn that captures the name only
+;    refers outward, and returning the name just shares the function.
+;    why: values stay acyclic (9.2.3), so reference counting never leaks;
+;    nothing a program can observe changes
+; 7. The name is a binding like any other: a named fn whose name is never
+;    used warns (4.1.10; lint unused_binding). The fix is to drop the name.
 
 (do
     (let factorial = {fn fact |n : u64 -> u64|
@@ -1776,6 +2196,11 @@ bob.salary                                   ; returns 2.5, copied from jane    
 (do
     (let fact = {fn fact |n : u64 -> u64| (if (== n 0_u64) 1 (* n (fact (- n 1_u64))))})
     (fact 5))  ; returns 120; inside the body, fact is the fn itself  [5.4.3.5]
+(let make = {fn self |n : u64 -> [-> u64]|
+    {fn |-> u64| ({self n})}})
+    ; the inner fn captures self: it refers outward, so there is no cycle  [5.4.3.6]
+{fn helper |n : u32 -> u32| (+ n 1_u32)}
+    ; warning: helper is never used; drop the name  [5.4.3.7]
 
 ;;; 5.5 if
 (if <Value bool> <Value T> <Value T>) -> T
@@ -1838,7 +2263,8 @@ bob.salary                                   ; returns 2.5, copied from jane    
 ;    only.
 ; 4. The if of a guard is part of the arm, not an if form (5.5).
 ; 5. Every arm's value has the same type U.
-; 6. A binding that the arm never uses warns (4.1.10). Use _ instead (6.1).
+; 6. A binding that the arm never uses warns (4.1.10; lint unused_binding).
+;    Use _ instead (6.1).
 
 (let weapon : Weapon = Weapon.Fist)
 (match weapon
@@ -1977,7 +2403,8 @@ bob.salary                                   ; returns 2.5, copied from jane    
 ;    whole pass: it is the body itself, or the last item of a do, a branch
 ;    of an if, the body of a when or unless, or an arm value of a match,
 ;    where that do, if, when, unless or match is itself in tail position.
-; 6. recur may appear anywhere, but one that is not in tail position warns.
+; 6. recur may appear anywhere, but one that is not in tail position warns
+;    (lint recur_not_tail, 4.7.3).
 ;    why: it helps learners avoid stack overflows
 ; 7. A recur in tail position runs in constant stack space: it is a jump,
 ;    not a call.
@@ -2068,7 +2495,7 @@ _
 ;    binding has the same name, the new binding shadows it (4.1.5).
 ; 2. An identifier that names a top-level or built-in name does not bind.
 ;    It matches only a value equal to that name's value (8.3), and warns
-;    unless it is pinned (6.7).
+;    unless it is pinned (6.8; lint unpinned_name, 4.7.3).
 ;    why?: a pattern never hides a top-level name (4.1.8), and the warning
 ;    makes every comparison visible as ^
 ; 3. One pattern may not bind the same name twice. To require two parts to
@@ -2087,7 +2514,7 @@ _
     (let target : i32 = 3)
     (match 5
         ^target => "hit"
-        _       => "miss"))  ; returns "miss": ^target compares with 3  [6.7.1]
+        _       => "miss"))  ; returns "miss": ^target compares with 3  [6.8.1]
 (do
     (let target : i32 = 3)
     (match 5
@@ -2136,7 +2563,9 @@ _
 ;    skips the remaining fields. .. may only come last.
 ; 5. A variant with no fields is matched by its name alone, without
 ;    parentheses. Like a top-level name, it compares, and warns unless it
-;    is pinned: ^Weapon.Fist (6.2.2, 6.7).
+;    is pinned: ^Weapon.Fist (6.2.2, 6.8; lint unpinned_name).
+; 6. A constructor pattern never sees through a box: a field of type
+;    [Box T] is matched by a box pattern (6.6), not by a pattern for T.
 
 (match (Option.Some [i32] value = 3)
     (Option.Some value = v) => v
@@ -2193,7 +2622,7 @@ _
 (match (list 1 2 3 4 5)
     (list 1 .. 3 .. 5)     => true                 ; 1, any, 3, any, 5; 3 binds nothing    [6.5.3]
     (list a b .. e f)      => (> (+ a b) (+ e f))  ; binds the first two and the last two  [6.5.2]
-    l @ (list 1 .. 3 .. 2) => (== l.2 5)           ; binds the whole list to l (6.6)
+    l @ (list 1 .. 3 .. 2) => (== l.2 5)           ; binds the whole list to l (6.7)
     _                      => false)               ; returns true, from the first arm      [5.7.2.1]
 (match numbers
     (list)        => "empty"
@@ -2207,7 +2636,49 @@ _
     _                  => 0)
     ; error: b sits between two .., so the element it binds is ambiguous  [6.5.3]
 
-;;; 6.6 whole-value binding
+;;; 6.6 box patterns
+(box <Pattern T>)
+; 1. (box p) matches a [Box T] (3.7) when the value inside the box matches
+;    p. It mirrors (box x), which builds a box (8.8), as a constructor
+;    pattern mirrors building (6.4.2).
+; 2. It takes exactly one pattern, in a fixed place, not name = pattern.
+; 3. Box patterns nest: inside a constructor pattern, a list pattern or
+;    another box pattern, and around any pattern.
+; 4. A pattern (box ...) is always a box pattern, never a constructor
+;    pattern (6.4). A constructor pattern names a struct or a qualified
+;    variant, which are capitalized (1.4.1), and box is a built-in name
+;    that no constructor can take (4.1.7).
+; 5. (box p) matches only a [Box T]. No other pattern sees through a box:
+;    a pattern for a T against a [Box T] is a type error (6.4.6).
+;    why?: seeing through would be an implicit conversion, and it would be
+;    unclear whether left = l binds the box or its contents
+; 6. A boxed value can also be read with unbox and then matched, like any
+;    function result (8.8).
+;    why: unbox needs no rule of its own; the pattern is what lets
+;    patterns nest through boxes, which every recursive type needs
+
+; with Tree from 3.7
+(let leaf = (box Tree.Leaf [u8]))
+(let t = (Tree.Node [u8] left = leaf value = 1_u8 right = leaf))
+(match t
+    (Tree.Node left = (box ^Tree.Leaf) right = (box ^Tree.Leaf) ..) => "two leaves"
+    _                                                               => "other")
+    ; returns "two leaves"; a box pattern inside a constructor pattern  [6.6.3]
+(match leaf
+    (box (Tree.Node value = v ..)) => v
+    (box ^Tree.Leaf)               => 0_u8)  ; returns 0; matching a [Box [Tree u8]]  [6.6.1]
+(match (unbox leaf)
+    ^Tree.Leaf     => "leaf"
+    (Tree.Node ..) => "node")  ; returns "leaf"; unbox first, then match  [6.6.6]
+(match t
+    (Tree.Node left = ^Tree.Leaf ..) => "leaf on the left"
+    _                                => "other")
+    ; error: left is a [Box [Tree u8]]; write (box ^Tree.Leaf)  [6.6.5]
+(match leaf
+    (box value = v) => v
+    _               => 0_u8)  ; error: a box pattern takes one pattern, not name = pattern  [6.6.2]
+
+;;; 6.7 whole-value binding
 <Identifier> @ <Pattern>
 ; 1. name @ pattern matches when pattern does, and also binds the whole
 ;    value to name.
@@ -2215,15 +2686,15 @@ _
 (match (Option.Some [i32] value = 4)
     whole @ (Option.Some value = v) if (> v 3) => whole
     _                                          => Option.None [i32])
-    ; returns (Option.Some [i32] value = 4)  [6.6.1]
+    ; returns (Option.Some [i32] value = 4)  [6.7.1]
 (match (list 1 2 3)
     all @ (list 1 ..) => all.1
-    _                 => 0)  ; returns 2; all is the whole list  [6.6.1]
+    _                 => 0)  ; returns 2; all is the whole list  [6.7.1]
 (match jane
     e @ (Employee age = a ..) if (> a 18_u32) => e.name
-    _                                         => "minor")  ; returns "jane"  [6.6.1]
+    _                                         => "minor")  ; returns "jane"  [6.7.1]
 
-;;; 6.7 pins
+;;; 6.8 pins
 <Pin>
 ; 1. ^name matches only a value equal to the value bound to name (8.3). A
 ;    pin binds nothing.
@@ -2232,14 +2703,14 @@ _
 ;    full. Pinning anything else is an error.
 ; 3. Since a pin binds nothing, it may sit between two .. in a list pattern
 ;    (6.5.3).
-; 4. The name before @ always binds (6.6), so it cannot be pinned.
+; 4. The name before @ always binds (6.7), so it cannot be pinned.
 ;    why?: with ^, a pattern's meaning is visible from the pattern alone.
 ;    Adding a define or a let elsewhere never turns a binding into a
 ;    comparison
 
 (match Weapon.Fist
     ^Weapon.Fist => "fist"
-    _            => "armed")  ; returns "fist"  [6.7.2]
+    _            => "armed")  ; returns "fist"  [6.8.2]
 (match Weapon.Fist
     Weapon.Fist => "fist"
     _           => "armed")  ; returns "fist"; warning: write ^Weapon.Fist  [6.4.5]
@@ -2248,18 +2719,18 @@ _
     (match (Option.Some [i32] value = 3)
         (Option.Some value = ^limit) => "at the limit"
         _                            => "elsewhere"))
-    ; returns "at the limit"; a pin inside a constructor pattern  [6.7.1]
+    ; returns "at the limit"; a pin inside a constructor pattern  [6.8.1]
 (match 5
     ^missing => 1
-    _        => 0)  ; error: missing is not bound  [6.7.2]
+    _        => 0)  ; error: missing is not bound  [6.8.2]
 (do
     (let middle : i32 = 3)
     (match (list 1 2 3 4 5)
         (list 1 .. ^middle .. 5) => "has it"
         _                        => "lacks it"))
-    ; returns "has it"; a pin may sit between two ..  [6.7.3]
+    ; returns "has it"; a pin may sit between two ..  [6.8.3]
 (match jane
-    ^e @ (Employee ..) => e.name)  ; error: the name before @ always binds  [6.7.4]
+    ^e @ (Employee ..) => e.name)  ; error: the name before @ always binds  [6.8.4]
 
 ;;;; 7 generics
 
@@ -2272,10 +2743,11 @@ _
 ; 3. A type parameter may not have the name of an existing type, built-in or
 ;    defined. The error suggests the type's first letter, or its name with
 ;    the suffix Type: E or EmployeeType for Employee.
-; There is no way yet to require that a type parameter supports an
-; operation such as + (11.7.1).
+; 4. A type parameter may not have the name of a trait either (7.5.1.7).
+; A forall list may bound its type parameters by traits. That is how a
+; generic function requires an operation such as + (7.5.4).
 
-(struct Box |item : T|)  ; error: T is not declared; write (struct [Box T] |item : T|)     [7.1.1]
+(struct Crate |item : T|)  ; error: T is not declared; write (struct [Crate T] |item : T|)  [7.1.1]
 {fn |x : T -> T| x}      ; error: T is not declared; write {fn [forall T] |x : T -> T| x}  [7.1.1]
 {fn [forall T] |x : T -> T| (do
     (let keep_x = {fn [forall U] |y : U -> T| x})
@@ -2300,6 +2772,26 @@ _
 ; 4. A generic struct's accessors are generic functions: Pair.first has type
 ;    [[forall A B] [Pair A B] -> A], so a call gives its type arguments.
 ;    name.field needs none, since the type of name is already known.
+;    Constructors and accessors need all of their type arguments, even
+;    where a generic function could leave them out (7.4.4). Whether they
+;    should follow the same rule is open (11.7.16).
+; 5. A type may refer to itself, directly or through other types, as long
+;    as it never does so at a bigger type. A recursive group is a set of
+;    types that mention each other. Build a graph with one node for each
+;    type parameter of the group's members. For each mention of a member
+;    inside the group, and each of its type arguments i:
+;    - a parameter X passed exactly as argument i adds a plain edge from X
+;      to the member's parameter i;
+;    - a parameter X nested inside argument i, as in [List X], adds an
+;      expanding edge from X to the member's parameter i.
+;    A cycle that contains an expanding edge is an error. An argument with
+;    no type parameter in it adds no edge. The same check applies to
+;    generic functions that call themselves (7.3.8).
+;    why: it rejects exactly the definitions that need infinitely many
+;    types. A type, and everything it contains, then involves only finitely
+;    many distinct types, so walking its structure always finishes
+; 6. Whether a type may contain itself without a Box is a separate rule
+;    (3.7.2). No bounds may be written in a type header (7.5.4.3).
 
 (struct [Pair A B] |
     first  : A
@@ -2320,25 +2812,50 @@ Pair.first                               ; type: [[forall A B] [Pair A B] -> A] 
     Left  |value : L|
     Right |value : R|)  ; a generic enum  [7.2.1]
 (let e = (Either.Right [i32] [string] value = "r"))  ; e : [Either i32 string]  [7.2.3]
-; hypothetical: assumes a type may refer to itself (11.3.8)
 (enum [Tree T]
     Leaf
-    Node |left : [Tree T] value : T right : [Tree T]|)
+    Node |left : [Box [Tree T]] value : T right : [Box [Tree T]]|)
+    ; ok: each mention passes T as T, an edge that does not expand  [7.2.5]
 (let tree = (Tree.Node [i32]
-    left = Tree.Leaf [i32]
+    left = (box Tree.Leaf [i32])
     value = 5
-    right = Tree.Leaf [i32]))
+    right = (box Tree.Leaf [i32])))  ; the children are boxed (3.7)  [7.2.3]
+(struct [Flip A B] |swap : [Option [Box [Flip B A]]]|)
+    ; ok: A -> B -> A, and no edge expands  [7.2.5]
+(struct [Mixed A B] |kid : [Option [Box [Mixed [List u8] A]]]|)
+    ; ok: [List u8] holds no type parameter, so it adds no edge  [7.2.5]
+(enum [Nest T]
+    Flat |value : T|
+    Deep |inner : [Box [Nest [List T]]]|)
+    ; error: T becomes [List T] here, so the edge T -> T expands  [7.2.5]
 
 ;;; 7.3 generic functions
 {fn <Identifier>? <Forall> <Signature> <Value T>} -> [<Forall> <Type>... -> <Type>]
 ; 1. [forall T U...] declares the function's type parameters, which can be
 ;    used as types in its signature and body.
 ; 2. The function's type starts with the same forall list.
-; 3. Each call gives the type parameters as type arguments (7.4), so each
-;    parameter has one written type throughout the call.
+; 3. Each call fills the type parameters: from the type arguments it
+;    writes, and from its arguments for the rest (7.4). Each parameter has
+;    one type throughout the call.
 ; 4. Inside the body, a value whose type is a type parameter is not known to
 ;    be a function, so it is produced in ( ) (2.4.2.2).
 ;    why: T is not known to be a function there
+; 5. A forall list may end with the keyword with and one or more bounds:
+;    [forall T U with [Shape T]]. A bound says which traits the type
+;    parameters must implement (7.5.4). The bounds are part of the
+;    function's type.
+; 6. The body is checked once, where the function is written, against its
+;    bounds. It is never checked again for each call (7.5.4.4).
+; 7. Generics are monomorphized: each distinct set of type arguments a
+;    function is used with gets its own compiled copy, and every trait
+;    method the body calls resolves to an impl at compile time (7.5.3).
+;    There are no runtime dictionaries.
+; 8. A generic function may not call itself, directly or through other
+;    generic functions, at ever bigger types: that would need infinitely
+;    many copies. The check is the graph of 7.2.5, built from a group of
+;    generic functions that call each other, with each call in place of a
+;    mention, using the call's settled type arguments (7.4). A call in a
+;    branch that never runs still counts.
 
 (define first_or = {fn [forall T] |xs : [List T] fallback : T -> T|
     (match (get xs 0)  ; ( ) even though T could be a function  [7.3.4]
@@ -2348,7 +2865,7 @@ first_or                                     ; type: [[forall T] [List T] T -> T
 (first_or [i32] (list 4 5 6) 0)              ; returns 4; T is i32                          [7.3.3]
 (first_or [string] (list [string]) "none")   ; returns "none"; T is string                  [7.3.3]
 (first_or [i32] (list 1 2) "none")           ; error: fallback is an i32 here, not a string  [7.3.3]
-(first_or (list 4 5 6) 0)                    ; error: first_or needs its type argument T    [7.3.3]
+(first_or (list 4 5 6) 0)                    ; returns 4; T is i32, settled by the arguments  [7.3.3]
 {first_or [u32 -> u32] (list {make_adder 1}) {make_adder 2}}
     ; type: [u32 -> u32]; at this call T is a function, so { }  [2.4.2.2]
 (define apply = {fn [forall T U] |x : T f : [T -> U] -> U| (f x)})
@@ -2357,38 +2874,88 @@ first_or                                     ; type: [[forall T] [List T] T -> T
     ; returns "jane"; an accessor is a function (4.4.3)  [7.3.1]
 (define pair_up = {fn [forall A B] |a : A b : B -> [Pair A B]| (Pair [A] [B] first = a second = b)})
 (pair_up [i32] [string] 1 "one")             ; type: [Pair i32 string]                      [7.3.1]
+(trait [Shape T] area : [T -> f64])
+(define total_area = {fn [forall T with [Shape T]] |a : T b : T -> f64| (+ (area a) (area b))})
+total_area                                   ; type: [[forall T with [Shape T]] T T -> f64]  [7.3.5]
+(define depth = {fn [forall T] |x : T n : u32 -> u32|
+    (if (== n 0_u32) 0_u32 (depth (list x) (- n 1_u32)))})
+    ; error: depth calls itself with T as [List T], so T -> T expands  [7.3.8]
+(define trade = {fn [forall A B] |a : A b : B n : u32 -> u32|
+    (if (== n 0_u32) 0_u32 (trade b a (- n 1_u32)))})
+    ; ok: A and B only trade places, and no edge expands  [7.3.8]
 
 ;;; 7.4 type arguments
 <Identifier> <Type Argument> <Type Argument>...
 ; 1. A name followed by type arguments is that name with its type parameters
-;    filled in, in the order of its forall list (7.3) or type header (7.2).
-;    first_or [i32] is a [[List i32] i32 -> i32].
+;    filled in, in the order of its forall list (7.3) or type header (7.2),
+;    starting from the first. first_or [i32] is a [[List i32] i32 -> i32].
 ; 2. In the callee position, this is a call: (first_or [i32] xs 0) calls
 ;    first_or [i32]. A [ ] directly after a name belongs to that name, so in
 ;    (combine [i32] 2 3 + [i32]) the second [i32] belongs to +.
 ; 3. Each [ ] holds exactly one type: [u32], [List i32], [u32 -> u32]. A
 ;    bracketed type with no arguments is that type, so [u32] is u32.
-; 4. A generic function, constructor or accessor needs all of its type
-;    arguments wherever it is used. Leaving any out, or giving too many, is a
-;    compile error.
+; 4. A call of a generic function may leave type arguments out. The ones it
+;    writes fill the forall list from the left, and the call's arguments
+;    settle the rest. To give a later parameter, a call gives every
+;    parameter before it. Giving too many is a compile error.
+;    why: it is the order rule of 7.5.2.3: an author puts the parameters
+;    that callers write first, and which parameter a type argument fills
+;    never changes silently
+;    A generic constructor or accessor still needs all of its type
+;    arguments wherever it is used (7.2.3, 7.2.4). Whether they should
+;    follow this rule too is open (11.7.16).
 ; 5. Type arguments may only follow an identifier or a qualified name, as .
 ;    may (2.3.4). Any other value must be bound to a name first.
 ; 6. Patterns take no type arguments. A pattern gets its types from the
 ;    value it is matched against.
-; 7. Built-ins take type arguments by the rules of 7.5.
-;    why?: every type in a call is written, so a reader never has to work one
-;    out
+; 7. A type parameter that is not given is settled by the call's arguments
+;    and by nothing else. The type expected where the call appears never
+;    settles it, even when that type is written: an annotation, a declared
+;    parameter type, a fn's output type.
+;    why: a call's types always follow from what is written in the call,
+;    with no rule for working a type out from its surroundings
+;    A written type still reaches a literal (5.1.1.2), so
+;    (let n : u8 = 200) compiles, while (let e : [List u8] = (list)) does
+;    not. Closing that gap is sugar for later (11.7.15).
+; 8. A type parameter that the arguments cannot settle must be given. That
+;    covers a parameter that appears only in the output type, as in parse,
+;    zero and the casts (8.6.1), list with no arguments (8.7.1.3), and a
+;    trait parameter that a method does not mention (7.5.2.5). A generic
+;    function used as a value, not called, has no arguments, so it needs
+;    all of its type arguments: + [u32], first_or [i32].
+; 9. A given type argument and an argument that disagree are an error. Two
+;    arguments that settle one type parameter differently are an error
+;    that names both. Nothing is widened to make them agree (3.1.3).
+; 10. An unsuffixed literal argument takes its parameter's type only when
+;     that type is written: in the signature, or by a type argument at the
+;     call (5.1.1.2). When the parameter's type is a type parameter that
+;     the call does not give, the literal keeps its fixed type (5.1.1.3)
+;     and helps settle the parameter like any other argument. A literal
+;     never takes its type from the other arguments.
+; 11. A type parameter cannot be settled as a type that contains it, such
+;     as T = [List T]. The error points at the argument that settled it.
+;     While types come from arguments only (rule 7), every argument's type
+;     is already known, so this cannot come up yet. The rule is stated so
+;     that it is in place if rule 7 is ever relaxed (11.7.15).
+;    why?: every type in a call follows from the call itself: its type
+;    arguments and the types of its arguments. A reader never has to look
+;    at where the call is used
 ;    why?: [ ] never wrap an expression (2.4.1.1), so a type argument is
 ;    never mistaken for a value, even for a name such as Employee that is
 ;    both a type and a constructor
 
 (let numbers : [List i32] = (list 1 2 3))
 (first_or [i32] numbers 0)         ; returns 1                                [7.4.2]
+(first_or numbers 0)               ; returns 1; T is i32, settled by numbers  [7.4.4]
 first_or [i32]                     ; type: [[List i32] i32 -> i32]            [7.4.1]
 (let first_num = first_or [i32])   ; a generic function, passed as a value    [7.4.1]
-(let first_any = first_or)         ; error: first_or needs its type argument  [7.4.4]
+(let first_any = first_or)         ; error: nothing settles T; write first_or [T]  [7.4.8]
 (pair_up [i32] [string] 1 "one")   ; two type arguments, in forall order      [7.4.1]
-(pair_up [i32] 1 "one")            ; error: pair_up takes two type arguments  [7.4.4]
+(pair_up 1 "one")                  ; type: [Pair i32 string]; A and B settled by the arguments  [7.4.4]
+(pair_up [i64] 1 "one")            ; type: [Pair i64 string]; A is given, so the 1 is an i64  [7.4.4, 7.4.10]
+(let n : i32 = 1)
+(pair_up [i64] n "one")            ; error: A is i64, but the argument n is an i32  [7.4.9]
+(pair_up [i32] [string] [bool] 1 "one")  ; error: pair_up takes two type arguments  [7.4.4]
 (pair_up [i32 string] 1 "one")
     ; error: [i32 string] reads as i32 applied to string; one type per [ ]  [7.4.3]
 (identity [Employee] jane)         ; returns jane; [Employee] is the type     [7.4.2]
@@ -2399,46 +2966,618 @@ first_or [i32]                     ; type: [[List i32] i32 -> i32]            [7
 (match (Option.Some [i32] value = 3)
     (Option.Some value = v) => v
     ^Option.None            => 0)  ; returns 3; the pattern takes no type arguments  [7.4.6]
-
-;;; 7.5 overloads
-; 1. A built-in function that works on several types is overloaded: it has
-;    one member for each type. + has a member of type [u32 u32 -> u32], one
-;    of type [string string -> string], and so on.
-; 2. An overloaded built-in has type parameters, the types that differ
-;    between its members: the operand type of +, or the T of get's
-;    [List T]. name [U] is its member for U (7.4.1): + [u32] is the
-;    [u32 u32 -> u32] member.
-; 3. A call without type arguments picks the member whose parameter types
-;    match the types of its arguments, worked out from the arguments alone.
-;    Exactly one member must match.
-; 4. When the arguments cannot settle a type parameter, the call must give
-;    it. list with no arguments needs [T] (8.7.1.3), and a cast always gives
-;    its target type (8.6.1).
-; 5. An unsuffixed literal argument counts as its fixed type (5.1.1.3),
-;    unless its parameter has the same type in every member, or the call
-;    gives type arguments. get's index is a u32 in every member, so in
-;    (get xs 2) the 2 is a u32. In (+ x 1) with x : u32, the 1 is an i32,
-;    and no member matches.
-; 6. A member is never picked from the type expected where the call
-;    appears. Passing an overloaded built-in as a value always needs its
-;    type arguments: + [u32].
-; 7. Only built-ins are overloaded. A program cannot bind one name twice, so
-;    it cannot define overloads of its own (11.4.5).
-;    why?: a call's member always follows from what is written in the call
-
 (let x : u32 = 7)
-(+ x x)                      ; the [u32 u32 -> u32] member; returns 14                   [7.5.3]
-(+ "a" "b")                  ; the [string string -> string] member; returns "ab"        [7.5.3]
-(+ x "b")                    ; error: no member of + takes a u32 and a string            [7.5.3]
-(+ x 1)                      ; error: the 1 is an i32 (5.1.1.3); write 1_u32              [7.5.5]
-(+ x 1_u32)                  ; returns 8                                                 [7.5.5]
-(+ [u32] x 1)                ; returns 8; [u32] makes both parameters u32s               [7.5.5]
-(get (list 4 5) 1)           ; returns (Option.Some [i32] value = 5); the 1 is a u32     [7.5.5]
-(list)                       ; error: nothing settles T; write (list [T])                [7.5.4]
-(as [i64] 5)                 ; returns 5 as an i64; the target type is always given      [7.5.4]
-(let total : u64 = (+ 2 3))  ; error: (+ 2 3) is an i32; the u64 does not pick a member  [7.5.6]
-(define add_u32 = + [u32])   ; add_u32 : [u32 u32 -> u32]                                [7.5.6]
-(define plus = +)            ; error: + is overloaded; write + [T]                       [7.5.6]
+(+ x x)                      ; returns 14; T is u32, settled by the arguments              [7.4.4]
+(+ x "b")                    ; error: T is u32 from x but string from "b"                  [7.4.9]
+(+ x 1)                      ; error: T is u32 from x but i32 from 1; write 1_u32          [7.4.10]
+(+ x 1_u32)                  ; returns 8                                                   [7.4.10]
+(+ [u32] x 1)                ; returns 8; [u32] makes the 1 a u32                          [7.4.10]
+(get (list 4 5) 1)           ; returns (Option.Some [i32] value = 5); the index is written as u32  [7.4.10]
+(let empty = (list [u8]))    ; empty : [List u8]                                           [7.4.8]
+(let none_yet : [List u8] = (list))
+    ; error: nothing settles T; the annotation does not count; write (list [u8])  [7.4.7]
+(let total : u64 = (+ 2 3))  ; error: (+ 2 3) is an i32; the u64 does not settle T         [7.4.7]
+(define add_u32 = + [u32])   ; add_u32 : [u32 u32 -> u32]                                  [7.4.8]
+(define plus = +)            ; error: nothing settles T; write + [T]                       [7.4.8]
+(define add : [u32 u32 -> u32] = +)
+    ; error: the annotation does not settle T; write + [u32]  [7.4.7]
+(as [i64] x)                 ; returns 7 as an i64; To is given, From is settled by x      [7.4.4]
+(as [i64] [u32] x)           ; the same, with both given                                   [7.4.4]
+(as x)                       ; error: nothing settles To                                   [7.4.8]
+(parse [u32] "42")           ; T is given: the argument cannot settle it                   [7.4.8]
+(parse "42")                 ; error: nothing settles T                                    [7.4.8]
+
+;;; 7.5 traits
+; A trait names a set of methods that types can implement. The operators,
+; such as + and ==, are trait methods (8.1.3), and a program gives its own
+; types an operator by writing an impl, never an overload: no name has more
+; than one function behind it (5.2.4). Examples use these types:
+(struct Circle |r : f64|)
+(struct Square |side : f64|)
+
+;; 7.5.1 trait declarations
+(trait <Trait Header> <Trait Entry>...) -> Unit
+(trait <Trait Header> with <Bound> <Bound>... <Trait Entry>...) -> Unit  ; with supertraits (7.5.5)
+; 1. trait declares a trait and its methods. It may only appear at the top
+;    level, like struct and enum, and it can be exported (9.6).
+; 2. In the header [Name T U...], Name is the new trait and T U... are its
+;    type parameters: the types an impl is written for. Every parameter is
+;    named. There is no implicit Self.
+;    why: a bound is a full trait application (7.5.4.1), so every parameter
+;    needs a name; it also fits 7.1.1
+; 3. The body holds only methods, and each method has exactly one entry.
+;    There are no constants and no associated types.
+; 4. name : <Method Type> is a required method: every impl must supply it
+;    (7.5.3.3).
+; 5. name = {fn ...} is an auto-implemented method: a method with a body,
+;    used by every impl that does not supply its own (7.5.3.3). Its type is
+;    read from the fn's signature, as in (define f = {fn ...}).
+;    why: : means "impls must supply this" and = means "this has a body",
+;    and the signature is written once
+; 6. An auto-implemented body is checked once, as if its fn began with a
+;    forall list of the trait's parameters, in order, bounded by the trait
+;    itself: [forall T with [Shape T]]. So it may call any of the trait's
+;    methods, and its supertraits' (7.5.5.4), on those types.
+; 7. A trait's name is capitalized, like a type's (1.4.1). It may not be the
+;    same as any other top-level name: a type, a function, a value or
+;    another trait (4.1.7). It cannot be hidden by a local binding or by a
+;    type parameter (4.1.8, 7.1.4).
+; 8. A trait is not a type. It appears in a bound (7.5.4), in an impl's
+;    header (7.5.3) and in a supertrait list (7.5.5), never where a type is
+;    expected. There are no trait objects. A list of mixed values uses an
+;    enum.
+;    why: generics are monomorphized (7.3.7), so there is nothing a value
+;    of a trait's type could dispatch through at run time
+;    Since a trait's name never clashes with a type's (rule 7), allowing
+;    this later breaks nothing.
+; 9. A trait with no methods is allowed. It is useful with supertraits
+;    (7.5.5.6), or as a promise stated in its laws (4.6.2.12).
+
+(trait [Shape T]
+    area : [T -> f64]                                    ; a required method  [7.5.1.4]
+    double_area = {fn |s : T -> f64| (* (area s) 2.0)})  ; auto-implemented, from area  [7.5.1.5, 7.5.1.6]
+(trait [Show T]
+    show : [T -> string])
+(trait [Marker T])                 ; a trait with no methods  [7.5.1.9]
+(trait [Limit T]
+    limit : u32)                   ; error: a trait holds only methods, and u32 is not a function type  [7.5.1.3]
+(trait [Twice T]
+    twice : [T -> T]
+    twice = {fn |x : T -> T| x})   ; error: twice has two entries  [7.5.1.3]
+(trait Plain
+    plain : [f64 -> f64])          ; error: a trait needs a header with its type parameters  [7.5.1.2]
+(do (trait [Local T]) ())          ; error: trait only appears at the top level  [7.5.1.1]
+(struct Shape |n : u32|)           ; error: Shape is already bound, as a trait  [7.5.1.7]
+{fn [forall Shape] |x : Shape -> Shape| x}  ; error: Shape is a trait; a type parameter cannot hide it  [7.5.1.7]
+(let shapes = (list [Shape]))      ; error: Shape is a trait, not a type  [7.5.1.8]
+
+;; 7.5.2 methods
+; 1. A trait's method is a top-level name of the trait's module. It belongs
+;    to the module just as a define would, so no other top-level name may
+;    be the same (4.1.7), the method of another trait included.
+;    why: every name keeps exactly one meaning. A name is resolved by scope
+;    alone, and finding the impl (7.5.7) is the only extra step
+; 2. A method is a generic function. Its forall list is the trait's
+;    parameters, in declared order, bounded by the trait itself: area has
+;    the type [[forall T with [Shape T]] T -> f64]. A call of a method is
+;    an ordinary generic call (7.4), and its bound is proved like any other
+;    (7.5.4.5).
+; 3. Declaration order is use order: a trait's parameters are given as
+;    type arguments in the order the header declares them (7.4.4). A trait
+;    author puts the parameters a caller will write first, such as a
+;    cast's target before its source.
+; 4. A method may have a forall list of its own. Its type parameters come
+;    after the trait's, in the method's declared order.
+; 5. A method need not mention every parameter of its trait. The arguments
+;    never settle a parameter the method leaves out, so callers give it as
+;    a type argument (7.4.8). A trait author puts such parameters first.
+; 6. A method may not take a built-in or prelude name (4.1.7). So an
+;    unqualified + always means the built-in +, and a type gets + by
+;    implementing +'s trait, never by declaring a + of its own.
+; 7. A local binding that hides a method warns, like any top-level name
+;    (4.1.8; lint shadowing). Outside its module, a method is reached like
+;    any exported item, as alias::method (9.4.6). The prelude's methods
+;    are unqualified (11.8.5).
+;    why: methods are ordinary lowercase words. If hiding one were an
+;    error, adding a method to a trait would break every caller's local of
+;    that name
+; 8. A required method marks a parameter optional by writing = _ after its
+;    type: [T f64 = _ -> T]. Only trailing parameters may be marked, since
+;    only trailing parameters can be left out (5.2.3). = _ appears only in
+;    a required method's type in a trait's body, never in an ordinary
+;    function type (3.3.8). An auto-implemented method marks a parameter
+;    optional by giving it a default in its fn.
+;    why: it mirrors name : Type = value (5.4.2), with _ for "the value is
+;    given elsewhere", and needs no new token
+; 9. The trait decides which parameters are optional, and each impl decides
+;    their values (7.5.3.7). A default's value may differ between impls, as
+;    a method's behavior does. The trait's doc says what leaving the
+;    parameter out means (4.6.7.5), and each impl keeps to it.
+;    why: a call in a generic body that leaves the parameter out is checked
+;    once, before T is known (7.5.4.4). Since the trait fixes which
+;    arguments may be left out, the call is valid for every T or for none
+
+area                      ; type: [[forall T with [Shape T]] T -> f64]  [7.5.2.2]
+(trait [Plot T]
+    area : [T -> f64])    ; error: area is already bound, as Shape's method  [7.5.2.1]
+(define show = {fn |n : u32 -> string| (to_string n)})
+    ; error: show is already bound, as Show's method  [7.5.2.1]
+(trait [Convert To From]
+    convert : [From -> To])
+    ; convert : [[forall To From with [Convert To From]] From -> To]; the
+    ; target comes first, so a call can give it alone  [7.5.2.2, 7.5.2.3]
+(trait [Tagged T]
+    tag : [[forall U] T U -> [Pair T U]])
+    ; with Pair from 7.2; tag's forall list is [forall T U with [Tagged T]]  [7.5.2.4]
+(trait [Named T]
+    type_name : [-> string])  ; type_name does not mention T, so every call gives it (7.5.3)  [7.5.2.5]
+(trait [VecAdd T]
+    + : [T T -> T])       ; error: + is a built-in name  [7.5.2.6]
+(do (let area = 10.0) area)   ; returns 10.0; warning: area hides Shape's method  [7.5.2.7]
+(trait [Grow T]
+    grow : [T f64 = _ -> T])  ; the second parameter is optional; each impl gives its default  [7.5.2.8]
+(trait [Pad T]
+    pad : [T u32 = _ char -> T])  ; error: only trailing parameters may be optional  [7.5.2.8]
+(define nudge : [Circle f64 = _ -> Circle] = grow [Circle])
+    ; error: = _ only appears in a required method's type  [7.5.2.8]
+
+;; 7.5.3 impls
+(impl <Bound> <Impl Entry>...) -> Unit
+(impl <Forall> <Bound> <Impl Entry>...) -> Unit  ; a generic impl
+; 1. impl implements a trait for the types in its header. The header is
+;    written like a bound (7.5.4.1): the trait, then one type for each of
+;    its parameters. impl may only appear at the top level.
+; 2. Each entry is name = {fn ...}, and gives one of the trait's methods
+;    for those types. The name is written bare, never qualified, even when
+;    the trait comes from another module: the header already names the
+;    trait.
+; 3. Every required method must have an entry. An auto-implemented method
+;    may have one, which then replaces the trait's body for those types:
+;    the trait's body cannot be called from the impl, or extended. The
+;    trait's other auto-implementations still apply. Replacing one never
+;    warns.
+;    why: no type ever has two definitions of one method
+;    why: how often a method is replaced cannot be counted one module at a
+;    time. If most impls should replace a method, the trait says so in the
+;    method's doc, or makes the method required
+; 4. An impl has no name. It cannot be bound, passed or exported. It is
+;    usable wherever its trait and every type in its header are (9.6.7).
+; 5. An impl may begin with a forall list, written exactly as a function's
+;    (7.3), bounds included. Its type parameters can be used in the header
+;    and in the methods.
+; 6. Every type parameter of an impl must appear in its header.
+;    why: lookup matches the header against a goal (7.5.7), so a parameter
+;    outside the header would never be settled, and the impl could never
+;    be compiled (7.3.7). Relaxing this later breaks nothing
+; 7. Each method's type must equal the trait's declared type, with the
+;    header's types in place of the trait's parameters. Nothing is loosened
+;    or tightened. Every parameter the trait marks optional (7.5.2.8) must
+;    have a default in the impl's fn, and no other parameter may have one.
+; 8. A function type may appear in a header, like any built-in type:
+;    [Arity [u8 -> u8]], or [Arity [A -> B]] under [forall A B]. One impl
+;    covers one number of parameters (11.7.11). Whether a module may write
+;    such an impl is set by the orphan rule (7.5.6.2).
+; 9. A function type with a forall list of its own, such as
+;    [[forall T] T -> T], cannot appear in an impl's header or in a bound.
+;    A function type whose parameters come from the enclosing forall list,
+;    such as [A -> B], is fine.
+;    why: lookup and the overlap check (7.5.6.3) unify types, and unifying
+;    under a forall list is not defined. Allowing it later only accepts
+;    more programs
+
+(impl [Shape Circle]
+    area = {fn |c : Circle -> f64| (* 3.14 (* c.r c.r))})  ; double_area comes from the trait  [7.5.3.3]
+(impl [Shape Square]
+    area = {fn |s : Square -> f64| (* s.side s.side)}
+    double_area = {fn |s : Square -> f64| (* 2.0 (* s.side s.side))})
+    ; replaces the trait's double_area, for Square only  [7.5.3.3]
+(area (Circle r = 1.0))            ; returns 3.14; T is Circle, so Circle's impl is used  [7.5.3.1]
+(double_area (Circle r = 1.0))     ; returns 6.28, from the trait's body                  [7.5.3.3]
+(double_area (Square side = 2.0))  ; returns 8.0, from Square's impl                      [7.5.3.3]
+(area 5.0)                         ; error: f64 has no Shape impl                         [7.5.4.5]
+(impl [Show Circle]
+    show = {fn |c : Circle -> string| (`circle of radius ${r}` (to_string c.r))})
+(impl [forall T with [Show T]] [Show [List T]]
+    show = {fn |xs : [List T] -> string|
+        (loop |i : u32 = 0 out : string = "" -> string|
+            (match (get xs i)
+                (Option.Some value = x) => (recur i = (+ i 1_u32) out = (+ out (show x)))
+                ^Option.None            => out))})
+    ; a generic impl: a list can be shown when its items can  [7.5.3.5]
+(show (list (Circle r = 1.0) (Circle r = 2.0)))
+    ; returns the two circles' texts, joined; List's impl, then Circle's  [7.5.3.5]
+(struct Dot |x : f64|)
+(impl [Shape Dot])                 ; error: the required method area has no entry  [7.5.3.3]
+(impl [Show Square]
+    show = {fn |s : Square n : u32 -> string| "square"})
+    ; error: show must be a [Square -> string]  [7.5.3.7]
+(impl [forall T U] [Show [Option T]] ...)  ; error: U does not appear in [Show [Option T]]  [7.5.3.6]
+(impl [Grow Circle]
+    grow = {fn |c : Circle by : f64 = 1.0 -> Circle| (Circle r = (+ c.r by))})
+    ; the default that Grow asks each impl for  [7.5.3.7]
+(impl [Grow Square]
+    grow = {fn |s : Square by : f64 -> Square| (Square side = (+ s.side by))})
+    ; error: Grow marks grow's second parameter optional; give it a default  [7.5.3.7]
+(grow (Circle r = 1.0))            ; returns (Circle r = 2.0); Circle's default  [7.5.2.9]
+(grow (Circle r = 1.0) 0.5)        ; returns (Circle r = 1.5)                    [7.5.2.9]
+(impl [Named Circle]
+    type_name = {fn |-> string| "Circle"})
+(type_name [Circle])               ; returns "Circle"; T is given, since no argument could settle it  [7.5.2.5]
+(type_name)                        ; error: nothing settles T                    [7.5.2.5]
+(impl [Convert f64 Circle]
+    convert = {fn |c : Circle -> f64| c.r})
+(convert [f64] (Circle r = 2.0))           ; returns 2.0; To is given, From is settled by the argument  [7.5.2.3]
+(convert [f64] [Circle] (Circle r = 2.0))  ; the same, with both given                                 [7.5.2.3]
+(convert (Circle r = 2.0))                 ; error: nothing settles To                                 [7.5.2.3]
+(trait [Arity F]
+    arity : [F -> u32])
+(impl [forall A B] [Arity [A -> B]]
+    arity = {fn |_ : [A -> B] -> u32| 1})  ; every function of one parameter  [7.5.3.8]
+(impl [forall A B C] [Arity [A B -> C]]
+    arity = {fn |_ : [A B -> C] -> u32| 2})  ; two parameters need an impl of their own  [7.5.3.8]
+(arity {fn |n : u8 -> u8| n})      ; returns 1                                   [7.5.3.8]
+(impl [Arity [[forall T] T -> T]] ...)
+    ; error: a generic function type cannot be implemented over  [7.5.3.9]
+; with (mod geo), where geo exports a trait Solid with one method,
+; volume : [T -> f64]
+(impl [geo::Solid Circle]
+    volume = {fn |_ : Circle -> f64| 0.0})       ; the method is written bare  [7.5.3.2]
+(impl [geo::Solid Square]
+    geo::volume = {fn |_ : Square -> f64| 0.0})  ; error: impl entries name methods bare  [7.5.3.2]
+(geo::volume (Circle r = 2.0))                   ; returns 0.0; qualified at the call  [7.5.2.7]
+
+;; 7.5.4 bounds
+[forall <Identifier> <Identifier>... with <Bound> <Bound>...]
+; 1. A bound is a full trait application, [Trait Type...], written like a
+;    generic type with its arguments: one type for each of the trait's
+;    parameters. A forall list gives its type parameters, then with, then
+;    its bounds. A parameter with no bound simply appears in none.
+;    why: one form covers traits with one parameter and with several, and
+;    no trait parameter is privileged as a subject
+;    The one-parameter case is wordy. Sugar for it may come later
+;    (11.7.15).
+; 2. A bound may name concrete types, and any type parameter in scope: its
+;    own forall list's or an enclosing one's (7.1.2). Every bound must name
+;    at least one type parameter. A bound with none says nothing about the
+;    generic, so it is an error.
+; 3. Only functions and impls take bounds. The header of a struct or enum
+;    (7.2) takes none, so a type cannot require a trait of its parameters.
+;    Every function that needs the trait states the bound itself. Allowing
+;    bounds in headers later breaks no program.
+; 4. A generic body may call a trait's method on a type parameter only if
+;    a bound, with its supertraits added (7.5.5.4), covers that use. The
+;    body is checked once, before any call, and never again for each call
+;    (7.3.6).
+; 5. At each call, the type arguments, given or settled (7.4), are put
+;    into the bounds, and each resulting goal must be proved by impl
+;    lookup (7.5.7). The error points at the type argument, or at the
+;    argument that settled it.
+; 6. Inside a generic body, a goal over its type parameters is proved by
+;    the bounds in scope. So a generic with [Shape T] may call another
+;    generic that requires [Shape T]. An inner generic's bound that names
+;    an outer parameter is proved the same way, from the outer forall
+;    list's bounds, since the outer parameter is still abstract there.
+; 7. Duplicate bounds are allowed: with [Shape T] [Shape T] means the same
+;    as with [Shape T]. So is a bound that another bound already implies
+;    through a supertrait (7.5.5.4).
+; 8. A function type with a forall list of its own cannot appear in a
+;    bound (7.5.3.9), and a bounded type parameter cannot be settled as
+;    one.
+
+(define total_area = {fn [forall T with [Shape T]] |a : T b : T -> f64|
+    (+ (area a) (area b))})                         ; area is covered by [Shape T]  [7.5.4.4]
+(total_area (Circle r = 1.0) (Circle r = 2.0))
+    ; returns 15.7; T is Circle, and [Shape Circle] is proved by Circle's impl  [7.5.4.5]
+(total_area 1.0 2.0)                                ; error: f64 has no Shape impl  [7.5.4.5]
+(total_area (Circle r = 1.0) (Square side = 1.0))
+    ; error: T is Circle from the first argument but Square from the second  [7.4.9]
+{fn [forall T] |a : T -> f64| (area a)}             ; error: no [Shape T] bound     [7.5.4.4]
+(define show_area = {fn [forall T U with [Shape T] [Show T]] |x : T _ : U -> string|
+    (+ (show x) (to_string (total_area x x)))})
+    ; U has no bound; total_area's [Shape T] is proved by this fn's own bound  [7.5.4.1, 7.5.4.6]
+{fn [forall T with [Convert f64 T]] |x : T -> f64| (convert [f64] x)}
+    ; a bound may name a concrete type: any T that converts to f64  [7.5.4.2]
+{fn [forall T with [Convert f64 Circle]] |x : T -> T| x}
+    ; error: the bound [Convert f64 Circle] names no type parameter  [7.5.4.2]
+{fn [forall T with [Shape T] [Convert T f64]] |x : f64 -> f64| (do
+    (let via = {fn [forall U with [Convert T U]] |u : U -> f64| (area (convert [T] u))})
+    (via x))}
+    ; the inner bound names the outer T; at (via x), [Convert T f64] is
+    ; proved by the outer bound  [7.5.4.2, 7.5.4.6]
+{fn [forall T with [Shape T] [Shape T]] |x : T -> f64| (area x)}  ; a duplicate bound is fine  [7.5.4.7]
+(struct [Sheet T with [Shape T]] |items : [List T]|)  ; error: a type header takes no bounds  [7.5.4.3]
+; hypothetical: Add is a prelude trait (8.2)
+{fn [forall T with [Add T]] |a : T b : T -> T| (+ a b)}  ; + is covered by [Add T]  [7.5.4.4]
+{fn [forall T] |a : T b : T -> T| (+ a b)}               ; error: no [Add T] bound  [7.5.4.4]
+
+;; 7.5.5 supertraits
+(trait <Trait Header> with <Bound> <Bound>... <Trait Entry>...) -> Unit
+; 1. A trait may list supertraits after its header: with, then bounds
+;    (7.5.4.1). The list ends at the first entry. A bound is a [ ] form and
+;    an entry starts with a method's name, so the two cannot be confused.
+; 2. A supertrait bound names only the trait's own parameters, bare:
+;    [Shape T] is allowed. [Shape [List T]], [Shape u8] and parameters that
+;    are not the trait's are errors.
+;    why: a supertrait goal is then never bigger than the goal that implied
+;    it, so the size rule (7.5.7.1) needs no extra case. Relaxing this
+;    later breaks nothing
+; 3. Supertraits are required at the impl. An impl of a trait is an error
+;    unless each of the trait's supertraits, at the impl's types, can be
+;    proved from the impl's own bounds (rule 4) and the impls its module
+;    can find (7.5.6.4). The error is at the impl and names the missing
+;    impl. Only direct supertraits are checked: each of their impls was
+;    checked for its own supertraits in turn, so every supertrait further
+;    up holds too.
+; 4. Supertraits are implied at the bound, transitively. A bound stands
+;    for itself, plus every supertrait at the same types, plus their
+;    supertraits, and so on. This holds everywhere a bound does: in
+;    generic bodies (7.5.4.4), in auto-implementations (7.5.1.6), in a
+;    generic impl's bounds when its own supertraits are proved (rule 3),
+;    in bounds that pass through (7.5.4.6), and in the overlap check
+;    (7.5.6.5).
+; 5. A trait that reaches itself by following supertraits is an error at
+;    its declaration. The error names every trait in the cycle. So adding
+;    supertraits to a bound always finishes.
+; 6. A trait with supertraits and no methods (7.5.1.9) works as one name
+;    for several bounds.
+
+(trait [Solid T] with [Shape T]
+    height : [T -> f64]
+    volume = {fn |s : T -> f64| (* (area s) (height s))})
+    ; Shape is a supertrait, so volume may call area  [7.5.5.1, 7.5.5.4]
+(struct Can |base : Circle tall : f64|)
+(impl [Shape Can]
+    area = {fn |c : Can -> f64| (area c.base)})
+(impl [Solid Can]
+    height = {fn |c : Can -> f64| c.tall})   ; ok: Can has a Shape impl  [7.5.5.3]
+(struct Rod |long : f64|)
+(impl [Solid Rod]
+    height = {fn |r : Rod -> f64| r.long})   ; error: Solid needs [Shape Rod], and Rod has no Shape impl  [7.5.5.3]
+(define bulk = {fn [forall T with [Solid T]] |x : T -> f64| (+ (area x) (volume x))})
+    ; [Solid T] implies [Shape T], so area is covered  [7.5.5.4]
+{fn [forall T with [Solid T] [Shape T]] |x : T -> f64| (area x)}
+    ; fine: [Shape T] repeats what [Solid T] implies  [7.5.4.7]
+(trait [Drawable T] with [Shape T] [Show T])  ; no methods: one name for two bounds  [7.5.5.6]
+(trait [Stack T] with [Shape [List T]])
+    ; error: a supertrait bound names the trait's parameters bare  [7.5.5.2]
+(trait [Above T] with [Below T])
+(trait [Below T] with [Above T])   ; error: supertrait cycle Above -> Below -> Above  [7.5.5.5]
+
+;; 7.5.6 coherence
+; For each trait and each tuple of types, a whole program holds at most one
+; impl. These rules ensure it while checking one module at a time.
+; 1. The orphan rule: an impl with the header [Trait A1 ... An] may be
+;    written in a module only if
+;    a. the module defines Trait; or
+;    b. some Ai is a type the module defines, and no Aj before it contains
+;       an uncovered type parameter of the impl. A type parameter is
+;       uncovered when it appears bare, as T, and covered when it is an
+;       argument of another type, as in [List T].
+;    For a trait with one parameter, this is "the trait's module or the
+;    type's module".
+;    why: for any one impl, at most one module besides the trait's can
+;    satisfy the rule, so two modules cannot write the same impl without
+;    one of them seeing the other
+; 2. A type the module defines is a struct or enum declared in it, with any
+;    type arguments. A built-in generic type is never local to a module,
+;    and neither is a function type, even when it mentions the module's
+;    own types: [List Meters] and [Meters -> u8] are no more local to the
+;    module of Meters than List is. To implement a trait over such a type
+;    outside the trait's module, wrap it in a struct the module defines.
+;    why: otherwise [Point -> Meters] would be local to two modules, and
+;    both could write the same impl unnoticed
+; 3. Two impls of one trait may not overlap. They overlap when their
+;    headers unify, with each impl's type parameters renamed apart and all
+;    positions unified together, and the bounds of both impls could hold
+;    at once for the unified types. There is no specialization: no impl
+;    wins over another.
+; 4. A module finds impls, and checks overlap, in itself and in every
+;    module it can reach by following mod forms (9.4), internal modules
+;    included (9.5). This is the module's search scope.
+;    why: by rule 1, an impl lives in its trait's module or in the module
+;    of a type in its header. A call that needs the impl involves the
+;    trait and every one of those types, so the impl's module is always
+;    among the caller's transitive imports
+; 5. Whether the bounds of two impls could hold at once is judged by the
+;    impls in the checking module's search scope, with supertraits added
+;    (7.5.5.4).
+;    why: it is the same lookup a call in that module would run, so the
+;    overlap check and impl lookup never disagree
+;    Adding an impl can therefore make two other impls overlap. The error
+;    is reported in each module whose search scope holds all three. Impls
+;    that only a missing impl keeps apart warn before that (7.5.8).
+; 6. Two impls with the same header always overlap. So a program holds at
+;    most one impl for each trait and tuple of types, even across modules.
+
+; in a module units, which defines (struct Meters |n : f64|) and imports a
+; module conv that defines Convert and Show. Each impl is read alone, as if
+; it were the only one in the program:
+(impl [conv::Convert Meters u32] ...)                  ; ok: Meters is local                        [7.5.6.1]
+(impl [conv::Convert f64 Meters] ...)                  ; ok: f64 holds no type parameter            [7.5.6.1]
+(impl [forall T] [conv::Convert Meters T] ...)         ; ok: Meters comes before T                  [7.5.6.1]
+(impl [forall T] [conv::Convert [List T] Meters] ...)  ; ok: T is covered by List                   [7.5.6.1]
+(impl [forall T] [conv::Convert T Meters] ...)         ; error: T is uncovered before Meters        [7.5.6.1]
+(impl [conv::Show [List Meters]] ...)                  ; error: [List Meters] is not a local type   [7.5.6.2]
+(impl [conv::Show [Meters -> u8]] ...)                 ; error: [Meters -> u8] is not a local type  [7.5.6.2]
+(struct Gauge |read : [Meters -> u8]|)
+(impl [conv::Show Gauge] ...)                          ; ok: the function is wrapped in a local struct  [7.5.6.2]
+; in one module, with the traits and impls of 7.5.1 to 7.5.5:
+(impl [forall T] [Marker [Option T]])
+(impl [Marker [Option u8]])        ; error: overlaps the impl above at [Option u8]  [7.5.6.3]
+(impl [forall T] [Convert T T] ...)
+(impl [Convert u32 u32] ...)       ; error: overlaps the impl above at (u32, u32)   [7.5.6.3]
+(struct Handler |run : [u8 -> u8]|)
+(impl [forall T with [Shape T]] [Marker [List T]])
+(impl [Marker [List Handler]])
+    ; ok while Handler has no Shape impl: the bound [Shape Handler] cannot
+    ; hold; warning: latent overlap (7.5.8)  [7.5.6.3, 7.5.6.5]
+(impl [Shape Handler] ...)         ; adding this makes the two impls above overlap: an error  [7.5.6.5]
+(impl [Shape Circle] ...)          ; error: Circle already has a Shape impl         [7.5.6.6]
+; conv::widen defines Convert, and holds (impl [Convert f64 meters::Meters] ...)
+; geo::area imports conv::widen, and defines
+;   (define total = {fn [forall T with [widen::Convert f64 T]] |xs : [List T] -> f64| ...})
+; main imports units::meters and geo::area, but not conv::widen. In main,
+; with m1 and m2 of type meters::Meters:
+(area::total (list m1 m2))         ; ok: conv::widen is reached through geo::area  [7.5.6.4]
+
+;; 7.5.7 impl lookup
+; Proving a goal such as [Show [List Circle]] means finding the impl whose
+; header matches it, then proving that impl's bounds, which are goals in
+; turn. The overlap check (7.5.6.3) runs the same lookups. These rules make
+; every lookup finish.
+; 1. An impl's bounds must not grow. For each bound in an impl's forall
+;    list, compared with the impl's header:
+;    a. no type parameter appears more times in the bound than in the
+;       header; and
+;    b. the bound is no bigger than the header (rule 2).
+;    The check is made at the impl, in its own module, and the error is at
+;    the impl.
+;    why a: otherwise filling T in with a big type makes the bound grow,
+;    though it looks small
+; 2. Size counts 1 for every type name and for every occurrence of a type
+;    parameter. Built-in type names (u8, List, Map, string, Box) count the
+;    same as any other. A function type counts 1, plus the sizes of its
+;    parameter types and its output type: [u8 -> T] has size 3, and [-> T]
+;    size 2. For a trait with several parameters, size is totalled across
+;    all positions: [Convert [List T] u8] has size 3. The trait's name is
+;    not counted.
+;    why: every name counts at least 1, so there are finitely many goals of
+;    any given size. If Box or a function type were free, a lookup could go
+;    from [C T] to [C [Box T]] to [C [Box [Box T]]] forever, without a goal
+;    ever repeating
+;    why totalled: it is the loosest measure that still terminates, and an
+;    impl may move size between positions
+; 3. A lookup keeps a stack of the goals it is proving. A new goal that
+;    exactly matches one already on the stack is an error: the goal depends
+;    on itself. Type parameters that are still abstract count as distinct
+;    named types for this comparison.
+;    why: an impl is a proof that needs its bounds proved first, and a
+;    cycle never reaches an impl without bounds. An impl that vouches for
+;    itself then never holds, instead of holding for every type and looping
+;    at run time
+;    why: a failed goal can be cached. Each goal has at most one impl
+;    (7.5.6.6) and there is no backtracking, so every goal on a cycle fails
+;    from any starting point
+;    Letting a repeat succeed when the cycle follows the structure of a
+;    type is a possible later step (11.7.14). It would only accept more
+;    programs.
+; 4. With rules 1 and 3, every lookup finishes. No goal in a lookup is
+;    bigger than the starting goal, and goals are built only from the type
+;    names in the starting goal and the concrete types written in impl
+;    bounds. That is finitely many goals, so a chain that never repeats
+;    must end. Neither rule is enough alone.
+; 5. The repeat error appears where the goal is needed, which may be in
+;    another module than the impls, since each impl alone passes rule 1.
+;    Impls for types that refer to each other avoid it by bounding the type
+;    parameters, not the types: an impl may use itself and the other impls
+;    in its body. The error's wording is open (11.7.10).
+
+(struct [Crate T] |item : T|)
+(impl [forall T with [Show T]] [Show [Crate T]] ...)
+    ; ok: the bound has size 1, the header size 2  [7.5.7.1, 7.5.7.2]
+(impl [forall T with [Show [List T]]] [Marker [Crate T]])
+    ; ok: the bound and the header both have size 2  [7.5.7.1]
+(impl [forall T with [Show [Crate [Crate T]]]] [Shape [Crate T]] ...)
+    ; error: the bound (3) is bigger than the header (2)  [7.5.7.1]
+(impl [forall T with [Show [Pair T T]]] [Named [Crate T]] ...)
+    ; error: T appears twice in the bound, once in the header  [7.5.7.1]
+(impl [forall T with [Show [-> T]]] [Arity [Crate T]] ...)
+    ; ok: [-> T] has size 2, and so does [Crate T]  [7.5.7.2]
+(trait [Ping T] ping : [T -> string])
+(trait [Pong T] pong : [T -> string])
+(impl [forall T with [Pong [Crate T]]] [Ping [Crate T]] ...)
+(impl [forall T with [Ping [Crate T]]] [Pong [Crate T]] ...)  ; each impl passes rule 1  [7.5.7.1]
+(ping (Crate [u8] item = 1))
+    ; error: [Ping [Crate u8]] needs [Pong [Crate u8]], which needs
+    ; [Ping [Crate u8]]: the goal repeats  [7.5.7.3]
+(struct [Twig T]  |value : T kids : [Grove T]|)
+(struct [Grove T] |twigs : [List [Twig T]]|)
+(impl [forall T with [Show T]] [Show [Twig T]] ...)
+(impl [forall T with [Show T]] [Show [Grove T]] ...)
+    ; both bound only T. Each body may use the other impl: Grove's needs
+    ; [Show [List [Twig T]]], which List's impl takes to [Show [Twig T]],
+    ; and Twig's impl takes that to [Show T]. Nothing repeats  [7.5.7.5]
+
+;; 7.5.8 latent overlap
+; 1. Two impls whose headers unify, and that are kept apart only because
+;    some bound does not hold (7.5.6.3), are a warning. There are two
+;    lints (4.7.3):
+;    - latent_overlap: at least one goal that keeps them apart has no type
+;      parameter, so adding one concrete impl would make them overlap.
+;    - latent_overlap_generic: every goal that keeps them apart mentions a
+;      type parameter. The impls overlap as soon as any one type satisfies
+;      all those goals at once, so no single impl is the missing one.
+;    why: authors see where a type's impls sit in the chain built from
+;    smaller types' impls, instead of finding out when someone adds an impl
+;    why two lints: the generic case fires on nearly every pair of blanket
+;    impls with different bounds. A module can silence it alone, and keep
+;    the concrete case
+; 2. The warning names both impls, the types where their headers meet, and
+;    every chain that keeps them apart, in full. A chain starts at a bound
+;    of one of the impls that fails at the meeting types, and follows each
+;    failing bound down to a goal with no impl at all. Each step names the
+;    impl whose bound led to it. For each final goal, the warning says
+;    where that impl could be written: by the orphan rule (7.5.6.1), the
+;    trait's module or the module of a type in the goal. For
+;    latent_overlap_generic, the warning lists the goals that would all
+;    have to hold for one type, and the chain under each where one exists.
+;    The wording is open (11.7.10).
+; 3. A module reports the warning for a pair of impls when both are in its
+;    search scope (7.5.6.4) and no single module it imports directly
+;    already has both in its own scope. That is the module where the two
+;    impls first meet.
+;    why: it fires once for each place the risk first appears, not in every
+;    module downstream, and it is still computed one module at a time
+;    - Cost: the module that gets it may have written neither impl. A ;!!
+;      covers that (rule 5).
+; 4. The warning would ideally go to whoever would add the missing impl,
+;    but that module usually cannot see the two impls. The warning names
+;    that module instead (rule 2).
+; 5. Silencing, with lint commands (4.7):
+;    - ;! allow latent_overlap <Bound> on either impl says that the author
+;      knows the goal keeps it apart from another impl, and expects the
+;      goal never to hold. It silences every warning that involves the impl
+;      and has that goal on one of its chains, in every module where it
+;      would be reported: it travels with the impl. Naming any one goal is
+;      enough.
+;    - The goal may name the impl's own type parameters, as written in its
+;      forall list: ;! allow latent_overlap_generic [Show T].
+;    - With no goal, the command silences every warning of that lint that
+;      involves the impl.
+;    - ;!! allow, with or without a goal, silences the warnings reported in
+;      that module. That is how a module that wrote neither impl
+;      acknowledges them.
+; 6. A ;! only silences. It is not a promise the compiler holds anyone to,
+;    and it never forbids the goal's impl. If that impl is added, the
+;    overlap is an error as usual (7.5.6.5).
+;    why: an enforced promise would be a negative impl, a whole feature for
+;    an edge case
+
+; in a module show, which defines Shape and Marker:
+(impl [forall T with [Shape T]] [Marker [List T]])
+; in a module handler, which imports show and defines Handler:
+(impl [Marker [List Handler]])
+    ; warning: the two impls would overlap if [Shape Handler] were added
+    ; (latent_overlap); reported here, where they first meet  [7.5.8.1, 7.5.8.3]
+; a sketch of that warning:
+;   warning[latent_overlap]: these impls would overlap if [Shape Handler] were added
+;     impl at show.tsc:4     [forall T with [Shape T]] [Marker [List T]]
+;     impl at handler.tsc:9  [Marker [List Handler]]
+;     they meet at [Marker [List Handler]]
+;     kept apart by:
+;       [Shape Handler]      (bound of impl at show.tsc:4)
+;         no impl; it could be written in show or in handler
+;   hint: ;! allow latent_overlap [Shape Handler]                       [7.5.8.2]
+; in a module app, which imports handler: no warning, since handler already
+; has both impls  [7.5.8.3]
+; in handler again, with the command:
+;! allow latent_overlap [Shape Handler]
+(impl [Marker [List Handler]])     ; no warning, here or downstream  [7.5.8.5]
+; in a program where no type has both a Shape impl and a Show impl:
+(impl [forall T with [Shape T]] [Marker [Option T]])
+(impl [forall U with [Show U]] [Marker [Option U]])
+    ; warning: the impls overlap as soon as one type has both Shape and
+    ; Show (latent_overlap_generic)  [7.5.8.1]
 
 ;;;; 8 built-ins
 
@@ -2450,17 +3589,26 @@ first_or [i32]                     ; type: [[List i32] i32 -> i32]            [7
 ;    Like keywords, they can only be called, never passed, and no binding
 ;    may take their names (4.1.9). A fn that calls one is still an ordinary
 ;    function value.
-; 3. A built-in function that works on several types, such as +, is
-;    overloaded (7.5). A call picks its member from the types of its
-;    arguments. Passing it as a value needs type arguments: + [u32].
+; 3. A built-in function that works on several types, such as +, is the
+;    method of a trait (7.5.2), and each type it works on has an impl
+;    (7.5.3). The built-in traits will be defined in the prelude (11.8.5),
+;    and are not designed yet (todo, 11.7.8). Until then, each entry of
+;    this section names its traits by their working names, such as Add for
+;    +, and lists the types that implement them. Passing such a function
+;    as a value needs type arguments, because it is generic (7.4.8):
+;    + [u32].
 ; 4. list takes any number of arguments, so it has no single function type
-;    and cannot be passed as a value. Wrap it in a fn instead.
+;    and cannot be passed as a value. Wrap it in a fn instead. It is a
+;    special built-in, not a trait method (8.7.1).
 ; 5. The casts take their target type as a type argument: (as [i64] x)
-;    (7.5.4, 8.6).
+;    (7.4.8, 8.6).
+; 6. A program cannot take a built-in name for a method of its own
+;    (7.5.2.6). It gives its own types an operator by implementing the
+;    operator's trait.
 
 (define add_u32 = + [u32])     ; add_u32 : [u32 u32 -> u32]                    [8.1.3]
 (define join = + [string])     ; + as string concatenation                     [8.1.3]
-(define plus = +)              ; error: + is overloaded; write + [T]           [8.1.3]
+(define plus = +)              ; error: nothing settles T; write + [T]         [8.1.3]
 (define combine = {fn [forall T] |a : T b : T f : [T T -> T] -> T| (f a b)})
 (combine [i32] 2 3 + [i32])    ; returns 5; + [i32] is passed like any function  [8.1.1]
 (combine [string] "ab" "cd" + [string])  ; returns "abcd"                        [8.1.3]
@@ -2472,6 +3620,11 @@ first_or [i32]                     ; type: [[List i32] i32 -> i32]            [7
 (define say : [string -> Unit] = print)  ; error: print is a special form                     [8.1.2]
 (define shout = {fn |s : string -> Unit| (print s)})  ; a fn that calls print is fine         [8.1.2]
 (as [i64] 5)                                          ; the target type is a type argument    [8.1.5]
+(struct Vec2 |x : f64 y : f64|)
+; hypothetical: Add is a prelude trait (8.2)
+(impl [Add Vec2]
+    + = {fn |a : Vec2 b : Vec2 -> Vec2| (Vec2 x = (+ a.x b.x) y = (+ a.y b.y))})
+(+ (Vec2 x = 1.0 y = 2.0) (Vec2 x = 3.0 y = 4.0))  ; returns (Vec2 x = 4.0 y = 6.0)        [8.1.6]
 
 ;;; 8.2 arithmetic
 (+ a b)        ; addition; numerical types and string
@@ -2484,21 +3637,42 @@ first_or [i32]                     ; type: [[List i32] i32 -> i32]            [7
 (min a b)      ; the smaller of a and b; numerical types
 (max a b)      ; the larger of a and b; numerical types
 (clamp a b c)  ; a, kept between b and c; numerical types
+(neg a)        ; negation; signed integer types and float types
+(zero [T])     ; the T that is 0; numerical types
+(one [T])      ; the T that is 1; numerical types
 ; 1. All operands have the same type, which is also the type of the result.
-; 2. (- a) is (- 0 a): with one argument, the first parameter defaults to 0.
-;    - is the only built-in whose default fills the first parameter.
-;    why?: so (- 5) reads as negation
-; 3. + on two strings joins them.
+; 2. - always takes two arguments. Negation is neg. The signed integer
+;    types, isize and ibig included, and the float types implement it. The
+;    unsigned types, usize and ubig included, do not. There is no sugar:
+;    (- a) is an error.
+;    why: - is then an ordinary method of two parameters, with no default
+;    that fills a first parameter, and negating an unsigned value is a
+;    compile error instead of an overflow
+; 3. + on two strings joins them. Whether that stays, or joining gets a
+;    name of its own, is open (11.7.8).
 ; 4. / on integers gives an integer, by rule 1. How it rounds negative
 ;    results, and what division by zero does, is open (11.5.4).
 ; 5. (clamp a b c) returns b if a < b, c if a > c, and a otherwise.
+; 6. zero and one take no arguments, so their T is always given (7.4.8).
+;    They are how a generic body writes 0 and 1, since a literal is never
+;    a value of a type parameter (5.1.1.5).
+; 7. All of these are methods of prelude traits (8.1.3, todo). The working
+;    names are one trait for each operation: Add for +, Subtract, Multiply,
+;    Divide, Remainder, Pow, Abs, Neg, Zero and One. Whether they become
+;    one Num trait, and whether min, max and clamp move to Ord (8.3.5), is
+;    open (11.7.8). What overflow does is set for each impl (11.5.3).
 
 (+ 2 3)          ; returns 5                                            [8.2.1]
 (+ 2 "cd")       ; error: an i32 and a string                           [8.2.1]
 (let small : u8 = 1)
 (+ small 2.0)    ; error: a u8 and an f64; nothing converts implicitly  [8.2.1]
 (- 7 2)          ; returns 5                                            [8.2.1]
-(- 5)            ; returns -5                                           [8.2.2]
+(neg 5)          ; returns -5                                           [8.2.2]
+(- 5)            ; error: - takes two arguments; write (neg 5)          [8.2.2]
+(neg 5_u32)      ; error: u32 has no Neg impl                           [8.2.2]
+(zero [u32])     ; returns 0, a u32                                     [8.2.6]
+(one [f64])      ; returns 1.0                                          [8.2.6]
+(zero)           ; error: nothing settles T                             [8.2.6]
 (+ "ab" "cd")    ; returns "abcd"                                       [8.2.3]
 (/ 7.0 2.0)      ; returns 3.5                                          [8.2.4]
 (/ 7 2)          ; returns 3, an i32                                    [8.2.4]
@@ -2511,6 +3685,16 @@ first_or [i32]                     ; type: [[List i32] i32 -> i32]            [7
 (clamp 15 0 10)  ; returns 10                                           [8.2.5]
 (clamp -5 0 10)  ; returns 0                                            [8.2.5]
 (clamp 5 0 10)   ; returns 5                                            [8.2.5]
+; hypothetical: Add and Zero are prelude traits (8.2.7)
+(define sum_of = {fn [forall T with [Add T] [Zero T]] |xs : [List T] -> T|
+    (loop |i : u32 = 0 total : T = (zero [T]) -> T|
+        (match (get xs i)
+            (Option.Some value = x) => (recur i = (+ i 1_u32) total = (+ total x))
+            ^Option.None            => total))})  ; the body's 0 is (zero [T])  [8.2.6]
+(sum_of (list 1.5 2.5))  ; returns 4.0; T is f64                        [8.2.6]
+; hypothetical: Add is a prelude trait (8.2.7)
+{fn [forall T with [Add T]] |x : T -> T| (+ x 1)}
+    ; error: T is T from x but i32 from 1; a literal is never a T (5.1.1.5)  [8.2.6]
 
 ;;; 8.3 comparison
 (== a b)  ; equal
@@ -2522,9 +3706,26 @@ first_or [i32]                     ; type: [[List i32] i32 -> i32]            [7
 ; 2. == works on every type except function types. Comparing functions is
 ;    a compile error.
 ;    why?: whether two functions are equal cannot be decided in general
-; 3. NaN is not equal to NaN.
+; 3. NaN is not equal to NaN, and every ordering comparison that involves
+;    a quiet NaN is false. A signaling NaN panics at once in any operation
+;    that receives it as an operand: arithmetic, a comparison, a cast or
+;    to_string. It never propagates, so only quiet NaNs reach a comparison.
+;    When the check runs is open (11.7.8).
 ;    why?: this follows IEEE 754 floating point
-; 4. <, >, <= and >= work on numerical types only.
+; 4. <, >, <= and >= work on numerical types only. Whether string, char
+;    and bool get them is open (11.3.3, 11.7.8).
+; 5. These are methods of prelude traits (8.1.3, todo). The working design
+;    is four traits, linked by supertraits (7.5.5): == is the method of
+;    PartialEq, and < of PartialOrd, whose >, <= and >= are
+;    auto-implemented from <. Eq, over PartialEq, and Ord, over Eq and
+;    PartialOrd, add no operators, only promises: that == is reflexive,
+;    and that every pair is ordered. The float types implement only
+;    PartialEq and PartialOrd, since NaN breaks both promises. Every other
+;    type with == implements Eq too, and every other ordered type Ord. No
+;    function type implements any of them (3.3.6). The names and the split
+;    are to be confirmed (11.7.8).
+;    - Map keys, sets and sorting will require Eq or Ord, so floats cannot
+;      be used there without a wrapper type.
 
 (== 2 2)                            ; returns true                         [8.3.1]
 (== 2 "2")                          ; error: an i32 and a string           [8.3.1]
@@ -2539,6 +3740,8 @@ first_or [i32]                     ; type: [[List i32] i32 -> i32]            [7
 (<= 4 3)      ; returns false                      [8.3.4]
 (> 2.5 2.4)   ; returns true                       [8.3.4]
 (< "a" "b")   ; error: < needs numerical operands  [8.3.4]
+(< nan 1.0)   ; returns false                      [8.3.3]
+(>= nan nan)  ; returns false                      [8.3.3]
 
 ;;; 8.4 boolean logic
 (not a)    ; logical not
@@ -2548,12 +3751,15 @@ first_or [i32]                     ; type: [[List i32] i32 -> i32]            [7
 ; 1. The operands and the result are bools.
 ; 2. and, or and xor are eager. As functions (8.1.1), they evaluate both
 ;    operands before the call, even when the first one decides the result.
+; 3. These are plain functions on bool, not trait methods (8.1.3), so they
+;    are passed as values without type arguments.
 
 (not true)                    ; returns false                                              [8.4.1]
 (and true false)              ; returns false                                              [8.4.1]
 (or true false)               ; returns true                                               [8.4.1]
 (xor true true)               ; returns false                                              [8.4.1]
 (and 1 0)                     ; error: the operands must be bools                          [8.4.1]
+(define both = and)           ; both : [bool bool -> bool]; no type arguments are needed   [8.4.3]
 (or true (do (print "evaluated") false))  ; prints: evaluated; returns true                [8.4.2]
 (let numbers : [List i32] = (list 1 2 3))
 (and false (== numbers.9 1))  ; panics: index out of range; the second operand still runs  [8.4.2]
@@ -2568,15 +3774,19 @@ first_or [i32]                     ; type: [[List i32] i32 -> i32]            [7
 ; 1. These work on all stack types, which include the fixed-size integer
 ;    types (3.1.4) and the size types (3.1.9). What else counts as a stack
 ;    type, including whether ubig and ibig do, is open (11.3.2).
-; 2. n defaults to 1 in shl and shr.
-; 3. n is a u32 in every member of shl and shr (7.5.5).
+; 2. n defaults to 1 in shl and shr. n is written as a u32 in their
+;    signatures, so an unsuffixed literal there is a u32 (5.1.1.2).
+; 3. These are methods of a prelude trait (8.1.3, todo), with the working
+;    name Bits. The trait marks n optional, and each impl gives the
+;    default 1 (7.5.2.8). Which types implement it is the question of
+;    rule 1 (11.3.2).
 
 (let b : u8 = 12)  ; binary 00001100               [8.5.1]
 (bit_and b 10_u8)  ; returns 8, binary 00001000    [8.5.1]
 (bit_or b 10_u8)   ; returns 14, binary 00001110   [8.5.1]
 (bit_xor b 10_u8)  ; returns 6, binary 00000110    [8.5.1]
 (bit_not b)        ; returns 243, binary 11110011  [8.5.1]
-(shl b 2)          ; returns 48; the 2 is a u32    [8.5.3]
+(shl b 2)          ; returns 48; the 2 is a u32    [8.5.2]
 (shr b 2)          ; returns 3                     [8.5.1]
 (shl b)            ; returns 24                    [8.5.2]
 
@@ -2587,8 +3797,10 @@ first_or [i32]                     ; type: [[List i32] i32 -> i32]            [7
 (parse [<Type>] a)   ; parsing a string: returns [Result <Type> ParseError]
 (to_string a)        ; text: works on every type
 ; 1. The casts are the only way to change a value's type (3.1.3). Each cast
-;    takes its target type as its type argument (7.5.4). The source type
-;    comes from the argument.
+;    is the method of a trait over two types, the target first and the
+;    source second: as is the method of [Widen To From] (7.5.2.3). No
+;    argument settles the target, so a call gives it as its first type
+;    argument (7.4.8), and the source type comes from the argument.
 ; 2. as only compiles when the target type is wider than the value's type,
 ;    so it never fails. u32 is wider than char: (as [u32] c) gives the code
 ;    point of c (1.3.3.4). Within each family, a larger type is wider:
@@ -2604,6 +3816,17 @@ first_or [i32]                     ; type: [[List i32] i32 -> i32]            [7
 ; 5. parse reads a string as a value of the target type. It returns
 ;    Result.Error when the string is not a valid value of that type.
 ; 6. to_string turns a value of any type into text.
+; 7. Widen has one impl for each pair that rule 2 calls wider, and an
+;    identity impl, [Widen T T], for every numerical type. A generic body
+;    writes a constant other than 0 and 1 (8.2.6) by casting a suffixed
+;    literal under a bound: (as [T] 10_u8) with [Widen T u8]. The identity
+;    impls let T be u8 itself there. The source type limits which types
+;    the generic accepts: u8 does not widen to i8.
+; 8. The traits are prelude traits (8.1.3, todo). Widen is decided. The
+;    working names for the others are TryAs and Wrap, shaped like Widen,
+;    Parse for parse, and ToString for to_string. Which pairs each has,
+;    and whether a program may add Widen impls for its own types, is open
+;    (11.7.3, 11.7.8).
 
 (let n : u32 = 7)
 (let m : u64 = n)                 ; error: nothing converts implicitly; write (as [u64] n)       [8.6.1]
@@ -2633,6 +3856,14 @@ first_or [i32]                     ; type: [[List i32] i32 -> i32]            [7
 (parse [u32] "forty-two")         ; returns a Result.Error holding a ParseError                  [8.6.5]
 (to_string 42)                    ; returns "42"                                                 [8.6.6]
 (to_string excalibur)             ; returns excalibur as text; the format is open (11.7.4)       [8.6.6]
+(as [i64] [u32] n)                ; returns 7 as an i64; both type arguments given               [8.6.1]
+(as n)                            ; error: nothing settles To                                    [8.6.1]
+(as [u32] n)                      ; returns 7; the identity impl [Widen u32 u32]                 [8.6.7]
+; hypothetical: Multiply and Widen are prelude traits (8.2.7, 8.6.8)
+(define tenfold = {fn [forall T with [Multiply T] [Widen T u8]] |x : T -> T|
+    (* x (as [T] 10_u8))})        ; a constant in a generic body                                 [8.6.7]
+(tenfold 7_u8)                    ; returns 70; T is u8, through the identity impl               [8.6.7]
+(tenfold 7_i8)                    ; error: i8 has no [Widen i8 u8] impl                          [8.6.7]
 
 ;;; 8.7 lists
 
@@ -2643,7 +3874,11 @@ first_or [i32]                     ; type: [[List i32] i32 -> i32]            [7
 ; 2. list takes any number of arguments. It cannot be passed as a value
 ;    (8.1.4).
 ; 3. (list [T]) is an empty [List T]. With no arguments, list needs its type
-;    argument, since nothing else settles T (7.5.4).
+;    argument, since nothing else settles T (7.4.8). With arguments, they
+;    settle T, or [T] gives it, as for a generic function (7.4.4).
+; 4. list is a special built-in: neither a trait method nor a generic
+;    function, since it takes any number of arguments. That may change if
+;    variadic functions arrive (11.7.7).
 
 (list 1 2 3)                ; type: [List i32]                                  [8.7.1.1]
 (list "a" "b")              ; type: [List string]                               [8.7.1.1]
@@ -2651,25 +3886,62 @@ first_or [i32]                     ; type: [[List i32] i32 -> i32]            [7
 (list [u8] 1 2)             ; type: [List u8]; [u8] makes 1 and 2 u8s (5.1.1.2)  [8.7.1.2]
 (let empty = (list [u8]))   ; empty : [List u8]                                 [8.7.1.3]
 (let none_yet : [List u8] = (list))
-    ; error: list has no arguments, so it needs [T]; the annotation does not count (7.5.6)  [8.7.1.3]
+    ; error: list has no arguments, so it needs [T]; the annotation does not count (7.4.7)  [8.7.1.3]
 
 ;; 8.7.2 get
 (get <Value [List T]> <Value u32>) -> [Option T]
 ; 1. get returns (Option.Some [T] value = x) when x is the element at the
 ;    index, and Option.None [T] when the index is out of range.
 ; 2. The index can be any u32 value, not just a literal (compare 3.4.2).
-; 3. The index is a u32 in every member of get, so an unsuffixed literal
-;    index is a u32 (7.5.5).
+;    get is a plain generic function, not a trait method. Its type is
+;    [[forall T] [List T] u32 -> [Option T]]. The index is written as u32
+;    there, so an unsuffixed literal index is a u32 (5.1.1.2).
 
 (let numbers : [List i32] = (list 1 2 3))
 (get numbers 1)              ; returns (Option.Some [i32] value = 2)        [8.7.2.1]
 (get numbers 5)              ; returns Option.None [i32]: 5 is out of range  [8.7.2.1]
 (get numbers (+ [u32] 1 1))  ; returns (Option.Some [i32] value = 3)        [8.7.2.2]
-(get numbers (+ 1 1))        ; error: (+ 1 1) is an i32, not a u32           [8.7.2.3]
+(get numbers (+ 1 1))        ; error: (+ 1 1) is an i32, not a u32           [8.7.2.2]
+get                          ; type: [[forall T] [List T] u32 -> [Option T]]  [8.7.2.2]
 ; hypothetical: len is not defined yet (11.7.5)
 (len numbers)  ; returns 3
 
-;;; 8.8 output and failure
+;;; 8.8 boxes
+(box <Value T>) -> [Box T]
+(unbox <Value [Box T]>) -> T
+; 1. box puts a value on the heap and returns a [Box T] that refers to it
+;    (3.7, 9.2.5). Its type is [[forall T] T -> [Box T]].
+; 2. unbox returns the value inside a box. Its type is
+;    [[forall T] [Box T] -> T]. Anything in the value that is on the heap,
+;    such as a list or another box, is shared, not copied.
+; 3. Both are plain generic functions, not trait methods, so their type
+;    arguments may be left out when the argument settles T (7.4.4). box and
+;    unbox are built-in names, so no program can take them (4.1.7).
+;    why: a trait over the box type could not name the type inside the box
+;    without associated types (7.5.1.3). With two parameters, the inner
+;    type would appear only in the output, so every call would have to
+;    give it (7.4.8)
+; 4. A pattern can also read through a box (6.6).
+; 5. Copying a box, by binding it, passing it or copying a field with
+;    ..source (4.4.4), copies the pointer. Both copies share the value
+;    inside. This cannot be observed (9.2.3).
+; 6. A box's identity cannot be observed: no operation tells whether two
+;    boxes are the same allocation. == on boxes compares their contents.
+;    A compiler may skip the comparison when both boxes are the same
+;    allocation only when T's == is reflexive (8.3.5): a [Box f64] that
+;    holds NaN is still not equal to itself.
+; What to_string and debug show for a box is open (11.7.13).
+
+(let b = (box 5_u8))         ; b : [Box u8]                                     [8.8.1]
+(unbox b)                    ; returns 5                                        [8.8.2]
+(box [u64] 5)                ; type: [Box u64]; [u64] makes the 5 a u64         [8.8.3]
+(+ b 1_u8)                   ; error: T is [Box u8] from b but u8 from 1_u8     [8.8.2]
+(+ (unbox b) 1_u8)           ; returns 6                                        [8.8.2]
+(let c = b)                  ; c and b share one allocation, unobservably       [8.8.5]
+(== b (box 5_u8))            ; returns true: the contents are equal             [8.8.6]
+(let leaf = (box Tree.Leaf [u8]))  ; with Tree from 3.7; leaf : [Box [Tree u8]]  [8.8.1]
+
+;;; 8.9 output and failure
 (print <Value string>) -> Unit
 (panic <Value string>?) -> Never
 (assert <Value bool> <Value string>?) -> Unit
@@ -2686,19 +3958,19 @@ first_or [i32]                     ; type: [[List i32] i32 -> i32]            [7
 ; 5. debug is an anti-pattern outside of debugging.
 ;    why: it can result in nonsense being printed
 
-(print "hello")                 ; prints: hello                         [8.8.1]
-(print 42)                      ; error: print takes a string           [8.8.1]
-(print (to_string 42))          ; prints: 42                            [8.8.1]
-(panic)                         ; panics: panic                         [8.8.2]
-(panic "out of fuel")           ; panics: out of fuel                   [8.8.2]
-(assert (== 1 1))               ; returns ()                            [8.8.3]
-(assert (== 1 2))               ; panics: assertion failed              [8.8.3]
-(assert (== 1 2) "math broke")  ; panics: math broke                    [8.8.3]
-(debug excalibur)               ; prints excalibur in a debugging form  [8.8.4]
-(debug (list 1 2))              ; any type works                        [8.8.4]
+(print "hello")                 ; prints: hello                         [8.9.1]
+(print 42)                      ; error: print takes a string           [8.9.1]
+(print (to_string 42))          ; prints: 42                            [8.9.1]
+(panic)                         ; panics: panic                         [8.9.2]
+(panic "out of fuel")           ; panics: out of fuel                   [8.9.2]
+(assert (== 1 1))               ; returns ()                            [8.9.3]
+(assert (== 1 2))               ; panics: assertion failed              [8.9.3]
+(assert (== 1 2) "math broke")  ; panics: math broke                    [8.9.3]
+(debug excalibur)               ; prints excalibur in a debugging form  [8.9.4]
+(debug (list 1 2))              ; any type works                        [8.9.4]
 ; as a whole program:
 (define main = {fn |-> Unit| (debug "left in by mistake")})
-    ; compiles, but debug is not meant to stay in a program  [8.8.5]
+    ; compiles, but debug is not meant to stay in a program  [8.9.5]
 
 ;;;; 9 programs
 
@@ -2719,7 +3991,43 @@ first_or [i32]                     ; type: [[List i32] i32 -> i32]            [7
 ; 2. A value stays alive while anything refers to it. A function value
 ;    keeps alive the values its body uses (5.4.1.4), even after the block
 ;    that bound them has ended.
+; 3. Values are acyclic. A value can only refer to values that existed
+;    before it, since nothing is ever mutated through a shared reference
+;    (4.1.1). So reference counting never leaks, and every value is
+;    finite. It also means sharing cannot be observed: two copies of a
+;    box, a list or a function that share memory behave exactly as two
+;    separate values would.
+; 4. Two things that look like cycles are not. A named fn's name is
+;    supplied at each call, not stored in the function value (5.4.3.6).
+;    And a function does not keep a top-level name alive: it refers to it
+;    directly, since top-level values live for the whole program
+;    (5.4.1.4). So top-level functions that call each other form no
+;    counted cycle.
+; 5. box (8.8) makes one heap allocation that holds a T, counted like
+;    everything else. A [Box T] is one pointer in size, whatever T is.
+;    Copies of a box share the allocation, and it is freed when nothing
+;    refers to the box any more, with no code to free it. Running out of
+;    memory panics (8.9), as for List and the big types (3.1.8).
+; 6. When a box is not used again, a new box built from its contents is
+;    written into its allocation instead of a new one, as the big types
+;    reuse an operand's buffer (3.1.8). So (box (f (unbox b))), with b not
+;    used afterwards, allocates nothing.
+;    why: updating one node of a tree, the common case for immutable
+;    recursive data, then takes no allocation at each step. Nothing can
+;    observe it: the only code that refers to the value is the code
+;    replacing it
 
+(define is_even = {fn |n : u32 -> bool| (if (== n 0_u32) true (is_odd (- n 1_u32)))})
+(define is_odd = {fn |n : u32 -> bool| (if (== n 0_u32) false (is_even (- n 1_u32)))})
+    ; each refers to the other directly, so there is no counted cycle  [9.2.4]
+; with Tree from 3.7
+(define bump_leaf = {fn |b : [Box [Tree u8]] -> [Box [Tree u8]]|
+    (match b
+        (box (Tree.Node left = l value = v right = r)) =>
+            (box (Tree.Node [u8] left = l value = (+ v 1_u8) right = r))
+        (box ^Tree.Leaf)                               => b)})
+    ; when the caller does not use b again, the new box reuses b's allocation  [9.2.6]
+; as a whole program:
 (define main = {fn |-> Unit| (do
     (do
         (let big : [List i32] = (list 1 2 3))
@@ -2736,7 +4044,8 @@ first_or [i32]                     ; type: [[List i32] i32 -> i32]            [7
 ;    geometry::shapes. Where the project root is, is open (11.8.7).
 ; 3. A directory is only a namespace. It is not a module, and has no file of
 ;    its own. Having both geometry.tsc and a geometry/ directory is an error.
-; 4. Every segment of a path is snake_case (1.4).
+; 4. Every segment of a path is snake_case (1.4). Breaking this is a
+;    warning (lint naming, 4.7.3).
 ; 5. The file that defines main (9.1) is the entry module. It sits at the
 ;    project root. No other module may define main.
 
@@ -2757,9 +4066,12 @@ first_or [i32]                     ; type: [[List i32] i32 -> i32]            [7
 ; 4. (mod b::c = a::b::c) binds the alias b::c instead. The left side must
 ;    be a suffix of the path: its last segments, in order. Any other name is
 ;    an error. There are no free aliases.
-; 5. Writing the default alias out, as in (mod c = a::b::c), is a warning.
+; 5. Writing the default alias out, as in (mod c = a::b::c), is a warning
+;    (lint explicit_default_alias, 4.7.3).
 ; 6. Every item the module exports (9.6) is reachable as alias::item in the
-;    whole file. Nothing is brought in unqualified.
+;    whole file. Nothing is brought in unqualified. A trait's methods are
+;    reached the same way, as alias::method (7.5.2.7), except inside an
+;    impl, whose entries name methods bare (7.5.3.2).
 ; 7. An alias is not a value. It can only appear on the left of ::.
 ; 8. Two mod forms that bind the same alias are an error, and so is
 ;    importing the same path twice.
@@ -2768,9 +4080,12 @@ first_or [i32]                     ; type: [[List i32] i32 -> i32]            [7
 ;    why?: the default is the last segment, not the last two, because
 ;    collisions are rare, and internal (9.5.1) would make many two-segment
 ;    aliases read internal::x
-; 9. An alias may not have the name of a define, struct or enum of the same
-;    module, or a built-in name (4.1.7). A local may hide an alias, with a
-;    warning (4.1.8).
+; 9. An alias may not have the name of a define, struct, enum, trait or
+;    method of the same module, or a built-in name (4.1.7). A local may
+;    hide an alias, with a warning (4.1.8; lint shadowing).
+; 10. Impls are not imported by name, and need no mod of their own. A
+;     module finds impls in itself and in every module it can reach by
+;     following mod forms, internal modules included (7.5.6.4).
 
 ; as a whole program, in src/main.tsc:
 (mod geometry::shapes::circle)                   ; binds the alias circle     [9.4.3]
@@ -2825,12 +4140,33 @@ first_or [i32]                     ; type: [[List i32] i32 -> i32]            [7
 (export <Identifier> <Identifier>...) -> Unit
 ; 1. export may only appear at the top level, anywhere in the file, any
 ;    number of times.
-; 2. Each identifier must name a define, struct or enum of this module.
+; 2. Each identifier must name a define, struct, enum or trait of this
+;    module.
 ; 3. Exporting a struct exports its type, constructor and fields. Exporting
-;    an enum exports its type and all of its variants.
+;    an enum exports its type and all of its variants. Exporting a trait
+;    exports all of its methods. A method cannot be named in an export
+;    form, and a trait cannot be exported without its methods.
+;    why: an impl outside the module must supply every required method, so
+;    it has to be able to name all of them
 ; 4. A name that is not exported is private. Reaching it through :: is an
 ;    error.
 ; 5. Exporting a name twice, in one form or across forms, is an error.
+; 6. Private in public: an exported item may not mention a private type or
+;    trait anywhere in its public surface. That covers an exported
+;    define's type, an exported struct's field types, an exported enum's
+;    variant fields, the bounds in an exported generic's forall list, and
+;    an exported trait's method types and supertraits. Anything private
+;    never escapes its module.
+; 7. An impl has no visibility of its own, and is never exported. It is
+;    usable wherever its trait and every type in its header are usable,
+;    and it is found through the search scope (7.5.6.4). So:
+;    - an impl of an exported trait for exported types is usable wherever
+;      both are;
+;    - an impl that mentions a private type or a private trait is usable
+;      only in its own module, the only place that type or trait can
+;      appear (rule 6);
+;    - an impl in the trait's module for built-in types, or for another
+;      module's types, is usable wherever the trait is.
 
 ; in src/geometry/shapes/circle.tsc:
 (struct Circle |r : f64|)
@@ -2844,12 +4180,28 @@ first_or [i32]                     ; type: [[List i32] i32 -> i32]            [7
 (export area)          ; error: area is already exported         [9.6.5]
 (export total)         ; error: total is not defined here        [9.6.2]
 (let local : u32 = 1)
-(export local)         ; error: only a define, struct or enum    [9.6.2]
+(export local)         ; error: only a define, struct, enum or trait  [9.6.2]
+(trait [Curved T] bend : [T -> f64])
+(impl [Curved Circle]
+    bend = {fn |c : Circle -> f64| (/ 1.0 c.r)})
+(export Curved)        ; exports Curved and its method bend      [9.6.3]
+(export bend)          ; error: bend is a method; export its trait, Curved  [9.6.3]
+(struct Yards |n : f64|)                               ; not exported
+(trait [Secret T] reveal : [T -> f64])                 ; not exported
+(define to_yards = {fn |c : Circle -> Yards| (Yards n = c.r)})
+(define reveal_all = {fn [forall T with [Secret T]] |x : T -> f64| (reveal x)})
+(export to_yards)      ; error: private type Yards in the public signature of to_yards  [9.6.6]
+(export reveal_all)    ; error: private trait Secret in a public bound of reveal_all    [9.6.6]
+(impl [Secret Circle]
+    reveal = {fn |c : Circle -> f64| c.r})
+    ; allowed: a private trait for an exported type; the impl is usable only here  [9.6.7]
 ; in src/main.tsc:
 (mod geometry::shapes::circle)
 (circle::area (circle::Circle r = 2.0))  ; returns 12.56                [9.6.3]
 circle::Shape.Round                      ; type: circle::Shape          [9.6.3]
 (circle::helper 1.0)                     ; error: helper is not exported  [9.6.4]
+(circle::bend (circle::Circle r = 2.0))  ; returns 0.5; Circle's impl comes with the trait and the type  [9.6.7]
+(circle::reveal (circle::Circle r = 2.0))  ; error: reveal is not exported  [9.6.4]
 
 ;;; 9.7 sugar
 ; 1. All syntactic sugar, such as for (5.10) and fancy strings (5.1.2), is
@@ -3072,7 +4424,7 @@ circle::Shape.Round                      ; type: circle::Shape          [9.6.3]
 ;      run, such as one that reads input?
 ;    - Should a field or variant with nothing to add to its name be allowed
 ;      a shorter doc, or none?
-; 2. When do doc examples run (4.6.7.4)? In a test command, on every build,
+; 2. When do doc examples run (4.6.9.4)? In a test command, on every build,
 ;    or only when asked? What does a failing example report?
 
 ;;; 11.2 grammar
@@ -3087,16 +4439,23 @@ circle::Shape.Round                      ; type: circle::Shape          [9.6.3]
 ;      value is moved?
 ;    - Should a value small enough for one word skip the heap? It saves an
 ;      allocation for most values, at the cost of a second layout.
-; 2. Which types are "stack types" for the bitwise operations? Do floats,
-;    bool and char count? Do ubig and ibig? If they do, an ibig could act
+; 2. Which types implement the bitwise trait, Bits (8.5.3)? Today the rule
+;    says "stack types" (8.5.1). Do floats, bool and char count? Do ubig
+;    and ibig? The list of impls settles it. If they do, an ibig could act
 ;    as infinite two's complement, so (bit_not 0_ibig) is -1, but
 ;    (bit_not 0_ubig) would have infinitely many 1 bits.
 ; 3. Can chars be compared with <? (char is not numerical: 1.3.3.4.)
 ; 4. Settled: Never fits wherever another type is expected (3.2.4).
 ; 5. What is ParseError?
 ; 6. How is a [Map K V] built, read and matched? (todo)
-; 7. Type aliases. (old todo)
-; 8. May a type refer to itself, as [Tree T] does in 7.2?
+; 7. Type aliases. (old todo) Settled ahead of them: an alias whose
+;    expansion reaches itself, directly or through other aliases, is an
+;    error at its declaration, and the error names every alias in the
+;    cycle, as an import cycle's does (9.5.4). A recursive structure must
+;    be a struct or an enum, never an alias.
+; 8. Settled: a type may refer to itself, as long as it never does so at a
+;    bigger type (7.2.5) and passes through a Box or other indirection
+;    (3.7.2).
 ; 9. Is a struct with no fields allowed, such as (struct Empty)? Is its value
 ;    written Empty or (Empty)?
 ; 10. (speculative) Should types take numbers as well as types, as in a
@@ -3110,6 +4469,9 @@ circle::Shape.Round                      ; type: circle::Shape          [9.6.3]
 ;       instead of 32 bits, so 5000000000_usize compiles for 64-bit targets?
 ;     - Are 16-bit targets supported? That would lower the floor to 16 bits.
 ;     - Should there be a way to ask for the target's width in code?
+; 13. Should a function value keep its defaults in its type when it is
+;     passed around? Today a function type does not record them (3.3.8),
+;     and = _ is for a trait's required methods only (7.5.2.8).
 
 ;;; 11.4 declarations
 ; 1. What happens with a cycle among defines, such as (define A : u32 = B)
@@ -3120,9 +4482,9 @@ circle::Shape.Round                      ; type: circle::Shape          [9.6.3]
 ;    more than once? May the source be any value, or only an identifier?
 ; 4. Can a constructor such as Employee or Option.Some be passed as a
 ;    function value, given that it takes its arguments by name?
-; 5. May a program define overloads of its own: one name with several
-;    signatures, picked by the rules of 7.5? That would also need rules for
-;    exporting them, and for which member an import brings in. (todo)
+; 5. Settled: there are no overloads, built in or a program's own. A
+;    program gives its types an operator by writing an impl of the
+;    operator's trait (7.5.3, 8.1.6).
 
 ;;; 11.5 expressions
 ; 1. In what order are a call's arguments evaluated?
@@ -3145,9 +4507,9 @@ circle::Shape.Round                      ; type: circle::Shape          [9.6.3]
 ; 10. Does an arm that can never apply, such as one after a _ arm, warn?
 ; 11. Literal handling and arithmetic in general. (old todo)
 ; 12. Refine the number literal rules (1.3.1, 5.1.1). (todo)
-;     - Should an overloaded call let an unsuffixed literal take the type of
-;       its other operands, so that (+ i 1) works with i : u32? Today it is
-;       an error (7.5.5).
+;     - Settled: no. A literal never takes the type of the other arguments,
+;       so (+ i 1) with i : u32 is an error (7.4.10). Sugar that allows it
+;       may come later (11.7.15).
 ;     - Should a written type reach further into an expression than the
 ;       value positions of do, if and match (5.1.1.2)?
 ;     - Should an unsuffixed integer literal too large for an i64 become an
@@ -3155,15 +4517,17 @@ circle::Shape.Round                      ; type: circle::Shape          [9.6.3]
 
 ;;; 11.6 patterns
 ; 1. May the fields of a constructor pattern appear in any order?
-; 2. A pin compares by value (6.7.1). What if the pinned name is bound to a
+; 2. A pin compares by value (6.8.1). What if the pinned name is bound to a
 ;    function, which == cannot compare (8.3.2)? Is that a compile error?
 
 ;;; 11.7 generics and built-ins
-; 1. How can a generic function require an operation on a type parameter,
-;    such as +? (old todo: traits for generics)
+; 1. Settled: a generic function requires an operation on a type parameter
+;    with a bound (7.5.4). (old todo: traits for generics)
 ; 2. Is == structural on structs, enums and lists? What about a struct with
-;    a function field?
-; 3. Which conversions count as wider for as? Is i32 to f64 wider? i64 to
+;    a function field? In terms of impls: which types get an impl of =='s
+;    trait (8.3.5) without writing one. This is the automatic impls of
+;    item 9.
+; 3. Which pairs have a Widen impl (8.6.7)? Is i32 to f64 wider? i64 to
 ;    f64? u32 to i64? What does try_as do with a float that has a fraction,
 ;    and how are floats turned into integers? (Settled: each family widens
 ;    by size, usize and isize sit between the 32 and 64-bit types, and ibig
@@ -3171,15 +4535,144 @@ circle::Shape.Round                      ; type: circle::Shape          [9.6.3]
 ;    for the rest: f64 holds every i32 exactly, f128 every i64 and u64, and
 ;    f256 every i128 and u128, but not every i256.
 ; 4. What text does to_string produce for floats, bools, structs, enums and
-;    lists? What does debug print?
+;    lists? What does debug print? In terms of impls: what ToString's
+;    impls for the built-in types produce, and what an automatic impl
+;    (item 9) produces for a struct or enum.
 ; 5. Which list operations exist: len, push, map, filter, fold? (len is used
 ;    hypothetically in 8.7.2.) Does get work on strings or maps? On a
 ;    string, do len and get count UTF-8 bytes or chars (1.3.4.5)? Counting
 ;    chars makes both take time proportional to the string's length.
 ; 6. May a generic function be passed without its type arguments, so that
 ;    the function receiving it gives them? Its parameter would need a type
-;    such as [[forall T] T -> T]. Today every use needs them (7.4.4).
+;    such as [[forall T] T -> T]. Today every use needs them (7.4.8).
 ; 7. Are variadic functions allowed? Will the useer be allowed to define their own?
+; 8. The prelude's traits. (todo) Section 7.5 defines how traits work. The
+;    built-in traits themselves, and their impls for the built-in types,
+;    are not designed yet (8.1.3). Open:
+;    - Arithmetic (8.2): one Num trait, or one trait for each operator
+;      (Add, Subtract, Multiply, Divide, Remainder, Pow, Abs, Neg, Zero,
+;      One)? Separate traits let a type support + without /. One trait is
+;      simpler to bound. neg gets a trait of its own either way, since
+;      unsigned types lack it (8.2.2). If Num is a trait with supertraits
+;      and no methods (7.5.5.6), do types opt in, or does one blanket impl
+;      cover every type with the operators?
+;    - + on strings (8.2.3): string implements Add, so generic numeric code
+;      accepts strings and + is not commutative; or joining gets a name of
+;      its own. One Num trait forces the second.
+;    - Do min, max and clamp move to Ord, as auto-implementations? They
+;      work on anything ordered, but are ill-defined with NaN.
+;    - Where do zero and one live, and do types other than the numerical
+;      ones get them?
+;    - pow's exponent: the base's type, as today, or a u32 (11.5.6)? Is abs
+;      implemented for unsigned types, as the identity?
+;    - Overflow (11.5.3) and integer / (8.2.4) differ by impl. Each trait's
+;      doc must say what every impl has to do.
+;    - Comparison (8.3.5): confirm the four traits, their names, and which
+;      methods sit where. Does != exist, as an auto-implementation?
+;      Do string, char and bool get Ord (11.3.3)? Should floats get a
+;      total-order comparison, as a function or a wrapper type, so they
+;      can be sorted? When is a signaling NaN detected: in every build, and
+;      on loading one or only on using it?
+;    - Bitwise (8.5.3): one Bits trait, or one for the logic operations and
+;      one for the shifts? Which types implement it (11.3.2)?
+;    - Casts (8.6.8): are the Widen pairs written out or generated by a
+;      rule? Which pairs do TryAs and Wrap have? May a program add Widen
+;      impls for its own types, or does as stay limited to primitive types
+;      (3.1.3)? The orphan rule (7.5.6.1) already limits them to its own
+;      types.
+;    - Lists (8.7): do len and the other list operations (item 5) become
+;      plain generics, like get? contains and the like would need a bound.
+;    - Which traits do Unit, Never, bool, char, string, [List T],
+;      [Option T], [Result T E] and [Map K V] implement? Does a Map's key
+;      need Eq, or a hash trait?
+;    - Should debug require a trait, or keep working on every type (8.9.4)?
+; 9. Automatic impls. (todo) == works on every type but functions (8.3.2)
+;    and to_string on every type (8.6.6), so something has to give a
+;    program's structs and enums those impls. Settled: an automatic impl
+;    takes one bound for each type parameter of the type, not one for each
+;    field: the automatic impl for [Tree T] is bounded by T alone. (A bound
+;    for each field would need [Eq [Box [Tree T]]], which leads back to
+;    [Eq [Tree T]] and repeats, 7.5.7.3.) Open:
+;    - Are they always there, or does a type opt in with a derive-like
+;      form?
+;    - What do they do: structural == on fields and variants, and which
+;      to_string format (items 2 and 4)? What does a struct with a float
+;      field get: PartialEq only?
+;    - Can a hand-written impl replace an automatic one? Under the overlap
+;      rule (7.5.6.3), only if they are opt-in.
+;    - A struct with a function field gets no impl of =='s trait. Is that
+;      silent, or a warning?
+;    - What if the automatic impl's body does not check against its
+;      bounds, as when a field's own impl needs more than the bound gives,
+;      or a field is a function? Skip the impl silently, make it an error
+;      at the type, or bound the fields that lie outside the type's
+;      recursive group (7.2.5)?
+;    - A parameter that is only a tag, as in (struct [Id T] |raw : u64|),
+;      still gets a bound it does not need.
+; 10. The wording of the new errors and warnings:
+;     - the latent-overlap warnings (7.5.8.2); the layout there is a sketch
+;     - a missing supertrait impl (7.5.5.3): name only the direct
+;       supertrait, or the whole chain from the bound that needed it?
+;     - the expanding-cycle error (7.2.5, 7.3.8): where it points, and
+;       whether it lists the whole cycle of parameters
+;     - "contains itself without a Box" (3.7.2): should it list the path of
+;       fields that leads back to the type?
+;     - a repeated goal (7.5.7.3). Leaning: the full chain, each step
+;       naming the impl whose bound led to it, with a hint to bound the
+;       type parameters instead (7.5.7.5). At the concrete types of the
+;       use, or at an abstract T?
+;     - a bound that grows (7.5.7.1): the bound and the header, with their
+;       sizes?
+; 11. One impl over a function type covers one number of parameters
+;     (7.5.3.8), so a trait meant for every function needs an impl for
+;     each. Variadic generics (item 7) would be the general fix.
+; 12. Output-only trait parameters. Without associated types (7.5.1.3), a
+;     parameter that appears only in a method's output is settled only by
+;     a type argument (7.4.8). That is fine for the casts. It would make
+;     an operator over mixed types, such as [Add L R Out], need [Out] on
+;     every call. Leaning: operators stay [T T -> T].
+; 13. What do to_string and debug show for a box (8.8): the box, as
+;     (box ...), so that the text reads like the code that builds the
+;     value, or only its contents?
+; 14. (later) Should a repeated goal succeed when the cycle follows the
+;     structure of a type (7.5.7.3)? That would let an automatic impl
+;     (item 9) take a bound for each field, and let hand-written bounds
+;     name types that refer to each other. It only turns errors into valid
+;     programs, so it can be done at any time. It needs these rules with
+;     it: only a cycle whose every step goes from a type to one of its own
+;     components succeeds (a field type, or the parameter of an
+;     indirection type, 3.7.4); a supertrait is proved without assuming
+;     the impl's own header; a bound equal to its own header is an error;
+;     and there are still no associated types. Without them, an impl could
+;     vouch for itself, and a supertrait could be implied with no impl
+;     behind it. That the first of these rules is enough is an argument,
+;     not a proof.
+; 15. (later) Sugar. Today everything the arguments cannot settle is
+;     written (7.4.7, 7.4.10). Each item below would only shorten that. It
+;     should only turn errors into valid programs, and never change what a
+;     valid program means:
+;     - a written type settles a type parameter, as in
+;       (let e : [List u8] = (list)); this needs the rule of 7.4.11 and a
+;       rule for when the arguments settle the parameter too
+;     - a literal takes the type the other arguments settle, as in (+ x 1)
+;       with x : u32 (11.5.12)
+;     - a bare 0 or 1 at a type parameter means (zero [T]) or (one [T]),
+;       and other bare literals are allowed under a Widen bound (8.6.7)
+;     - a shorter way to write a bound on one type parameter (7.5.4.1)
+;     - holes in type arguments, as in (as [_] [u32] x), so that a later
+;       parameter can be given alone (7.4.4)
+;     Not on this list: (- a) as sugar for (neg a), which is ruled out
+;     (8.2.2).
+; 16. Should a generic constructor or accessor also be allowed to leave out
+;     the type arguments that its arguments settle, as a generic function
+;     may (7.4.4)? Today (Option.Some value = 5) and (Pair.first p) are
+;     errors (3.6.3, 7.2.3, 7.2.4). A variant with no fields, such as
+;     Option.None, and a Result.Ok, whose E no argument settles, would
+;     still need theirs.
+; 17. The indirection list of 3.7.4 is written out. It should become a
+;     general rule, such as a marker trait on the types that count, so
+;     that a program's own containers can count too. The same definition
+;     would serve as the "component" of item 14.
 ;;; 11.8 programs
 ; 1. Input and output beyond print, such as reading input or files. (old
 ;    todo)
@@ -3227,32 +4720,38 @@ circle::Shape.Round                      ; type: circle::Shape          [9.6.3]
 ;       con: two kinds of standard name, and a line to draw between them;
 ;            the line is a judgment call that has to be defended
 ;       con: moving a name across the line later breaks programs
-;    Leaning (added during the rewrite, not yet confirmed): c.
+;    Settled: c. There is a prelude, and the built-in traits live in it
+;    (8.1.3). Their design comes later (11.7.8).
 ;    Questions that follow from c:
 ;    - Is [Map K V] (3.5) in the prelude, or does it move to std::?
 ;    - Settled: a top-level name the prelude already has, such as a
 ;      program's own Option, is an error, and a local one warns (4.1.7,
-;      4.1.8). The prelude counts as an import.
+;      4.1.8; lint shadowing). The prelude counts as an import. A
+;      program's trait cannot take a prelude name for a method (7.5.2.6).
 ;    - Is std a reserved first segment, so a project cannot have a std/
 ;      directory? Do 9.5's sibling and internal rules apply inside std?
 ;    - Is the prelude a real module, std::prelude, that can also be written
 ;      qualified?
 ; 6. Can a module re-export items from a module it imports?
 ; 7. Where is the project root (9.3.2), and how does the compiler find it?
-; 8. Linting. (todo)
+; 8. Linting. Settled: every warning has a lint name, and lint commands
+;    silence a lint or raise it to an error, for one item or for one
+;    module (4.7). Still open:
+;    - The wording of each lint's message. Each should name its lint
+;      (4.7.2.5) and, where there is a likely fix, say what it is. (todo)
 ;    - Which warnings belong to the compiler, and which to a separate
 ;      linter?
-;    - Can a warning be silenced at one site, per file or per project, or
-;      raised to an error?
-;    - Current candidates: naming (1.4.4), hiding (4.1.8), never used
-;      (4.1.10), discarded values (5.3.4), unreachable code (3.2.5), a used
-;      declaration (2.5.1.3), a recur not in tail position (5.9.6), the
-;      default alias (9.4.5),
-;      layout (1.5), whitespace around :: or a prefix .. (1.2.10), and a
-;      declaration with no doc (4.6.8.1).
+;    - Can a lint be set for a whole project?
 
 ;;; 11.9 hypothetical examples
 ; Examples marked hypothetical:, and what each one assumes.
-; 1. 7.2: [Tree T] refers to itself (11.3.8).
-; 2. 8.3: (/ 0.0 0.0) produces NaN (11.5.4).
-; 4. 8.7.2: len exists (11.7.5).
+; 1. 7.5.4: Add is a prelude trait, with + as its method (8.2.7).
+; 2. 8.1: Add is a prelude trait that a program's type can implement
+;    (8.2.7).
+; 3. 8.2: Add and Zero are prelude traits (8.2.7), in two examples.
+; 4. 8.3: (/ 0.0 0.0) produces NaN (11.5.4).
+; 5. 8.6: Multiply and Widen are prelude traits (8.2.7, 8.6.8).
+; 6. 8.7.2: len exists (11.7.5).
+; Every example that calls an operator or another built-in function of
+; section 8 also assumes the prelude's traits (0.3.5). Those are not
+; marked, and not listed here.
