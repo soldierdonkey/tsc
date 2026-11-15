@@ -80,9 +80,10 @@
 ; 2. The number of semicolons at the start of a comment sets its level.
 ;    Levels are for readers and editors, for headers and folding. They never
 ;    change meaning.
-; 3. A comment starting with exactly ;: is a doc comment. One starting with
-;    ;;: is an ordinary comment. What a doc comment attaches to, and what it
-;    must say, is in 4.6.
+; 3. A comment starting with exactly ;: is a doc comment for the item below
+;    it, and one starting with exactly ;:: is a doc comment for the whole
+;    module. One starting with ;;: is an ordinary comment. What a doc
+;    comment attaches to, and what it must say, is in 4.6.
 ; 4. A comment starting with exactly ;! is a lint command for the item
 ;    below it, and one starting with exactly ;!! is a lint command for the
 ;    whole module. One starting with ;;! is an ordinary comment. What a
@@ -109,17 +110,17 @@
 ; 4. A line break is whitespace, except that it ends a comment.
 ; 5. ^ is always a token of its own. It is written directly before the name
 ;    it pins (6.8), with no whitespace between them.
-;    why?: ^name then reads as one unit, like -5
+;    why: ^name then reads as one unit, like -5
 ; 6. - is never part of an identifier. Outside a number literal (rule 3)
 ;    and -> (rule 2), it is always a token of its own, even between letters.
-;    why?: x-1 then has one reading, x followed by the literal -1
+;    why: x-1 then has one reading, x followed by the literal -1
 ; 7. The lexer always takes the longest token it can (maximal munch). The
 ;    symbol tokens are a fixed set:
 ;      ->  =>  ==  <=  >=  ::  ..  .  :  =  @  ^  _  +  -  *  /  %  <  >
 ;    together with the delimiters (2.4). Any other run of symbols is read as
 ;    several of these tokens, or is an error. A . belongs to a number only
 ;    with a digit after it (1.3.1.3), so 1..3 is 1, .. and 3.
-;    why?: whitespace can then be left out almost everywhere, and since
+;    why: whitespace can then be left out almost everywhere, and since
 ;    every token is known in advance, an error can name the token that was
 ;    probably meant
 ;    Macros (11.8.4), when they come, will have to work within this set.
@@ -147,7 +148,7 @@
 ; 10. Whitespace around . is an error, as it is after ^ (rule 5). Whitespace
 ;     around :: or after a .. before a name is a warning (lint spacing,
 ;     4.7.3).
-;     why?: otherwise (f a. b) would quietly read a field instead of passing
+;     why: otherwise (f a. b) would quietly read a field instead of passing
 ;     two values
 
 (+ x y)              ; same as ( + x y )                                  [1.2.1]
@@ -1355,6 +1356,10 @@ Shape.Circle.name ; error: Shape.Circle is a variant, not a value               
 ;    an expression or a blank line, one that trails anything other than a
 ;    field or variant, or one at the end of a file. A ;: line after a lint
 ;    command of the same item is an error too (4.7.1.3).
+;    why: a let is local, so a let-bound fn takes an ordinary comment; a fn
+;    passed as an argument is documented by the param entry of the
+;    parameter that takes it (4.6.3.7)
+; 8. A module's own doc is written with ;:: lines, not ;: (4.6.12).
 
 ;: The ratio of a circle's circumference to its diameter.
 (define PI : f64 = 3.14)  ; the doc directly above documents PI  [4.6.1.2]
@@ -1404,10 +1409,11 @@ Shape.Circle.name ; error: Shape.Circle is a variant, not a value               
 ; 1. A doc starts with its summary, the text before its first entry. The
 ;    summary is required.
 ; 2. An entry is a ;: line that starts with an entry word in lowercase,
-;    then a name for the words that take one, then a :, then the entry's
-;    text. The text continues on the lines below, up to the next entry or
-;    the end of the doc. Any other line is text: in a summary, "Returns the
-;    first item" is not an entry.
+;    then a name for the words that take one (several names for field,
+;    4.6.2.10, and the word compile for example, 4.6.9.5), then a :, then
+;    the entry's text. The text continues on the lines below, up to the
+;    next entry or the end of the doc. Any other line is text: in a
+;    summary, "Returns the first item" is not an entry.
 ; 3. type T: describes the type parameter T, from a forall list (7.3), a
 ;    type header (7.2) or a trait header (7.5.1).
 ; 4. param x: describes the parameter x. param 1: describes the first
@@ -1425,8 +1431,15 @@ Shape.Circle.name ; error: Shape.Circle is a variant, not a value               
 ;    no panics: says the function never panics. panics: never says the
 ;    same, and is optional.
 ; 9. example: is followed by an example on the lines below (4.6.9).
+;    example compile: is followed by an example that is compiled but never
+;    run (4.6.9.5).
 ; 10. field x: describes the field x. In an enum's doc, the field x of the
-;     variant V is written field V.x:.
+;     variant V is written field V.x:. One entry may describe several
+;     fields together, such as field x y: or field V.x V.y:. Its names
+;     follow the order of the declaration, and it counts as the field entry
+;     of each of them.
+;     why: fields like x and y, or r g and b, are explained by one phrase,
+;     and writing it once per field adds nothing
 ; 11. variant V: describes the variant V.
 ; 12. law: states a property that every impl of a trait must keep, such as
 ;     "area is never negative". It appears only in a trait's doc (4.6.7).
@@ -1437,17 +1450,30 @@ Shape.Circle.name ; error: Shape.Circle is a variant, not a value               
 ; 13. No summary or entry may be empty. An example: needs at least one line
 ;     of code.
 ; 14. Each name has at most one entry of each word. returns:, errors: and
-;     panics: appear at most once. law: and example: may appear any number
-;     of times.
+;     panics: appear at most once. law:, example: and example compile: may
+;     appear any number of times.
 ; 15. Entries come in this order: type, law:, param and default, variant
-;     and field, returns:, errors:, panics:, then example:. Entries of one
-;     word follow the order of the declaration. A default entry comes
-;     directly after the entry of its parameter or field. In the doc of a
+;     and field, returns:, errors:, panics:, then example: and example
+;     compile:, in any mix. Entries of one word follow the order of the
+;     declaration, a shared field entry by its first field. A default entry
+;     comes directly after the entry of its parameter or field, and after a
+;     shared field entry, in field order. In the doc of a
 ;     method inside an impl, which has no param entries (4.6.8.3), default
 ;     entries come after the summary, in parameter order.
 ; 16. An entry that names something that does not exist, or a word that
 ;     does not apply to what the doc documents (4.6.3 to 4.6.8), is an
 ;     error.
+; 17. The text of a summary or entry is plain text, not Markdown. Text
+;     between backticks is a code span. A code span that holds only a name
+;     or a path (9.4) is a reference, and must resolve, or it is an error.
+;     It resolves against the type parameters and parameters of what the
+;     doc documents, then the names in scope in the module. A field is
+;     written Type.field, and a variant Enum.Variant. A code span that
+;     holds anything else is code, and is not checked. The code of an
+;     example is code, not text, so a backtick there starts a fancy string
+;     (1.3.4).
+;     why: renaming or removing a name then breaks every doc that mentions
+;     it, instead of leaving the doc silently wrong
 
 ;: Adds y to x.
 ;: param x: the starting value
@@ -1488,6 +1514,26 @@ Shape.Circle.name ; error: Shape.Circle is a variant, not a value               
 ;: example:
 ;:   (succ 1)  ; returns 2
 (define succ = {fn |x : u32 -> u32| (+ x 1_u32)})  ; error: param x is empty  [4.6.2.13]
+;: Returns the larger of `x` and `BASKET_SIZE`, as in `(max x 12)`.
+;: param x: the count to raise to at least one basket
+;: returns: `x`, or `BASKET_SIZE` when x is smaller
+;: example:
+;:   (at_least_basket 3)  ; returns 12
+(define at_least_basket = {fn |x : u32 -> u32| (if (> x BASKET_SIZE) x BASKET_SIZE)})
+    ; x and BASKET_SIZE are checked references; (max x 12) is code  [4.6.2.17]
+;: Returns the name of `who`, from `Staff.name`.
+;: param who: the person
+;: returns: their name
+;: example:
+;:   (name_of_staff (Staff name = "Ada" age = 36 salary = 1.0))  ; returns "Ada"
+(define name_of_staff = {fn |who : Staff -> string| who.name})  ; a field reference  [4.6.2.17]
+;: Returns `n` plus `step`.
+;: param n: the number
+;: returns: one more than n
+;: example:
+;:   (step_up 1)  ; returns 2
+(define step_up = {fn |n : u32 -> u32| (+ n 1_u32)})
+    ; error: step does not resolve  [4.6.2.17]
 
 ;; 4.6.3 function defines
 ; 1. A define whose type is a function type is a function define. Its doc
@@ -1508,6 +1554,9 @@ Shape.Circle.name ; error: Shape.Circle is a variant, not a value               
 ;    author's word, written by the style of 4.6.11.
 ;    why?: whether a function can panic depends on every function it calls,
 ;    and the compiler cannot always tell
+; 7. A parameter of function type is documented by its param entry alone,
+;    which says what the function is given and what it must return. Its
+;    own parameters take no entries.
 
 ;: Returns the first item of a list, or a fallback when the list is empty.
 ;: type T: the type of the items
@@ -1552,6 +1601,14 @@ Shape.Circle.name ; error: Shape.Circle is a variant, not a value               
 ;: param n: any number
 ;: returns: n
 (define same = {fn |n : u32 -> u32| n})  ; error: the doc needs an example  [4.6.3.1]
+;: Applies a function to a number twice.
+;: param f: given a number, returns the next one
+;: param n: the starting number
+;: returns: f applied to f applied to n
+;: example:
+;:   (apply_twice {fn |x : u32 -> u32| (+ x 1_u32)} 0)  ; returns 2
+(define apply_twice = {fn |f : [u32 -> u32] n : u32 -> u32| (f (f n))})
+    ; f's own parameter takes no entry  [4.6.3.7]
 
 ;; 4.6.4 value defines
 ; 1. A define whose type is not a function type is a value define. Its doc
@@ -1594,6 +1651,14 @@ Shape.Circle.name ; error: Shape.Circle is a variant, not a value               
 ;: A rectangle's size.
 ;: field width: pixels across
 (struct Area |width : u32 height : u32|)  ; error: height is not documented  [4.6.5.1]
+;: A color.
+;: field r g b: the red, green and blue parts, from 0 to 255
+;: field alpha: how opaque, from 0 to 255
+;: default alpha: fully opaque
+(struct Color |r : u8 g : u8 b : u8 alpha : u8 = 255|)  ; one entry for three fields  [4.6.2.10]
+;: A spot on a map.
+;: field y x: the coordinates
+(struct Spot |x : i32 y : i32|)  ; error: y and x are out of order  [4.6.2.10]
 
 ;; 4.6.6 enums
 ; 1. An enum's doc needs a summary and a type entry for each parameter in
@@ -1740,6 +1805,12 @@ Shape.Circle.name ; error: Shape.Circle is a variant, not a value               
 ;    when no error: says so, or whose type:, error: or warning: outcome is
 ;    wrong, is an error. A wrong returns, prints: or panics: outcome is
 ;    found when the examples are run, and is an error then (11.1.2).
+; 5. An example after example compile: is compiled with its module, by
+;    rule 4, but never run. Its outcomes may be type:, warning: or error:.
+;    A returns, prints: or panics: outcome in it is an error, since nothing
+;    could check it. It counts as an example wherever one is required.
+;    why: some code should not run as a test, such as code that reads
+;    input or touches files, but its types are still worth checking
 
 ;: Returns the larger of two numbers.
 ;: param a: one number
@@ -1756,6 +1827,17 @@ Shape.Circle.name ; error: Shape.Circle is a variant, not a value               
 ;: example:
 ;:   (double 4)  ; returns 9
 (define double = {fn |n : u32 -> u32| (* n 2_u32)})  ; error: the example returns 8, not 9  [4.6.9.4]
+;: Prints the start-up banner.
+;: returns: ()
+;: example compile:
+;:   (show_banner)  ; type: Unit
+(define show_banner = {fn |-> Unit| (print "welcome")})  ; checked, never run  [4.6.9.5]
+;: Prints the closing banner.
+;: returns: ()
+;: example compile:
+;:   (hide_banner)  ; prints: goodbye
+(define hide_banner = {fn |-> Unit| (print "goodbye")})
+    ; error: an example that never runs cannot check prints:  [4.6.9.5]
 
 ;; 4.6.10 missing and incomplete docs
 ; 1. A define, struct, enum or trait with no doc at all, on it or on any of
@@ -1814,6 +1896,37 @@ Shape.Circle.name ; error: Shape.Circle is a variant, not a value               
         ^Option.None            => (panic "index past the end"))})
     ; follows 4.6.11.5, but by 4.6.11.7 it would be better to return an [Option T]  [4.6.11.5, 4.6.11.7]
 
+;; 4.6.12 module docs
+; 1. A module doc is one or more ;:: lines with nothing else between them.
+;    It documents the module of its file (9.3.1).
+; 2. A module doc comes before the module's first form and before every
+;    ;!! line (4.7.1.5). Blank lines and ordinary comments may come before
+;    or after it. A file has at most one module doc. A ;:: line anywhere
+;    else is an error.
+;    why: what a module is for is the first thing a reader needs, before
+;    its lint settings or its code
+; 3. A module doc follows the rules of 4.6.2 with ;:: in place of ;:. It
+;    needs a summary and may have examples, which run in the module like
+;    any other (4.6.9.2). Any other entry is an error.
+; 4. A module with no module doc is a warning (lint missing_doc, 4.7.3).
+
+; as a whole module, in src/geometry/shapes.tsc:
+; geometry helpers
+;:: Shapes and their areas.
+;:: example:
+;::   (area (Square side = 2.0))  ; returns 4.0
+;!! allow layout
+;: A square, by the length of its side.
+(struct Square |side : f64|)  ; the module doc, then ;!! lines, then the first form's doc  [4.6.12.2]
+; as a whole module:
+;!! allow layout
+;:: Shapes and their areas.
+(struct Square |side : f64|)  ; error: the module doc comes before the ;!! lines  [4.6.12.2]
+; as a whole module:
+;:: Shapes and their areas.
+;:: field side: the side of a square
+(struct Square |side : f64|)  ; error: a module doc takes no field entry  [4.6.12.3]
+
 ;;; 4.7 lint commands
 ; Every warning has a name, called its lint. A lint command (1.1.4) changes
 ; how a lint is reported: for one item, or for a whole module.
@@ -1844,10 +1957,11 @@ Shape.Circle.name ; error: Shape.Circle is a variant, not a value               
 ;      written for. Keep items small, or use the lint's argument where it
 ;      has one.
 ; 5. A ;!! comment is a lint command for the whole module. It never
-;    attaches to anything. Every ;!! line comes before the module's first
-;    form. Blank lines and ordinary comments may come before it or between
-;    ;!! lines. A ;!! after the first form is an error. A doc for the
-;    first form still goes directly above that form, after the ;!! lines.
+;    attaches to anything. Every ;!! line comes after the module doc, if
+;    there is one (4.6.12.2), and before the module's first form. Blank
+;    lines and ordinary comments may come before it or between ;!! lines.
+;    A ;!! after the first form is an error. A doc for the first form
+;    still goes directly above that form, after the ;!! lines.
 ;    why: a module's lint settings are all in one place, before any code
 ;    they affect, without forcing them above a file's header comment
 ; 6. The levels are allow, which silences the lint, warn, which is the
@@ -1937,7 +2051,8 @@ Shape.Circle.name ; error: Shape.Circle is a variant, not a value               
 ;                           (4.1.8, 5.4.1.6, 7.5.2.7, 9.4.9, 11.8.5)
 ;   unused_binding          a binding that is never read, including a named
 ;                           fn's name (4.1.10, 5.4.3.7, 5.7.1.6)
-;   missing_doc             a declaration with no doc (4.6.10.1)
+;   missing_doc             a declaration or module with no doc (4.6.10.1,
+;                           4.6.12.4)
 ;   unused_lint             a lint command that changes nothing (4.7.2.3)
 ;   recur_not_tail          recur not in tail position (5.9.6)
 ;   unpinned_name           a name in a pattern that compares without a pin
@@ -3512,7 +3627,7 @@ area                      ; type: [[forall T with [Shape T]] T -> f64]  [7.5.2.2
 (ping (Crate [u8] item = 1))
     ; error: [Ping [Crate u8]] needs [Pong [Crate u8]], which needs
     ; [Ping [Crate u8]]: the goal repeats  [7.5.7.3]
-(struct [Twig T]  |value : T kids : [Grove T]|)
+(struct [Twig T] |value : T kids : [Grove T]|)
 (struct [Grove T] |twigs : [List [Twig T]]|)
 (impl [forall T with [Show T]] [Show [Twig T]] ...)
 (impl [forall T with [Show T]] [Show [Grove T]] ...)
@@ -4437,15 +4552,12 @@ circle::Shape.Round                      ; type: circle::Shape          [9.6.3]
 ; item from the previous todo list.
 
 ;;; 11.1 lexical
-; 1. Settled: what a doc comment attaches to and what it must say is in
-;    4.6. Still open:
-;    - Can a module or file have a doc of its own, and where is it written?
-;    - Is the text of a doc plain, or Markdown? Can it link to other names?
-;    - Can a let-bound fn, or a fn passed as an argument, have a doc?
-;    - Can a doc example be marked compile-only, for code that should not
-;      run, such as one that reads input?
-;    - Should a field or variant with nothing to add to its name be allowed
-;      a shorter doc, or none?
+; 1. Settled: doc comments are in 4.6. A module's doc is written with ;::
+;    (4.6.12). Doc text is plain, and backticks around a name make a
+;    checked reference (4.6.2.17). A let-bound fn takes no doc, and a fn
+;    passed as an argument is covered by its param entry (4.6.1.7,
+;    4.6.3.7). example compile: marks an example that is never run
+;    (4.6.9.5). One field entry may cover several fields (4.6.2.10).
 ; 2. When do doc examples run (4.6.9.4)? In a test command, on every build,
 ;    or only when asked? What does a failing example report?
 
