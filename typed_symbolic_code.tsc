@@ -45,14 +45,20 @@
 ;    A define, struct, enum or trait example has no doc unless the entry is
 ;    about docs, and the warning for a missing doc (4.6.10.1) is not shown
 ;    either. A doc that is there must still be complete.
-; 2. A trailing comment states the outcome:
-;      returns X     the example evaluates to X
+; 2. A trailing comment states the outcome, with the outcome words of doc
+;    examples (4.6.9.4):
+;      returns: X    the example evaluates to X
 ;      type: T       the example has type T
 ;      name : T      the example binds name with type T
 ;      prints: X     the example writes X to the console
 ;      warning: ...  the example compiles, with this warning
 ;      error: ...    the example does not compile
 ;      panics: ...   the example compiles, then stops at run time (8.9)
+;    Doc examples follow 4.6.9 in full. Every other example in this file is
+;    only read, never run, so its outcomes are looser: error:, warning: and
+;    panics: give only an explanation, without a category (4.6.9.6), an
+;    outcome may sit on any line, and prints: may list several lines of
+;    output on one line, separated by commas.
 ; 3. A tag such as [5.5.3] at the end of the comment names the rule the
 ;    example exercises.
 ; 4. A comment starting with hypothetical: marks an example that relies on
@@ -159,7 +165,7 @@ string->u32          ; three tokens: string -> u32; warning: layout (1.5)  [1.2.
 -5_i8                ; one token, a literal with a suffix                 [1.2.3]
 (- 5)                ; a call of - on 5; error: - takes two arguments (8.2.2)  [1.2.3]
 (+ 1
-    2)               ; the line break is just whitespace; returns 3       [1.2.4]
+    2)               ; the line break is just whitespace; returns: 3      [1.2.4]
 ^LUCKY               ; two tokens: ^ and LUCKY                            [1.2.5]
 ^ LUCKY              ; error: ^ is written directly before the name       [1.2.5]
 x-1                  ; two tokens: x and the literal -1; warning: layout (1.5)  [1.2.6]
@@ -230,19 +236,19 @@ circle :: Shape      ; warning: no whitespace around ::                   [1.2.1
 
 42           ; an integer literal                                  [1.3.1.1]
 -7           ; an integer literal                                  [1.3.1.1]
-0xFF         ; returns 255                                         [1.3.1.2]
-0o17         ; returns 15                                          [1.3.1.2]
-0b1010       ; returns 10                                          [1.3.1.2]
+0xFF         ; returns: 255                                        [1.3.1.2]
+0o17         ; returns: 15                                         [1.3.1.2]
+0b1010       ; returns: 10                                         [1.3.1.2]
 0XFF         ; error: the prefix is lowercase                      [1.3.1.2]
 3.14         ; a float literal                                     [1.3.1.3]
 5.           ; error: a . needs digits on both sides               [1.3.1.3]
 .5           ; error: a . needs digits on both sides; write 0.5    [1.3.1.3]
 1e10         ; type: f64; an exponent makes a float                [1.3.1.4]
-2.5e-3       ; returns 0.0025                                      [1.3.1.4]
-1e+3         ; returns 1000.0                                      [1.3.1.4]
-0x1E10       ; returns 7696; E is a hex digit, not an exponent     [1.3.1.4]
-1_000_000    ; returns 1000000                                     [1.3.1.5]
-0xFF_FF      ; returns 65535                                       [1.3.1.5]
+2.5e-3       ; returns: 0.0025                                     [1.3.1.4]
+1e+3         ; returns: 1000.0                                     [1.3.1.4]
+0x1E10       ; returns: 7696; E is a hex digit, not an exponent    [1.3.1.4]
+1_000_000    ; returns: 1000000                                    [1.3.1.5]
+0xFF_FF      ; returns: 65535                                      [1.3.1.5]
 1__000       ; error: a _ must sit between two digits              [1.3.1.5]
 0x_FF        ; error: a _ must sit between two digits              [1.3.1.5]
 42_u8        ; type: u8                                            [1.3.1.6]
@@ -250,8 +256,8 @@ circle :: Shape      ; warning: no whitespace around ::                   [1.2.1
 2.5_f32      ; type: f32                                           [1.3.1.6]
 1_000_u32    ; type: u32                                           [1.3.1.5, 1.3.1.6]
 42u8         ; error: a suffix starts with _; write 42_u8          [1.3.1.6]
-0_f32        ; type: f32; returns 0.0                              [1.3.1.7]
-0xFF_u8      ; type: u8; returns 255                               [1.3.1.7]
+0_f32        ; type: f32; returns: 0.0                             [1.3.1.7]
+0xFF_u8      ; type: u8; returns: 255                              [1.3.1.7]
 1e10_f32     ; type: f32                                           [1.3.1.7]
 2.5_u8       ; error: an integer suffix on a float literal         [1.3.1.7]
 1e10_u32     ; error: 1e10 is a float literal                      [1.3.1.7]
@@ -259,11 +265,11 @@ circle :: Shape      ; warning: no whitespace around ::                   [1.2.1
 2.5_f256     ; type: f256                                          [1.3.1.7]
 2.5_ibig     ; error: an integer suffix on a float literal         [1.3.1.7]
 42_usize     ; type: usize                                         [1.3.1.7]
-0x1_f32      ; type: f32; returns 1.0                              [1.3.1.8]
-0x1_f128     ; type: f128; returns 1.0, not 0x1F128                [1.3.1.8]
-0x1F_32      ; returns 7986, which is 0x1F32                     [1.3.1.8]
+0x1_f32      ; type: f32; returns: 1.0                             [1.3.1.8]
+0x1_f128     ; type: f128; returns: 1.0, not 0x1F128               [1.3.1.8]
+0x1F_32      ; returns: 7986, which is 0x1F32                    [1.3.1.8]
 0xFF_i8      ; error: 255 does not fit in an i8                    [1.3.1.9]
--0x80_i8     ; returns -128, an i8                                 [1.3.1.9]
+-0x80_i8     ; returns: -128, an i8                                [1.3.1.9]
 300_u8       ; error: 300 does not fit in a u8                     [1.3.1.9]
 -1_u8        ; error: a u8 cannot be negative                      [1.3.1.9]
 -1_ubig      ; error: a ubig cannot be negative                    [1.3.1.9]
@@ -271,7 +277,7 @@ circle :: Shape      ; warning: no whitespace around ::                   [1.2.1
 (let x : u8 = 300)  ; error: 300 does not fit in a u8              [1.3.1.9]
 0.1_f128     ; the f128 nearest to 0.1, not the f64 0.1 widened    [1.3.1.9]
 007          ; warning: a leading 0; write 7, or 0o7 for octal     [1.3.1.10]
-1e05         ; returns 100000.0; no warning in an exponent         [1.3.1.10]
+1e05         ; returns: 100000.0; no warning in an exponent        [1.3.1.10]
 
 ;; 1.3.2 booleans and unit
 ; 1. true and false are the two bool literals.
@@ -342,15 +348,15 @@ true  ; type: bool  [1.3.2.1]
 `costs \${price}`    ; \$ stops ${ from marking a parameter; type: [-> string]     [1.3.5.1]
 "line\r\n"           ; \r\n is a Windows line break                                [1.3.5.1]
 '\0'                 ; a null char                                                 [1.3.5.1]
-'\u{E9}'             ; returns 'é'                                                 [1.3.5.2]
+'\u{E9}'             ; returns: 'é'                                                [1.3.5.2]
 "\u{1F600}"          ; a string holding one char, an emoji                         [1.3.5.2]
 '\u{D800}'           ; error: a surrogate is not a Unicode scalar value            [1.3.5.2]
 '\u{}'               ; error: \u{} needs 1 to 6 hex digits                         [1.3.5.2]
-"\x41"               ; returns "A"                                                 [1.3.5.3]
+"\x41"               ; returns: "A"                                                [1.3.5.3]
 "\x80"               ; error: \x goes up to 7F; write \u{80}                       [1.3.5.3]
 "\01"                ; two chars: a null and 1                                     [1.3.5.4]
 "\q"                 ; error: \q is not an escape                                  [1.3.5.5]
-"costs \$5"          ; returns "costs $5"; \$ works though it is not needed        [1.3.5.6]
+"costs \$5"          ; returns: "costs $5"; \$ works though it is not needed       [1.3.5.6]
 
 ;;; 1.4 naming conventions
 ; 1. PascalCase names types, enum variants, constructors and traits (7.5):
@@ -412,7 +418,7 @@ true  ; type: bool  [1.3.2.1]
 ; 10. Every line of one doc (4.6.1) starts its ;: in the same column. For a
 ;     doc that trails a field or variant, the lines below it are indented
 ;     to the column of the first ;:. The text of an example (4.6.2.9) is
-;     indented two spaces past the text of its example: line.
+;     indented two spaces past the text of its example entry.
 
 (enum Shape
     Square |side : i32|
@@ -561,18 +567,18 @@ circle::origin.x                 ; reads field x of circle::origin              
 
 (define make_adder = {fn |x : u32 -> [u32 -> u32]| {fn |y : u32 -> u32| (+ x y)}})
 {make_adder 1}           ; type: [u32 -> u32]                                            [2.4.2.1]
-({make_adder 1} 2)       ; returns 3; the callee can be any function value               [2.4.2.1]
+({make_adder 1} 2)       ; returns: 3; the callee can be any function value              [2.4.2.1]
 {if true {make_adder 1} {make_adder 2}}  ; type: [u32 -> u32]; if follows the same rule  [2.4.2.1]
 (make_adder 1)           ; error: the call returns a function; write {make_adder 1}      [2.4.2.3]
 {+ 1 2}                  ; error: the call returns an i32; write (+ 1 2)                 [2.4.2.3]
 make_adder               ; type: [u32 -> [u32 -> u32]], written bare                     [2.4.2.4]
 {make_adder}             ; error: make_adder needs its argument x                        [2.4.2.4]
 (define greet = `hello`)
-(greet)                  ; returns "hello"; a call with no arguments                     [2.4.2.4]
+(greet)                  ; returns: "hello"; a call with no arguments                    [2.4.2.4]
 (fn |x : u32 -> u32| x)  ; error: fn makes a function; write {fn ...}                    [2.4.2.5]
 
 (define identity = {fn [forall T] |x : T -> T| x})
-(identity [i32] 5)  ; returns 5; T is i32  [2.4.2.2]
+(identity [i32] 5)  ; returns: 5; T is i32  [2.4.2.2]
 {identity [u32 -> u32] {make_adder 1}}
     ; type: [u32 -> u32]; at this call T is known to be a function  [2.4.2.2]
 (identity [u32 -> u32] {make_adder 1})
@@ -601,7 +607,7 @@ make_adder               ; type: [u32 -> [u32 -> u32]], written bare            
 ;    that reads the binding (4.1.3), so a used () marks a binding nothing
 ;    can read
 
-(let x : u32 = 1)  ; a <Declaration>; returns ()                                     [2.5.1.1]
+(let x : u32 = 1)  ; a <Declaration>; returns: ()                                    [2.5.1.1]
 (+ 1 2)            ; an <Application i32>, so an <Expression i32> and a <Value i32>  [2.5.1.2]
 +                  ; an identifier bound to a function: a <Value F>                  [2.5.1.2]
 + [u32]            ; + with a type argument: a <Value [u32 u32 -> u32]> (7.4)        [2.5.1.2]
@@ -696,7 +702,7 @@ make_adder               ; type: [u32 -> [u32 -> u32]], written bare            
                                          true  ; <Value bool>: the arm's value
 
 ;; 2.6.5 a loop
-(loop |n : u32 = 1 -> u32| (if (< n 9_u32) (recur n = (* n 2_u32)) n))  ; <Expression u32>; returns 16
+(loop |n : u32 = 1 -> u32| (if (< n 9_u32) (recur n = (* n 2_u32)) n))  ; <Expression u32>; returns: 16
  loop                                                                   ; Keyword
       |n : u32 = 1 -> u32|                                              ; <Signature>
        n : u32 = 1                                                      ; <Parameter u32>; n starts at 1
@@ -800,7 +806,7 @@ string  ; text, written "like this" (1.3.4)
 ; the standard library (11.8.5) or a specific custom math library.
 
 (let count : u32 = 3)                 ; u32 is primitive, so lowercase               [3.1.1]
-(+ 2.5 1.5)                           ; f64 is numerical; returns 4.0                [3.1.2]
+(+ 2.5 1.5)                           ; f64 is numerical; returns: 4.0               [3.1.2]
 (+ true false)                        ; error: bool is not numerical; + has no impl for it  [3.1.2]
 (let wide : u64 = count)              ; error: count is a u32; write (as [u64] count)  [3.1.3]
 (let wider : u64 = (as [u64] count))  ; the explicit cast                              [3.1.3]
@@ -809,8 +815,8 @@ string  ; text, written "like this" (1.3.4)
 -1_i256                               ; type: i256                                   [3.1.4]
 1e400_f128                            ; type: f128                                   [3.1.5]
 1e400_f64                             ; error: outside the range of an f64           [3.1.5]
-(pow [ubig] 2 200)                    ; returns 2^200, a ubig; it grows to fit       [3.1.7]
-(* (pow [ibig] 10 40) -3_ibig)        ; returns -3 * 10^40, an ibig                  [3.1.7]
+(pow [ubig] 2 200)                    ; returns: 2^200, a ubig; it grows to fit      [3.1.7]
+(* (pow [ibig] 10 40) -3_ibig)        ; returns: -3 * 10^40, an ibig                 [3.1.7]
 (let size : usize = 4096)             ; usize is a size type                         [3.1.9]
 -1_isize                              ; type: isize                                  [3.1.9]
 4294967295_usize                      ; the largest usize literal, 2^32 - 1          [3.1.10]
@@ -840,12 +846,12 @@ Never  ; a type with no values
 ;    a panic left in by accident
 
 ()                  ; type: Unit                                  [3.2.1]
-(do)                ; returns ()                                  [3.2.1]
+(do)                ; returns: ()                                 [3.2.1]
 (do (print "a") 1)  ; print's () is discarded without a warning   [3.2.2]
 (do (+ 1 2) 1)      ; warning: the i32 from (+ 1 2) is discarded  [3.2.2]
 (panic "stop")      ; type: Never; panics: stop                   [3.2.3]
-(if true 5 (panic))                ; returns 5; the branches fit as i32s  [3.2.4]
-(let size : u32 = (panic "no size"))  ; panics: no size                   [3.2.4]
+(if true 5 (panic))                ; returns: 5; the branches fit as i32s  [3.2.4]
+(let size : u32 = (panic "no size"))  ; panics: no size                    [3.2.4]
 (do
     (panic "stop")  ; the Never is discarded without a warning  [3.2.2]
     (print "after")
@@ -871,7 +877,7 @@ Never  ; a type with no values
 ;    type is open (11.3.13).
 
 [u32 u32 -> u32]                ; two u32 parameters, a u32 output                           [3.3.1]
-[u32 -> [u32 -> u32]]           ; returns a function                                         [3.3.1]
+[u32 -> [u32 -> u32]]           ; returns: a function                                        [3.3.1]
 [[u32 -> u32] u32 -> u32]       ; takes a function as its first parameter                    [3.3.1]
 [List [u32 -> u32]]             ; not a function type: the -> is not at the outermost level  [3.3.1]
 [u32 -> u32 bool]               ; error: a function has one output type                      [3.3.2]
@@ -889,12 +895,12 @@ Never  ; a type with no values
 ; 2. Indices are u32 and start at 0.
 ; 3. list builds a list (8.7.1), and get reads an element safely (8.7.2).
 
-(let numbers : [List i32] = (list 1 2 3))  ; three i32s                         [3.4.1.1]
-(list 1 "two")   ; error: an i32 and a string in one list                       [3.4.1.1]
-(get numbers 0)  ; returns (Option.Some [i32] value = 1); index 0 is the first  [3.4.1.2]
+(let numbers : [List i32] = (list 1 2 3))  ; three i32s                          [3.4.1.1]
+(list 1 "two")   ; error: an i32 and a string in one list                        [3.4.1.1]
+(get numbers 0)  ; returns: (Option.Some [i32] value = 1); index 0 is the first  [3.4.1.2]
 (let j : i32 = 1)
 (get numbers j)  ; error: j is an i32, and an index is a u32                    [3.4.1.2]
-(get numbers 2)  ; returns (Option.Some [i32] value = 3)                        [3.4.1.3]
+(get numbers 2)  ; returns: (Option.Some [i32] value = 3)                       [3.4.1.3]
 
 ;; 3.4.2 literal indexing
 ; 1. name.N, where name is an identifier or a qualified name (2.3.1) bound
@@ -902,12 +908,12 @@ Never  ; a type with no values
 ; 2. If N is out of range, name.N panics.
 ; 3. N must be a literal. For any other index, use get (8.7.2).
 
-numbers.0        ; returns 1                                                    [3.4.2.1]
-numbers.2        ; returns 3                                                    [3.4.2.1]
+numbers.0        ; returns: 1                                                   [3.4.2.1]
+numbers.2        ; returns: 3                                                   [3.4.2.1]
 numbers.3        ; panics: index out of range                                   [3.4.2.2]
 (let i : u32 = 1)
 numbers.i        ; error: numbers.i is field access, and a list has no field i  [3.4.2.3]
-(get numbers i)  ; returns (Option.Some [i32] value = 2)                        [3.4.2.3]
+(get numbers i)  ; returns: (Option.Some [i32] value = 2)                       [3.4.2.3]
 (list 7 8 9).0   ; error: . must follow an identifier (2.3.4)                   [3.4.2.1]
 
 ;;; 3.5 Map (todo)
@@ -1001,7 +1007,7 @@ numbers.i        ; error: numbers.i is field access, and a list has no field i  
 (let leaf = (box Tree.Leaf [u8]))      ; leaf : [Box [Tree u8]]                        [3.7.1]
 (let t = (Tree.Node [u8] left = leaf value = 1_u8 right = leaf))  ; t : [Tree u8]      [3.7.1]
 (let l : [Tree u8] = leaf)             ; error: leaf is a [Box [Tree u8]], not a [Tree u8]  [3.7.3]
-(unbox leaf)                           ; returns Tree.Leaf [u8]                        [3.7.1]
+(unbox leaf)                           ; returns: Tree.Leaf [u8]                       [3.7.1]
 
 ;;;; 4 declarations
 
@@ -1056,11 +1062,11 @@ numbers.i        ; error: numbers.i is field access, and a list has no field i  
 
 (define is_even = {fn |n : u32 -> bool| (if (== n 0_u32) true (is_odd (- n 1_u32)))})
 (define is_odd = {fn |n : u32 -> bool| (if (== n 0_u32) false (is_even (- n 1_u32)))})
-(is_even 4)  ; returns true; is_even uses is_odd before its define  [4.1.2]
+(is_even 4)  ; returns: true; is_even uses is_odd before its define  [4.1.2]
 (do
     (let a : u32 = 1)
     (let b : u32 = (+ a 1_u32))  ; a is visible here  [4.1.3]
-    b)                           ; returns 2
+    b)                           ; returns: 2
 (do
     (let b : u32 = (+ a 1_u32))  ; error: a is not bound yet  [4.1.3]
     (let a : u32 = 1)
@@ -1079,37 +1085,37 @@ numbers.i        ; error: numbers.i is field access, and a list has no field i  
     (let n : u32 = 5)
     (let n = (+ n 1_u32))    ; the right side still sees the old n; n : u32  [4.1.5, 4.1.3]
     (let n = (to_string n))  ; n : string; a shadow may change the type      [4.1.5]
-    n)                       ; returns "6"
+    n)                       ; returns: "6"
 (do
     (let x : u32 = 1)
-    (do (let x : u32 = 2) x)  ; returns 2; the inner x shadows the outer one  [4.1.5]
-    x)                        ; returns 1; the outer x is back                [4.1.6]
+    (do (let x : u32 = 2) x)  ; returns: 2; the inner x shadows the outer one  [4.1.5]
+    x)                        ; returns: 1; the outer x is back                [4.1.6]
 (do
     (let x : u32 = 1)
     (let get_x = {fn |-> u32| x})
     (let x : u32 = 2)
-    (get_x))  ; returns 1; get_x kept the x it captured  [4.1.6]
+    (get_x))  ; returns: 1; get_x kept the x it captured  [4.1.6]
 (define MAX_SIZE : u32 = 10)
 (define MAX_SIZE : u32 = 20)  ; error: MAX_SIZE is already bound      [4.1.7]
 (struct MAX_SIZE |n : u32|)   ; error: MAX_SIZE is already bound      [4.1.7]
 (define list = 1)             ; error: list is a built-in name (8.7)  [4.1.7]
 (define greeting = "hi")
 (do (let greeting = "hey") greeting)
-    ; returns "hey"; warning: greeting hides a top-level name  [4.1.8]
+    ; returns: "hey"; warning: greeting hides a top-level name  [4.1.8]
 (do (let list = (list 1 2)) list)
-    ; returns the list; warning: list hides a built-in name   [4.1.8]
+    ; returns: the list; warning: list hides a built-in name   [4.1.8]
 (define debug = 1)             ; error: debug is a special form                [4.1.9]
 (do (let print = "hi") print)  ; error: print is a special form, not a warning [4.1.9]
 ({fn |if : u32 -> u32| if} 1)  ; error: a parameter may not be named if        [4.1.9]
-(do (let unused : u32 = 1) 2)        ; returns 2; warning: unused is never used  [4.1.10]
-(do (let _ = (to_string 5)) ())      ; returns (); no warning                    [4.1.10]
-{fn |_ : u32 x : u32 -> u32| x}      ; no warning: _ is never read               [4.1.10]
-{fn |n : u32 -> u32| 0_u32}          ; warning: n is never used                  [4.1.10]
+(do (let unused : u32 = 1) 2)        ; returns: 2; warning: unused is never used  [4.1.10]
+(do (let _ = (to_string 5)) ())      ; returns: (); no warning                    [4.1.10]
+{fn |_ : u32 x : u32 -> u32| x}      ; no warning: _ is never read                [4.1.10]
+{fn |n : u32 -> u32| 0_u32}          ; warning: n is never used                   [4.1.10]
 {fn helper |n : u32 -> u32| (+ n 1_u32)}
     ; warning: helper is never used; drop the name  [4.1.10]
 (trait [Shape T] area : [T -> f64])
 (define area = {fn |r : f64 -> f64| r})  ; error: area is already bound, as Shape's method  [4.1.7]
-(do (let area = 2.0) area)  ; returns 2.0; warning: area hides Shape's method   [4.1.8]
+(do (let area = 2.0) area)  ; returns: 2.0; warning: area hides Shape's method  [4.1.8]
 (do (let Shape = 2.0) Shape)  ; error: a trait's name cannot be hidden          [4.1.8]
 
 ;;; 4.2 define
@@ -1128,7 +1134,7 @@ numbers.i        ; error: numbers.i is field access, and a list has no field i  
 ;    define in the cycle. Annotating one of them breaks it. A fn literal's
 ;    type comes from its signature, so fns may still call each other.
 
-(define SOME_NUMBER : u32 = (+ [u32] 2 5))  ; returns (); SOME_NUMBER is global            [4.2.1]
+(define SOME_NUMBER : u32 = (+ [u32] 2 5))  ; returns: (); SOME_NUMBER is global           [4.2.1]
 (do (define X : u32 = 1) X)                 ; error: define only appears at the top level  [4.2.1]
 (define E = 2.718)                          ; E : f64, from the literal                    [4.2.2]
 (define add = {fn |x : u32 y : u32 -> u32| (+ x y)})  ; add : [u32 u32 -> u32]             [4.2.2]
@@ -1157,9 +1163,9 @@ numbers.i        ; error: numbers.i is field access, and a list has no field i  
     (let some_other_number : u32 = (+ [u32] 2 5))  ; annotated           [4.3.1]
     (let greeting = "hi")                          ; greeting : string   [4.3.2]
     (let inc = {fn |x : u32 -> u32| (+ x 1_u32)})  ; inc : [u32 -> u32]  [4.3.2]
-    (inc some_other_number))                       ; returns 8
-(do (let doubled = (* 2 3)) doubled)  ; returns 6; doubled : i32                 [4.3.2]
-(do (let s = "hi") (let s = (+ s "!")) s)  ; returns "hi!"                       [4.3.4]
+    (inc some_other_number))                       ; returns: 8
+(do (let doubled = (* 2 3)) doubled)  ; returns: 6; doubled : i32                [4.3.2]
+(do (let s = "hi") (let s = (+ s "!")) s)  ; returns: "hi!"                      [4.3.4]
 (let top_level_number : u32 = 7)      ; error: let may not appear at the top level; use define  [4.3.3]
 
 ;;; 4.4 struct
@@ -1227,13 +1233,13 @@ numbers.i        ; error: numbers.i is field access, and a list has no field i  
 ;    why: . then stays part of names and is never an operator on
 ;    expressions
 
-jane.dept             ; returns "unknown"                                          [4.4.3.2]
-excalibur.legendary   ; returns true                                               [4.4.3.2]
+jane.dept             ; returns: "unknown"                                         [4.4.3.2]
+excalibur.legendary   ; returns: true                                              [4.4.3.2]
 jane.rank             ; error: Employee has no field rank                          [4.4.3.2]
-(Employee.dept jane)  ; returns "unknown"                                          [4.4.3.1]
+(Employee.dept jane)  ; returns: "unknown"                                         [4.4.3.1]
 Employee.dept         ; type: [Employee -> string]                                 [4.4.3.1]
 (let get_name : [Employee -> string] = Employee.name)
-(get_name john)       ; returns "john"; an accessor is an ordinary function value  [4.4.3.1]
+(get_name john)       ; returns: "john"; an accessor is an ordinary function value  [4.4.3.1]
 (Employee
     name = "jane"
     age = 22
@@ -1241,7 +1247,7 @@ Employee.dept         ; type: [Employee -> string]                              
 (Employee.dept (Employee
     name = "jane"
     age = 22
-    salary = 2.5))  ; returns "unknown"  [4.4.3.3]
+    salary = 2.5))  ; returns: "unknown"  [4.4.3.3]
 
 ;; 4.4.4 copying fields
 (<Identifier> ..<Identifier> <Binding>...) -> T
@@ -1253,7 +1259,7 @@ Employee.dept         ; type: [Employee -> string]                              
     ..jane
     name = "bob"
     age = 23))  ; name and age replaced  [4.4.4.2]
-bob.salary                                   ; returns 2.5, copied from jane             [4.4.4.1]
+bob.salary                                   ; returns: 2.5, copied from jane            [4.4.4.1]
 (let jane_2 : Employee = (Employee ..jane))  ; a field-for-field copy                    [4.4.4.1]
 (Hacker ..jane skill = "none")               ; error: jane is an Employee, not a Hacker  [4.4.4.1]
 
@@ -1321,7 +1327,7 @@ bob.salary                                   ; returns 2.5, copied from jane    
     Circle |name : string radius : f64|
     Square |name : string side : f64|)
 ; with ring : Shape, built as (Shape.Circle name = "ring" radius = 1.0)
-ring.name         ; returns "ring"; name is in every variant                      [4.5.3.2]
+ring.name         ; returns: "ring"; name is in every variant                     [4.5.3.2]
 Shape.name        ; type: [Shape -> string]                                       [4.5.3.1]
 ring.radius       ; error: Shape.Square has no field radius, so match instead     [4.5.3.3]
 Shape.Circle.name ; error: Shape.Circle is a variant, not a value                 [4.5.3.4]
@@ -1410,9 +1416,9 @@ Shape.Circle.name ; error: Shape.Circle is a variant, not a value               
 ;    summary is required.
 ; 2. An entry is a ;: line that starts with an entry word in lowercase,
 ;    then a name for the words that take one (several names for field,
-;    4.6.2.10, and the word compile for example, 4.6.9.5), then a :, then
-;    the entry's text. The text continues on the lines below, up to the
-;    next entry or the end of the doc. Any other line is text: in a
+;    4.6.2.10, and main, compile or both for example, 4.6.9.2), then a :,
+;    then the entry's text. The text continues on the lines below, up to
+;    the next entry or the end of the doc. Any other line is text: in a
 ;    summary, "Returns the first item" is not an entry.
 ; 3. type T: describes the type parameter T, from a forall list (7.3), a
 ;    type header (7.2) or a trait header (7.5.1).
@@ -1430,9 +1436,9 @@ Shape.Circle.name ; error: Shape.Circle is a variant, not a value               
 ; 8. panics: describes when a function panics (8.9). A function doc with
 ;    no panics: says the function never panics. panics: never says the
 ;    same, and is optional.
-; 9. example: is followed by an example on the lines below (4.6.9).
-;    example compile: is followed by an example that is compiled but never
-;    run (4.6.9.5).
+; 9. example main:, example:, example main compile: and example compile:
+;    are the example entries. Each is followed by an example on the lines
+;    below (4.6.9).
 ; 10. field x: describes the field x. In an enum's doc, the field x of the
 ;     variant V is written field V.x:. One entry may describe several
 ;     fields together, such as field x y: or field V.x V.y:. Its names
@@ -1447,14 +1453,14 @@ Shape.Circle.name ; error: Shape.Circle is a variant, not a value               
 ;     the impl, as with panics: (4.6.3.6).
 ;     why: laws are the contract that makes generic code over a trait
 ;     correct, so they get an entry that tools and readers can find
-; 13. No summary or entry may be empty. An example: needs at least one line
-;     of code.
+; 13. No summary or entry may be empty. An example entry needs at least one
+;     line of code.
 ; 14. Each name has at most one entry of each word. returns:, errors: and
-;     panics: appear at most once. law:, example: and example compile: may
-;     appear any number of times.
+;     panics: appear at most once. law: and the example entries may appear
+;     any number of times.
 ; 15. Entries come in this order: type, law:, param and default, variant
-;     and field, returns:, errors:, panics:, then example: and example
-;     compile:, in any mix. Entries of one word follow the order of the
+;     and field, returns:, errors:, panics:, then the example entries, in
+;     any mix. Entries of one word follow the order of the
 ;     declaration, a shared field entry by its first field. A default entry
 ;     comes directly after the entry of its parameter or field, and after a
 ;     shared field entry, in field order. In the doc of a
@@ -1481,57 +1487,57 @@ Shape.Circle.name ; error: Shape.Circle is a variant, not a value               
 ;: default y: adds 5
 ;: returns: the sum
 ;: panics: never
-;: example:
-;:   (add_some 2 3)  ; returns 5
+;: example main:
+;:   (add_some 2 3)  ; returns: 5
 (define add_some = {fn |x : u32 y : u32 = 5 -> u32| (+ x y)})  ; a complete doc  [4.6.2.4, 4.6.2.5, 4.6.2.8]
 ;: Adds one to a number.
 ;: param x: the number
 ;: returns: one more than x
-;: example:
-;:   (bump 1)  ; returns 2
+;: example main:
+;:   (bump 1)  ; returns: 2
 (define bump = {fn |x : u32 -> u32| (+ x 1_u32)})  ; no panics:, so bump never panics  [4.6.2.8]
 ;: param n: the number
 ;: returns: n doubled
-;: example:
-;:   (twice_of 2)  ; returns 4
+;: example main:
+;:   (twice_of 2)  ; returns: 4
 (define twice_of = {fn |n : u32 -> u32| (* n 2_u32)})  ; error: the doc has no summary  [4.6.2.1]
 ;: Doubles a number.
 ;: returns: n doubled
 ;: param n: the number
-;: example:
-;:   (doubled 2)  ; returns 4
+;: example main:
+;:   (doubled 2)  ; returns: 4
 (define doubled = {fn |n : u32 -> u32| (* n 2_u32)})  ; error: param n comes before returns:  [4.6.2.15]
 ;: Adds one to a number.
 ;: param n: the number
 ;: returns: one more than n
-;: example:
-;:   (plus_one 1)  ; returns 2
+;: example main:
+;:   (plus_one 1)  ; returns: 2
 (define plus_one = {fn |x : u32 -> u32| (+ x 1_u32)})
     ; error: plus_one has no parameter n, and x is not documented  [4.6.2.16]
 ;: Adds one to a number.
 ;: param x:
 ;: returns: one more than x
-;: example:
-;:   (succ 1)  ; returns 2
+;: example main:
+;:   (succ 1)  ; returns: 2
 (define succ = {fn |x : u32 -> u32| (+ x 1_u32)})  ; error: param x is empty  [4.6.2.13]
 ;: Returns the larger of `x` and `BASKET_SIZE`, as in `(max x 12)`.
 ;: param x: the count to raise to at least one basket
 ;: returns: `x`, or `BASKET_SIZE` when x is smaller
-;: example:
-;:   (at_least_basket 3)  ; returns 12
+;: example main:
+;:   (at_least_basket 3)  ; returns: 12
 (define at_least_basket = {fn |x : u32 -> u32| (if (> x BASKET_SIZE) x BASKET_SIZE)})
     ; x and BASKET_SIZE are checked references; (max x 12) is code  [4.6.2.17]
 ;: Returns the name of `who`, from `Staff.name`.
 ;: param who: the person
 ;: returns: their name
-;: example:
-;:   (name_of_staff (Staff name = "Ada" age = 36 salary = 1.0))  ; returns "Ada"
+;: example main:
+;:   (name_of_staff (Staff name = "Ada" age = 36 salary = 1.0))  ; returns: "Ada"
 (define name_of_staff = {fn |who : Staff -> string| who.name})  ; a field reference  [4.6.2.17]
 ;: Returns `n` plus `step`.
 ;: param n: the number
 ;: returns: one more than n
-;: example:
-;:   (step_up 1)  ; returns 2
+;: example main:
+;:   (step_up 1)  ; returns: 2
 (define step_up = {fn |n : u32 -> u32| (+ n 1_u32)})
     ; error: step does not resolve  [4.6.2.17]
 
@@ -1540,8 +1546,8 @@ Shape.Circle.name ; error: Shape.Circle is a variant, not a value               
 ;    needs a summary, a type entry for each type parameter in its forall
 ;    list, a param entry for each parameter, a default entry for each
 ;    parameter with a default, returns:, errors: when its output type is a
-;    Result, panics: when it can panic (4.6.2.8), and at least one
-;    example:.
+;    Result, panics: when it can panic (4.6.2.8), and at least one example
+;    (4.6.9.2).
 ; 2. When the define's value is not a fn literal, its parameters have no
 ;    names, and their entries are written param 1:, param 2:, and so on,
 ;    in the order of the function type's inputs.
@@ -1563,10 +1569,10 @@ Shape.Circle.name ; error: Shape.Circle is a variant, not a value               
 ;: param xs: the list to read
 ;: param fallback: what to return when xs is empty
 ;: returns: the item at index 0, or fallback
-;: example:
-;:   (head_or [i32] (list 4 5 6) 0)  ; returns 4
-;: example:
-;:   (head_or [i32] (list [i32]) 0)  ; returns 0
+;: example main:
+;:   (head_or [i32] (list 4 5 6) 0)  ; returns: 4
+;: example main:
+;:   (head_or [i32] (list [i32]) 0)  ; returns: 0
 (define head_or = {fn [forall T] |xs : [List T] fallback : T -> T|
     (match (get xs 0)
         (Option.Some value = first) => first
@@ -1575,26 +1581,26 @@ Shape.Circle.name ; error: Shape.Circle is a variant, not a value               
 ;: param 1: the first number
 ;: param 2: the second number
 ;: returns: their sum
-;: example:
-;:   (sum_u32 2 3)  ; returns 5
+;: example main:
+;:   (sum_u32 2 3)  ; returns: 5
 (define sum_u32 = + [u32])  ; not a fn literal, so parameters go by position  [4.6.3.2]
 ;: Returns n factorial.
 ;: param n: the number to take the factorial of
 ;: returns: the product of 1 to n, or 1 when n is 0
-;: example:
-;:   (factorial 5)  ; returns 120
+;: example main:
+;:   (factorial 5)  ; returns: 120
 (define factorial = {fn fact |n : u64 -> u64|
     (if (== n 0_u64) 1 (* n (fact (- n 1_u64))))})  ; fact takes no entry  [4.6.3.3]
 ;: Prints a greeting.
 ;: returns: ()
-;: example:
+;: example main:
 ;:   (main)  ; prints: hello
 (define main = {fn |-> Unit| (print "hello")})  ; main is documented like any function  [4.6.3.4, 4.6.3.5]
 ;: Wraps n in an Ok.
 ;: param n: the number to wrap
 ;: returns: n, as an Ok
-;: example:
-;:   (always_ok 3)  ; returns (Result.Ok [u32] [string] value = 3)
+;: example main:
+;:   (always_ok 3)  ; returns: (Result.Ok [u32] [string] value = 3)
 (define always_ok = {fn |n : u32 -> [Result u32 string]| (Result.Ok [u32] [string] value = n)})
     ; error: the output is a Result, so errors: is required  [4.6.3.1]
 ;: Returns its input.
@@ -1605,8 +1611,8 @@ Shape.Circle.name ; error: Shape.Circle is a variant, not a value               
 ;: param f: given a number, returns the next one
 ;: param n: the starting number
 ;: returns: f applied to f applied to n
-;: example:
-;:   (apply_twice {fn |x : u32 -> u32| (+ x 1_u32)} 0)  ; returns 2
+;: example main:
+;:   (apply_twice {fn |x : u32 -> u32| (+ x 1_u32)} 0)  ; returns: 2
 (define apply_twice = {fn |f : [u32 -> u32] n : u32 -> u32| (f (f n))})
     ; f's own parameter takes no entry  [4.6.3.7]
 
@@ -1618,8 +1624,8 @@ Shape.Circle.name ; error: Shape.Circle is a variant, not a value               
 ;: The most items a basket holds.
 (define BASKET_SIZE : u32 = 12)  ; a summary is all a value needs  [4.6.4.1]
 ;: The first few primes.
-;: example:
-;:   (get FIRST_PRIMES 0)  ; returns (Option.Some [i32] value = 2)
+;: example main:
+;:   (get FIRST_PRIMES 0)  ; returns: (Option.Some [i32] value = 2)
 (define FIRST_PRIMES = (list 2 3 5))  ; an example is allowed  [4.6.4.2]
 ;: How fast light goes, in meters per second.
 ;: returns: 299792458
@@ -1717,7 +1723,7 @@ Shape.Circle.name ; error: Shape.Circle is a variant, not a value               
 ; 5. A parameter that the trait marks optional (7.5.2.8) needs a default
 ;    entry, default x: or default 1:, that says what leaving it out means.
 ;    Each impl keeps to that meaning.
-; 6. An example in a trait's doc runs in the trait's module (4.6.9.2), so
+; 6. An example in a trait's doc runs in the trait's module (4.6.9.3), so
 ;    it can only use impls that module can find (7.5.6.4).
 ; 7. Bounds (7.5.4) take no entry anywhere: a generic function's type entry
 ;    covers its parameter, and its bounds are in the signature.
@@ -1735,8 +1741,8 @@ Shape.Circle.name ; error: Shape.Circle is a variant, not a value               
     ;: Returns the area of two copies of a shape.
     ;: param s: the shape
     ;: returns: twice its area
-    ;: example:
-    ;:   (double_area (Square side = 2.0))  ; returns 8.0
+    ;: example main:
+    ;:   (double_area (Square side = 2.0))  ; returns: 8.0
     double_area = {fn |s : T -> f64| (* (area s) 2.0)})
     ; a law, a required method by position, and an auto-implemented method
     ; with its example  [4.6.7.1, 4.6.7.3, 4.6.7.4]
@@ -1774,8 +1780,8 @@ Shape.Circle.name ; error: Shape.Circle is a variant, not a value               
 ;    they are errors.
 
 ;: A square's area is its side squared.
-;: example:
-;:   (area (Square side = 3.0))  ; returns 9.0
+;: example main:
+;:   (area (Square side = 3.0))  ; returns: 9.0
 (impl [Shape Square]
     area = {fn |s : Square -> f64| (* s.side s.side)})  ; an impl's doc, with an example  [4.6.8.1]
 (struct Disc |r : f64|)
@@ -1794,47 +1800,174 @@ Shape.Circle.name ; error: Shape.Circle is a variant, not a value               
     ; error: param repeats the trait's doc  [4.6.8.3]
 
 ;; 4.6.9 examples
-; 1. An example is the code on the lines after its example: entry, up to the
+; 1. An example is the code on the lines after an example entry, up to the
 ;    next entry or the end of the doc. Its ;: is followed by two spaces
-;    more than the entry's (1.5.10).
-; 2. Each example is its own test: its lines are the items of one do, with
-;    every top-level name of the module in scope, private ones included.
-; 3. An example's trailing comments state outcomes as in 0.3.2. An example
-;    may show a mistake: an error: outcome means the code must not compile.
-; 4. Every example is compiled with its module. One that does not compile
-;    when no error: says so, or whose type:, error: or warning: outcome is
-;    wrong, is an error. A wrong returns, prints: or panics: outcome is
-;    found when the examples are run, and is an error then (11.1.2).
-; 5. An example after example compile: is compiled with its module, by
-;    rule 4, but never run. Its outcomes may be type:, warning: or error:.
-;    A returns, prints: or panics: outcome in it is an error, since nothing
-;    could check it. It counts as an example wherever one is required.
+;    more than the entry's (1.5.10). A blank ;: line inside an example does
+;    not end it. A form spread over lines lays out its later lines by 1.5,
+;    counting from the example's first column.
+; 2. The example entry says where the code goes, and whether it runs:
+;      example main:          the lines are the items of one do, which is
+;                             the body of main. Running the example runs
+;                             that do. Its last item may have any type: its
+;                             value is checked by returns: (rule 7), then
+;                             dropped.
+;      example:               the lines are top-level items. Running the
+;                             example calls the main it defines. One that
+;                             defines no main is never run.
+;      example main compile:  as example main:, but never run
+;      example compile:       as example:, but never run
+;    An example that is never run still counts as an example wherever one
+;    is required.
+;    why?: most examples are a call or two, which example main: keeps
+;    short, and an example that needs a helper function or type of its own
+;    uses example:
 ;    why: some code should not run as a test, such as code that reads
 ;    input or touches files, but its types are still worth checking
+; 3. Each example is a program of its own. Every top-level name of the
+;    documented module is in scope in it, private ones included. In an
+;    example:, the module's main is not in scope, so the example may define
+;    its own. Earlier examples are not in scope. Declarations in an example
+;    take no doc, and missing_doc (4.6.10.1) is not shown for them.
+; 4. A trailing comment on a line of an example states outcomes when it
+;    starts with an outcome word. Any other trailing comment is ordinary,
+;    and is not checked. One comment may state several outcomes, separated
+;    by ;.
+;      returns: X      the item evaluates to X (rule 7)
+;      type: T         the item has type T
+;      name : T        the item binds name with type T
+;      prints: X       the item writes X to the console (rule 8)
+;      warning: L ...  the item has a warning of lint L (4.7.3)
+;      error: E ...    the item has the error E, so the example does not
+;                      compile
+;      panics: P ...   the item stops the example with a panic of kind P
+;                      (8.9)
+;    An outcome is about the item that ends on its line, except error: and
+;    warning:, which go on the line where the form they are about starts.
+; 5. Where outcomes may go:
+;    a. returns: and panics: go only on the last item of an example main:,
+;       and never together.
+;    b. prints: may go on any item of an example main:.
+;    c. In an example:, prints: and panics: go only on the define of main,
+;       which then comes last, and are about everything main does.
+;       returns: is not used, since main returns ().
+;    d. type:, name : T, warning: and error: may go on any line.
+;    e. An example with an error: is never run, so it has no returns:,
+;       prints: or panics:. Nor does an example under example main compile:
+;       or example compile:.
+;    An outcome where this rule does not allow it is an error.
+; 6. The first word after error:, warning: or panics: is the outcome's
+;    category: an error's name, a lint (4.7.3), or a panic's kind. The
+;    category is checked. A comma may follow it, then an explanation for
+;    the reader, which is not checked. Error names and panic kinds are
+;    provisional (11.1.2).
+;    why?: the wording of a message can change, and its category does not
+; 7. returns: X is checked as text. X is written as an expression, but is
+;    not compiled. The item's value is turned into text by implicit
+;    stringification (todo, 11.1.2), and that text must match X, apart from
+;    the spaces between tokens.
+;    why: comparing by an equality trait from the prelude would not work,
+;    since not every value has a literal of exactly its type, and functions
+;    cannot be compared
+; 8. prints: X checks all of the item's output, one line of output per
+;    line of the outcome. The first line follows prints:. Each further line
+;    is a comment of its own on the next line: its ; sits in the column of
+;    the ; that starts the comment with prints:, and a : sits in the column
+;    of the : of prints:. A space and the line of output follow the :, and
+;    a : alone is an empty line. The item must write exactly these lines,
+;    in order. Output from an item with no prints: is not checked.
+; 9. Every error in an example must be stated by an error: on its line. A
+;    missing error:, or one that does not happen on its line, is an error.
+;    A warning: that does not happen on its line is an error too. A warning
+;    that no warning: states is shown as usual.
+; 10. Examples are checked in two steps:
+;     a. Every build compiles each example with its module, and checks its
+;        type:, name : T, warning: and error: outcomes. A wrong one is an
+;        error.
+;     b. tsc test (9.8) also runs the examples, and checks their returns:,
+;        prints: and panics: outcomes. A wrong one, or a panic that no
+;        panics: states, fails the example.
 
 ;: Returns the larger of two numbers.
 ;: param a: one number
 ;: param b: the other number
 ;: returns: whichever of a and b is larger, or a when they are equal
+;: example main:
+;:   (larger 2 7)  ; returns: 7
+;: example main:
+;:   (larger 2 "7")  ; error: type_mismatch, b is an i32, not a string
+(define larger = {fn |a : i32 b : i32 -> i32| (if (>= a b) a b)})  ; one example shows a mistake  [4.6.9.6]
+;: Prints the numbers from n down to 1, one per line.
+;: param n: the number to start from
+;: returns: ()
+;: example main:
+;:   (countdown 3)  ; prints: 3
+;:                  ;       : 2
+;:                  ;       : 1
+;: example main:
+;:   (let start : u32 = 2)
+;:
+;:   (countdown start)  ; prints: 2
+;:                      ;       : 1
+;:   (countdown 0)  ; returns: ()
 ;: example:
-;:   (larger 2 7)  ; returns 7
-;: example:
-;:   (larger 2 "7")  ; error: b is an i32, not a string
-(define larger = {fn |a : i32 b : i32 -> i32| (if (>= a b) a b)})  ; one example shows a mistake  [4.6.9.3]
+;:   (define again = {fn |n : u32 -> Unit| (do (countdown n) (countdown n))})
+;:   (define main = {fn |-> Unit| (again 1)})  ; prints: 1
+;:                                             ;       : 1
+(define countdown = {fn |n : u32 -> Unit|
+    (for |i : u32 = n| (> i 0_u32) (recur i = (- i 1_u32))
+        (print (to_string i)))})
+    ; a blank ;: line, output over several lines, and a helper of the example's own  [4.6.9.1, 4.6.9.2, 4.6.9.8]
+;: Returns the first item of a list.
+;: type T: the type of the items
+;: param xs: the list to read
+;: returns: the first item of xs
+;: panics: when xs is empty
+;: example main:
+;:   (front [i32] (list 7 8))  ; returns: 7
+;: example main:
+;:   (front [i32] (list [i32]))  ; panics: explicit, the list is empty
+(define front = {fn [forall T] |xs : [List T] -> T|
+    (match (get xs 0)
+        (Option.Some value = x) => x
+        ^Option.None            => (panic "the list is empty"))})  ; the panic is stated on the last item  [4.6.9.5]
+;: Returns n plus one.
+;: param n: the number
+;: returns: one more than n
+;: example main:
+;:   (inc 1)  ; returns: 2
+;: example main:
+;:   (let a : u32 = (inc "one"))  ; error: type_mismatch, "one" is a string
+;:   (inc (inc a 2))              ; error: arity, inc takes one argument
+(define inc = {fn |n : u32 -> u32| (+ n 1_u32)})  ; every error is stated on its line  [4.6.9.9]
+;: Returns n plus two.
+;: param n: the number
+;: returns: two more than n
+;: example main:
+;:   (inc_twice "one")
+(define inc_twice = {fn |n : u32 -> u32| (+ n 2_u32)})
+    ; error: the example's type_mismatch is not stated  [4.6.9.9]
 ;: Doubles a number.
 ;: param n: the number to double
 ;: returns: n times 2
-;: example:
-;:   (double 4)  ; returns 9
-(define double = {fn |n : u32 -> u32| (* n 2_u32)})  ; error: the example returns 8, not 9  [4.6.9.4]
+;: example main:
+;:   (double 4)  ; returns: 9
+(define double = {fn |n : u32 -> u32| (* n 2_u32)})  ; builds, but fails under tsc test: the example returns 8, not 9  [4.6.9.10]
+;: Halves a number, rounding down.
+;: param n: the number to halve
+;: returns: n divided by 2
+;: example main:
+;:   (halve 4)  ; returns: 2
+;:   (halve 5)  ; returns: 2
+(define halve = {fn |n : u32 -> u32| (/ n 2_u32)})
+    ; error: returns: may only be on the last item  [4.6.9.5]
 ;: Prints the start-up banner.
 ;: returns: ()
-;: example compile:
+;: example main compile:
 ;:   (show_banner)  ; type: Unit
-(define show_banner = {fn |-> Unit| (print "welcome")})  ; checked, never run  [4.6.9.5]
+(define show_banner = {fn |-> Unit| (print "welcome")})  ; checked, never run  [4.6.9.2]
 ;: Prints the closing banner.
 ;: returns: ()
-;: example compile:
+;: example main compile:
 ;:   (hide_banner)  ; prints: goodbye
 (define hide_banner = {fn |-> Unit| (print "goodbye")})
     ; error: an example that never runs cannot check prints:  [4.6.9.5]
@@ -1888,8 +2021,8 @@ Shape.Circle.name ; error: Shape.Circle is a variant, not a value               
 ;: param i: the index, counted from 0
 ;: returns: the item at i
 ;: panics: when i is past the end of xs
-;: example:
-;:   (item_at [i32] (list 4 5 6) 1)  ; returns 5
+;: example main:
+;:   (item_at [i32] (list 4 5 6) 1)  ; returns: 5
 (define item_at = {fn [forall T] |xs : [List T] i : u32 -> T|
     (match (get xs i)
         (Option.Some value = x) => x
@@ -1907,14 +2040,14 @@ Shape.Circle.name ; error: Shape.Circle is a variant, not a value               
 ;    its lint settings or its code
 ; 3. A module doc follows the rules of 4.6.2 with ;:: in place of ;:. It
 ;    needs a summary and may have examples, which run in the module like
-;    any other (4.6.9.2). Any other entry is an error.
+;    any other (4.6.9.3). Any other entry is an error.
 ; 4. A module with no module doc is a warning (lint missing_doc, 4.7.3).
 
 ; as a whole module, in src/geometry/shapes.tsc:
 ; geometry helpers
 ;:: Shapes and their areas.
-;:: example:
-;::   (area (Square side = 2.0))  ; returns 4.0
+;:: example main:
+;::   (area (Square side = 2.0))  ; returns: 4.0
 ;!! allow layout
 ;: A square, by the length of its side.
 (struct Square |side : f64|)  ; the module doc, then ;!! lines, then the first form's doc  [4.6.12.2]
@@ -1981,8 +2114,8 @@ Shape.Circle.name ; error: Shape.Circle is a variant, not a value               
 ;: Returns n plus one.
 ;: param n: the number
 ;: returns: n plus 1
-;: example:
-;:   (bump 1)  ; returns 2
+;: example main:
+;:   (bump 1)  ; returns: 2
 ;! allow unused_binding
 (define bump = {fn |n : u32 -> u32| (do
     (let scratch = 5_u32)   ; no warning: silenced by the ;! on bump  [4.7.1.4]
@@ -2114,8 +2247,8 @@ Shape.Circle.name ; error: Shape.Circle is a variant, not a value               
 
 (let small : u8 = 200)             ; 200 is a u8, from the annotation              [5.1.1.2]
 (+ small 1)                        ; error: T is u8 from small but i32 from 1; write 1_u8  [5.1.1.3]
-(+ small 1_u8)                     ; returns 201, a u8                             [5.1.1.1]
-(+ [u8] small 1)                   ; returns 201; [u8] makes + take u8s (7.4)      [5.1.1.2]
+(+ small 1_u8)                     ; returns: 201, a u8                            [5.1.1.1]
+(+ [u8] small 1)                   ; returns: 201; [u8] makes + take u8s (7.4)     [5.1.1.2]
 (get (list 4 5) 1)                 ; the 1 is a u32: get's index is written as u32  [5.1.1.2]
 (let ratio : f32 = 0.5)            ; 0.5 is an f32                                 [5.1.1.2]
 (let chosen : u8 = (if true 1 2))  ; 1 and 2 are u8s, through the if               [5.1.1.2]
@@ -2145,17 +2278,17 @@ Shape.Circle.name ; error: Shape.Circle is a variant, not a value               
 `name: ${name}, number: ${num}`  ; type: [string string -> string]  [5.1.2.1]
 ; is equivalent to
 {fn |name : string num : string -> string| (+ (+ "name: " name) (+ ", number: " num))}
-(`name: ${name}, number: ${num}` "jane" "22")  ; returns "name: jane, number: 22"       [5.1.2.1]
-(`${b} before ${a}` "1" "2")                   ; returns "1 before 2"; b appears first  [5.1.2.1]
-`${a} and ${a} again`                          ; type: [string -> string]               [5.1.2.2]
-(`${a} and ${a} again` "x")                    ; returns "x and x again"                [5.1.2.2]
-(`count: ${n}` 5)                              ; error: parameters are strings          [5.1.2.3]
-(`count: ${n}` (to_string 5))                  ; returns "count: 5"                     [5.1.2.3]
+(`name: ${name}, number: ${num}` "jane" "22")  ; returns: "name: jane, number: 22"       [5.1.2.1]
+(`${b} before ${a}` "1" "2")                   ; returns: "1 before 2"; b appears first  [5.1.2.1]
+`${a} and ${a} again`                          ; type: [string -> string]                [5.1.2.2]
+(`${a} and ${a} again` "x")                    ; returns: "x and x again"                [5.1.2.2]
+(`count: ${n}` 5)                              ; error: parameters are strings           [5.1.2.3]
+(`count: ${n}` (to_string 5))                  ; returns: "count: 5"                     [5.1.2.3]
 (do
     (let name : string = "jane")
     (`hi ${name}`))  ; error: missing argument; ${name} is a parameter  [5.1.2.4]
 `hello`    ; type: [-> string]  [5.1.2.5]
-(`hello`)  ; returns "hello"    [5.1.2.5]
+(`hello`)  ; returns: "hello"   [5.1.2.5]
 
 ;;; 5.2 calls
 (<Callee T> <Value>...) -> T
@@ -2176,16 +2309,16 @@ Shape.Circle.name ; error: Shape.Circle is a variant, not a value               
 (+ x y)        ; x + y                                      [5.2.1]
 (+ (+ x y) z)  ; x + y + z                                  [5.2.1]
 (+ x y z)      ; error: + takes two arguments               [5.2.2]
-(shl 5)        ; returns 10; n takes its default 1          [5.2.3]
-(shl 5 2)      ; returns 20                                 [5.2.3]
+(shl 5)        ; returns: 10; n takes its default 1         [5.2.3]
+(shl 5 2)      ; returns: 20                                [5.2.3]
 (- 5)          ; error: - takes two arguments; write (neg 5) (8.2.2)  [5.2.3]
-(+ 1 2)        ; + at i32, using i32's impl; returns 3      [5.2.4]
-(+ "a" "b")    ; + at string, using string's impl; returns "ab"  [5.2.4]
+(+ 1 2)        ; + at i32, using i32's impl; returns: 3     [5.2.4]
+(+ "a" "b")    ; + at string, using string's impl; returns: "ab"  [5.2.4]
 (define pick = {fn |x : u32 = 1 y : u32 -> u32| (+ x y)})
-(pick 5 6)     ; returns 11                                 [5.2.2]
+(pick 5 6)     ; returns: 11                                [5.2.2]
 (pick 5)       ; error: 5 binds to x, and y has no default  [5.2.3]
 (define always_one = {fn |-> u32| 1})
-(always_one)    ; returns 1; a call with no arguments       [5.2.1]
+(always_one)    ; returns: 1; a call with no arguments      [5.2.1]
 (always_one 1)  ; error: always_one takes no arguments      [5.2.2]
 
 ;;; 5.3 do
@@ -2204,9 +2337,9 @@ Shape.Circle.name ; error: Shape.Circle is a variant, not a value               
 ; 5. An empty block returns ().
 
 (do
-    (let x : u32 = 2)  ; x is in scope from here on           [5.3.3]
-    (let y : u32 = 3)  ; x and y are in scope                 [5.3.3]
-    (+ x y))           ; returns 5, then x and y are dropped  [5.3.2]
+    (let x : u32 = 2)  ; x is in scope from here on            [5.3.3]
+    (let y : u32 = 3)  ; x and y are in scope                  [5.3.3]
+    (+ x y))           ; returns: 5, then x and y are dropped  [5.3.2]
 (do
     (print "one")
     (print "two"))  ; prints: one  [5.3.1]
@@ -2214,11 +2347,11 @@ Shape.Circle.name ; error: Shape.Circle is a variant, not a value               
 (do
     (+ 1 2)         ; warning: the i32 is discarded  [5.3.4]
     (print "done")  ; a discarded (), no warning     [5.3.4]
-    3)              ; returns 3
+    3)              ; returns: 3
 (do (let x : u32 = 1))
-    ; returns (), the value of the let; warning: the let's () is used;
+    ; returns: (), the value of the let; warning: the let's () is used;
     ; warning: x is never used  [5.3.2, 2.5.1.3, 4.1.10]
-(do)                    ; returns ()                        [5.3.5]
+(do)                    ; returns: ()                       [5.3.5]
 {do
     (let n : u32 = 10)
     {fn |x : u32 -> u32| (+ x n)}}  ; type: [u32 -> u32]; a function-valued block  [2.4.2.1]
@@ -2253,7 +2386,7 @@ Shape.Circle.name ; error: Shape.Circle is a variant, not a value               
                      -> u32           ; -> and the one output type
                              (+ x y)  ; the body: what the function computes and returns
 
-({fn |x : u32 y : u32 -> u32| (+ x y)} 2 3)  ; returns 5; a fn called directly         [5.4.1.1]
+({fn |x : u32 y : u32 -> u32| (+ x y)} 2 3)  ; returns: 5; a fn called directly        [5.4.1.1]
 {fn |-> Unit| ()}                            ; type: [-> Unit]                         [5.4.1.5]
 {fn |x : u32 -> u32| (+ x 1_u32)}            ; type: [u32 -> u32]                      [5.4.1.5]
 {fn |x : u32 -> string| x}                   ; error: the body is a u32, not a string  [5.4.1.3]
@@ -2261,13 +2394,13 @@ Shape.Circle.name ; error: Shape.Circle is a variant, not a value               
 {fn |x : u32 -> [u32 -> u32]| {fn |y : u32 -> u32| y}}  ; a body that is a function    [5.4.1.3]
 (define make_adder = {fn |x : u32 -> [u32 -> u32]|
     {fn |y : u32 -> u32| (+ x y)}})  ; the inner fn uses the outer x  [5.4.1.4]
-({make_adder 10} 5)  ; returns 15; x = 10 lives on in the inner fn  [5.4.1.4]
+({make_adder 10} 5)  ; returns: 15; x = 10 lives on in the inner fn  [5.4.1.4]
 (define inner_wins = {fn |x : u32 -> [u32 -> u32]|
     {fn |x : u32 -> u32| x}})  ; the inner x shadows the outer x  [5.4.1.6]
-({inner_wins 10} 5)  ; returns 5; the innermost x wins            [5.4.1.6]
+({inner_wins 10} 5)  ; returns: 5; the innermost x wins           [5.4.1.6]
 (do
     (let n : u32 = 1)
-    ({fn |n : u32 -> u32| (* n 2_u32)} 4))  ; returns 8; the parameter n shadows the let  [5.4.1.6]
+    ({fn |n : u32 -> u32| (* n 2_u32)} 4))  ; returns: 8; the parameter n shadows the let  [5.4.1.6]
 {fn |greeting : string -> string| greeting}
     ; warning: greeting hides a top-level name (4.1.8)  [5.4.1.6]
 {fn |x : u32 x : u32 -> u32| x}  ; error: two parameters are named x  [5.4.1.7]
@@ -2283,16 +2416,16 @@ Shape.Circle.name ; error: Shape.Circle is a variant, not a value               
 ;    sees its own parameter or a later one.
 
 (define adder_default = {fn |x : u32 y : u32 = 5 -> u32| (+ x y)})
-(adder_default 2)    ; returns 7; y defaults to 5  [5.4.2.1]
-(adder_default 2 3)  ; returns 5                   [5.4.2.1]
-(adder_default)      ; error: x has no default     [5.2.3]
+(adder_default 2)    ; returns: 7; y defaults to 5  [5.4.2.1]
+(adder_default 2 3)  ; returns: 5                   [5.4.2.1]
+(adder_default)      ; error: x has no default      [5.2.3]
 (define apply_or_inc = {fn |x : u32  f : [u32 -> u32] = {fn |y : u32 -> u32| (+ y 1_u32)} -> u32|
     (f x)})
-(apply_or_inc 1)                  ; returns 2, using the default f  [5.4.2.2]
-(apply_or_inc 1 {make_adder 10})  ; returns 11                      [5.4.2.2]
+(apply_or_inc 1)                  ; returns: 2, using the default f  [5.4.2.2]
+(apply_or_inc 1 {make_adder 10})  ; returns: 11                      [5.4.2.2]
 (define span = {fn |start : u32 stop : u32 = (+ start 10_u32) -> u32| (- stop start)})
-(span 5)    ; returns 10; stop defaults to 15, using start  [5.4.2.3]
-(span 5 7)  ; returns 2                                     [5.4.2.3]
+(span 5)    ; returns: 10; stop defaults to 15, using start  [5.4.2.3]
+(span 5 7)  ; returns: 2                                     [5.4.2.3]
 {fn |x : u32 = y y : u32 = 1 -> u32| x}  ; error: y is not visible yet  [5.4.2.3]
 {fn |x : u32 = x -> u32| x}              ; error: x is not visible in its own default  [5.4.2.3]
 
@@ -2321,7 +2454,7 @@ Shape.Circle.name ; error: Shape.Circle is a variant, not a value               
         (if (== n 0_u64)
             1
             (* n (fact (- n 1_u64))))})  ; fact is the fn itself  [5.4.3.1]
-    (factorial 5))                       ; returns 120            [5.4.3.2]
+    (factorial 5))                       ; returns: 120           [5.4.3.2]
 (do
     (let broken = {fn |n : u64 -> u64|
         (if (== n 0_u64) 1 (* n (broken (- n 1_u64))))})
@@ -2332,7 +2465,7 @@ Shape.Circle.name ; error: Shape.Circle is a variant, not a value               
 {fn n |n : u64 -> u64| n}  ; error: the fn's name n is also a parameter  [5.4.3.4]
 (do
     (let fact = {fn fact |n : u64 -> u64| (if (== n 0_u64) 1 (* n (fact (- n 1_u64))))})
-    (fact 5))  ; returns 120; inside the body, fact is the fn itself  [5.4.3.5]
+    (fact 5))  ; returns: 120; inside the body, fact is the fn itself  [5.4.3.5]
 (let make = {fn self |n : u64 -> [-> u64]|
     {fn |-> u64| ({self n})}})
     ; the inner fn captures self: it refers outward, so there is no cycle  [5.4.3.6]
@@ -2351,8 +2484,8 @@ Shape.Circle.name ; error: Shape.Circle is a variant, not a value               
 ;    no choice of brackets fixes it. A Never branch fits any T (3.2.4).
 ; 4. The braced form is used exactly when T is a function type (2.4.2).
 
-(if (== 5 2) 4 3)                        ; returns 3                                  [5.5.2]
-(if true "yes" "no")                     ; returns "yes"                              [5.5.2]
+(if (== 5 2) 4 3)                        ; returns: 3                                 [5.5.2]
+(if true "yes" "no")                     ; returns: "yes"                             [5.5.2]
 (if (> 3 2) (print "big") (print "small"))  ; prints: big, and only that              [5.5.2]
 (if 1 2 3)                               ; error: the condition must be a bool        [5.5.1]
 (if true 5 2.5)                          ; error: the branches are an i32 and an f64  [5.5.3]
@@ -2374,7 +2507,7 @@ Shape.Circle.name ; error: Shape.Circle is a variant, not a value               
 
 (let x : u32 = 5)
 (when (> x 3_u32) (print "x is big"))       ; prints: x is big                                  [5.6.1]
-(unless (> x 3_u32) (print "x is small"))   ; returns (), and prints nothing                    [5.6.2]
+(unless (> x 3_u32) (print "x is small"))   ; returns: (), and prints nothing                   [5.6.2]
 (when (> x 3_u32) 7)                        ; error: the body must be Unit, not an i32          [5.6.3]
 (when (> x 3_u32) (print "a") (print "b"))  ; error: when takes one body; wrap several in a do  [5.6.3]
 (when (> x 3_u32) (do
@@ -2408,10 +2541,10 @@ Shape.Circle.name ; error: Shape.Circle is a variant, not a value               
     (Weapon.Sword sword = sword)          => sword.legendary  ; binds sword      [5.7.1.3]
     (Weapon.Bow damage = d) if (> d 10.0) => true             ; a guard          [5.7.1.2]
     (Weapon.Bow damage = _)               => false            ; _ binds nothing  [5.7.1.6]
-    ^Weapon.Fist                          => false)           ; returns false    [5.7.1.1]
+    ^Weapon.Fist                          => false)           ; returns: false   [5.7.1.1]
 (match 3
     n if (> n 2) => "big"
-    n            => "small")  ; returns "big"; each n is a separate binding  [5.7.1.3]
+    n            => "small")  ; returns: "big"; each n is a separate binding  [5.7.1.3]
 (match weapon
     (Weapon.Bow damage = d) => d
     _                       => "none")  ; error: an f64 arm and a string arm  [5.7.1.5]
@@ -2420,7 +2553,7 @@ Shape.Circle.name ; error: Shape.Circle is a variant, not a value               
     _                       => false)  ; warning: d is never used  [5.7.1.6]
 (match weapon
     w if (== w Weapon.Fist) => "fist"
-    _                       => "armed")  ; returns "fist"; a guard is any <Value bool>  [5.7.1.4]
+    _                       => "armed")  ; returns: "fist"; a guard is any <Value bool>  [5.7.1.4]
 
 ;; 5.7.2 order and exhaustiveness
 ; 1. Arms are tried in order. The first arm that applies is chosen, and only
@@ -2434,7 +2567,7 @@ Shape.Circle.name ; error: Shape.Circle is a variant, not a value               
 (match 3
     n if (> n 1) => "more than one"
     3            => "three"
-    _            => "other")  ; returns "more than one": the first arm applies first  [5.7.2.1]
+    _            => "other")  ; returns: "more than one": the first arm applies first  [5.7.2.1]
 (match 5
     1 => "one"
     2 => "two")  ; error: no arm for the other i32 values  [5.7.2.2]
@@ -2469,12 +2602,12 @@ Shape.Circle.name ; error: Shape.Circle is a variant, not a value               
     1 => next
     2 => next
     3 => "small"
-    _ => "large")  ; returns "small": 2 shares the 3 arm's value  [5.7.3.1]
+    _ => "large")  ; returns: "small": 2 shares the 3 arm's value  [5.7.3.1]
 (match gunbow
     (Weapon.Bow damage = d) if (> d 10.0) => next
     (Weapon.Bow damage = d)               => (* d 2.0)
     _                                     => 0.0)
-    ; returns 10.0; both shared arms bind d : f64  [5.7.3.2]
+    ; returns: 10.0; both shared arms bind d : f64  [5.7.3.2]
 (match gunbow
     (Weapon.Bow damage = d) => next
     _                       => "other")
@@ -2513,11 +2646,11 @@ Shape.Circle.name ; error: Shape.Circle is a variant, not a value               
                                        ;         hello 3
                                        ;         loop terminated!
 (loop |n : u32 = 1 -> u32| (if (< n 9_u32) (recur n = (* n 2_u32)) n))
-    ; returns 16, the value of the pass where n is 16  [5.8.4]
+    ; returns: 16, the value of the pass where n is 16  [5.8.4]
 (loop |i : u32 = 0 total : u32 = 0 -> u32|
     (if (< i 4_u32)
         (recur i = (+ i 1_u32) total = (+ total i))
-        total))  ; returns 6, which is 0 + 1 + 2 + 3  [5.8.3]
+        total))  ; returns: 6, which is 0 + 1 + 2 + 3  [5.8.3]
 (loop |n : u32 -> u32| n)  ; error: n has no starting value      [5.8.1]
 (loop |n : u32 = 0| n)     ; error: the output type is required  [5.8.2]
 {loop |n : u32 = 0 -> [u32 -> u32]|
@@ -2525,7 +2658,7 @@ Shape.Circle.name ; error: Shape.Circle is a variant, not a value               
         {recur n = (+ n 1_u32)}
         {make_adder n}}}  ; type: [u32 -> u32]; adds 3  [5.8.5]
 (loop |i : u32 = 0 i : u32 = 1 -> u32| i)  ; error: two parameters are named i  [5.8.6]
-(loop |lo : u32 = 2 hi : u32 = (* lo 3_u32) -> u32| hi)  ; returns 6; hi's default uses lo  [5.8.6]
+(loop |lo : u32 = 2 hi : u32 = (* lo 3_u32) -> u32| hi)  ; returns: 6; hi's default uses lo  [5.8.6]
 
 ;;; 5.9 recur
 (recur <Binding>...) -> T
@@ -2549,32 +2682,32 @@ Shape.Circle.name ; error: Shape.Circle is a variant, not a value               
 (loop |i : u32 = 0 acc : u32 = 1 -> u32|
     (if (< i 5_u32)
         (recur i = (+ i 1_u32) acc = (* acc 2_u32))
-        acc))  ; returns 32  [5.9.2]
+        acc))  ; returns: 32  [5.9.2]
 (loop |i : u32 = 0 limit : u32 = 3 -> u32|
     (if (< i limit)
         (recur i = (+ i 1_u32))  ; limit is left out, so it stays 3  [5.9.2]
-        i))                      ; returns 3
+        i))                      ; returns: 3
 (define factorial_2 = {fn |n : u64 acc : u64 = 1 -> u64|
     (if (== n 0_u64)
         acc
         (recur n = (- n 1_u64) acc = (* acc n)))})  ; recur in a fn needs no name  [5.9.1]
-(factorial_2 5)  ; returns 120  [5.9.7]
+(factorial_2 5)  ; returns: 120  [5.9.7]
 (loop |i : u32 = 0 -> u32|
     (if (< i 2_u32)
         (recur i = (+ i 1_u32))         ; a new pass of the outer loop
         (loop |j : u32 = 10 -> u32|
             (if (< j 12_u32)
                 (recur j = (+ j 1_u32))  ; a new pass of the inner loop  [5.9.1]
-                (+ i j)))))              ; returns 14
+                (+ i j)))))              ; returns: 14
 (loop |n : u32 = 3 -> u32|
     (if (== n 0_u32)
         0
         (+ n (recur n = (- n 1_u32)))))
-    ; warning: recur is not in tail position; returns 6  [5.9.4, 5.9.6]
+    ; warning: recur is not in tail position; returns: 6  [5.9.4, 5.9.6]
 (loop |i : u32 = 0 -> u32|
     (match (> i 2_u32)
         true  => i
-        false => (recur i = (+ i 1_u32))))  ; returns 3; a match arm is a tail position  [5.9.5]
+        false => (recur i = (+ i 1_u32))))  ; returns: 3; a match arm is a tail position  [5.9.5]
 (loop |i : u32 = 0 -> u32| (if (< i 3_u32) (recur j = 1) i))  ; error: j is not a parameter  [5.9.3]
 (recur n = 1)  ; error: no loop or fn contains this recur                                [5.9.1]
 
@@ -2621,10 +2754,10 @@ _
 ; 1. _ matches any one value and binds nothing.
 
 (match 42
-    _ => "anything")  ; returns "anything"  [6.1.1]
+    _ => "anything")  ; returns: "anything"  [6.1.1]
 (match (list 1 2)
     (list _ _) => "two items"
-    _          => "other")  ; returns "two items"; each _ matches one element  [6.1.1]
+    _          => "other")  ; returns: "two items"; each _ matches one element  [6.1.1]
 
 ;;; 6.2 identifiers
 <Identifier>
@@ -2639,37 +2772,37 @@ _
 ;    be equal, bind them to different names and compare them in a guard.
 
 (match 4
-    n => (* n 2))  ; returns 8; n binds 4  [6.2.1]
+    n => (* n 2))  ; returns: 8; n binds 4  [6.2.1]
 (do
     (let target : i32 = 3)
     (match 5
         target => "hit"
         _      => "miss"))
-    ; returns "hit": target binds 5, shadowing the let;
+    ; returns: "hit": target binds 5, shadowing the let;
     ; warning: target is never used (5.7.1.6)  [6.2.1]
 (do
     (let target : i32 = 3)
     (match 5
         ^target => "hit"
-        _       => "miss"))  ; returns "miss": ^target compares with 3  [6.8.1]
+        _       => "miss"))  ; returns: "miss": ^target compares with 3  [6.8.1]
 (do
     (let target : i32 = 3)
     (match 5
-        n => (+ n target)))  ; returns 8: n binds, and target is the let  [6.2.1]
+        n => (+ n target)))  ; returns: 8: n binds, and target is the let  [6.2.1]
 (define LUCKY : i32 = 7)
 (match 7
     ^LUCKY => "lucky"
-    _      => "plain")  ; returns "lucky"; LUCKY is pinned, so it compares  [6.2.2]
+    _      => "plain")  ; returns: "lucky"; LUCKY is pinned, so it compares  [6.2.2]
 (match 7
     LUCKY => "lucky"
     _     => "plain")
-    ; returns "lucky"; warning: LUCKY is top-level, so it compares; write ^LUCKY  [6.2.2]
+    ; returns: "lucky"; warning: LUCKY is top-level, so it compares; write ^LUCKY  [6.2.2]
 (match (list 1 1)
     (list x x) => "same"
     _          => "different")  ; error: x is bound twice in one pattern  [6.2.3]
 (match (list 1 1)
     (list x y) if (== x y) => "same"
-    _                      => "different")  ; returns "same"  [6.2.3]
+    _                      => "different")  ; returns: "same"  [6.2.3]
 
 ;;; 6.3 literals
 <Literal>
@@ -2678,14 +2811,14 @@ _
 (match 'c'
     'a' => 1
     'c' => 3
-    _   => 0)  ; returns 3  [6.3.1]
+    _   => 0)  ; returns: 3  [6.3.1]
 (match "hi"
     "hi" => true
-    _    => false)  ; returns true  [6.3.1]
+    _    => false)  ; returns: true  [6.3.1]
 (match (Option.Some [i32] value = 0)
     (Option.Some value = 0) => "zero"
     (Option.Some value = _) => "other"
-    ^Option.None            => "none")  ; returns "zero"; a literal inside a pattern  [6.3.1]
+    ^Option.None            => "none")  ; returns: "zero"; a literal inside a pattern  [6.3.1]
 
 ;;; 6.4 constructor patterns
 (<Identifier> <Field Pattern>...)
@@ -2706,16 +2839,16 @@ _
 
 (match (Option.Some [i32] value = 3)
     (Option.Some value = v) => v
-    ^Option.None            => 0)  ; returns 3  [6.4.1]
+    ^Option.None            => 0)  ; returns: 3  [6.4.1]
 (match (Option.Some [Option i32] value = (Option.Some [i32] value = 3))
     (Option.Some value = (Option.Some value = x)) => x
     (Option.Some value = ^Option.None)            => 0
     ^Option.None                                  => -1)
-    ; returns 3; patterns nest  [6.4.1]
+    ; returns: 3; patterns nest  [6.4.1]
 (match (Person.Hacker person = (Hacker skill = "backdoors" salary = 1.0))
     (Person.Hacker person = (Hacker skill = s ..))     => s
     (Person.Employee person = (Employee name = n ..))  => n)
-    ; returns "backdoors"  [6.4.1]
+    ; returns: "backdoors"  [6.4.1]
 (match (Option.Some [i32] value = 3)
     (Some value = v) => v
     _                => 0)  ; error: write Option.Some  [6.4.2]
@@ -2724,12 +2857,12 @@ _
     _                   => 0)  ; error: the field value has no pattern  [6.4.3]
 (match jane
     (Employee name = n age = _ dept = _ salary = _) => n)
-    ; returns "jane"; every field is listed  [6.4.4]
+    ; returns: "jane"; every field is listed  [6.4.4]
 (match jane
-    (Employee name = n ..) => n)  ; returns "jane"; .. skips the other fields  [6.4.4]
+    (Employee name = n ..) => n)  ; returns: "jane"; .. skips the other fields  [6.4.4]
 (match jane
     (Employee dept = "unknown" ..) => "unassigned"
-    _                              => "assigned")  ; returns "unassigned"  [6.4.1]
+    _                              => "assigned")  ; returns: "unassigned"  [6.4.1]
 (match jane
     (Employee name = n) => n)  ; error: age, dept and salary are not listed  [6.4.4]
 (match jane
@@ -2738,7 +2871,7 @@ _
     (let nothing : [Option i32] = Option.None [i32])
     (match nothing
         ^Option.None            => "none"
-        (Option.Some value = _) => "some"))  ; returns "none"  [6.4.5]
+        (Option.Some value = _) => "some"))  ; returns: "none"  [6.4.5]
 
 ;;; 6.5 list patterns
 (list <Pattern>...)
@@ -2752,22 +2885,22 @@ _
 
 (let numbers : [List i32] = (list 1 2 3))
 (match numbers
-    (list 1 2 3)  => true    ; exactly 1, 2, 3                               [6.5.1]
-    (list 1 2 ..) => true    ; starts with 1, 2                              [6.5.2]
-    (list 1 .. 3) => false   ; starts with 1, ends with 3                    [6.5.2]
-    _             => false)  ; returns true; _ is needed for exhaustiveness  [5.7.2.2]
+    (list 1 2 3)  => true    ; exactly 1, 2, 3                                [6.5.1]
+    (list 1 2 ..) => true    ; starts with 1, 2                               [6.5.2]
+    (list 1 .. 3) => false   ; starts with 1, ends with 3                     [6.5.2]
+    _             => false)  ; returns: true; _ is needed for exhaustiveness  [5.7.2.2]
 (match (list 1 2 3 4 5)
     (list 1 .. 3 .. 5)     => true                 ; 1, any, 3, any, 5; 3 binds nothing    [6.5.3]
     (list a b .. e f)      => (> (+ a b) (+ e f))  ; binds the first two and the last two  [6.5.2]
     l @ (list 1 .. 3 .. 2) => (== l.2 5)           ; binds the whole list to l (6.7)
-    _                      => false)               ; returns true, from the first arm      [5.7.2.1]
+    _                      => false)               ; returns: true, from the first arm     [5.7.2.1]
 (match numbers
     (list)        => "empty"
     (list _)      => "one"
-    (list _ _ ..) => "two or more")  ; returns "two or more"; exhaustive with no final _  [6.5.1]
+    (list _ _ ..) => "two or more")  ; returns: "two or more"; exhaustive with no final _  [6.5.1]
 (match numbers
     (list 1 3) => "one, three"
-    _          => "other")  ; returns "other": without .., the length must match  [6.5.1]
+    _          => "other")  ; returns: "other": without .., the length must match  [6.5.1]
 (match numbers
     (list a .. b .. c) => b
     _                  => 0)
@@ -2800,13 +2933,13 @@ _
 (match t
     (Tree.Node left = (box ^Tree.Leaf) right = (box ^Tree.Leaf) ..) => "two leaves"
     _                                                               => "other")
-    ; returns "two leaves"; a box pattern inside a constructor pattern  [6.6.3]
+    ; returns: "two leaves"; a box pattern inside a constructor pattern  [6.6.3]
 (match leaf
     (box (Tree.Node value = v ..)) => v
-    (box ^Tree.Leaf)               => 0_u8)  ; returns 0; matching a [Box [Tree u8]]  [6.6.1]
+    (box ^Tree.Leaf)               => 0_u8)  ; returns: 0; matching a [Box [Tree u8]]  [6.6.1]
 (match (unbox leaf)
     ^Tree.Leaf     => "leaf"
-    (Tree.Node ..) => "node")  ; returns "leaf"; unbox first, then match  [6.6.6]
+    (Tree.Node ..) => "node")  ; returns: "leaf"; unbox first, then match  [6.6.6]
 (match t
     (Tree.Node left = ^Tree.Leaf ..) => "leaf on the left"
     _                                => "other")
@@ -2823,13 +2956,13 @@ _
 (match (Option.Some [i32] value = 4)
     whole @ (Option.Some value = v) if (> v 3) => whole
     _                                          => Option.None [i32])
-    ; returns (Option.Some [i32] value = 4)  [6.7.1]
+    ; returns: (Option.Some [i32] value = 4)  [6.7.1]
 (match (list 1 2 3)
     all @ (list 1 ..) => all.1
-    _                 => 0)  ; returns 2; all is the whole list  [6.7.1]
+    _                 => 0)  ; returns: 2; all is the whole list  [6.7.1]
 (match jane
     e @ (Employee age = a ..) if (> a 18_u32) => e.name
-    _                                         => "minor")  ; returns "jane"  [6.7.1]
+    _                                         => "minor")  ; returns: "jane"  [6.7.1]
 
 ;;; 6.8 pins
 <Pin>
@@ -2847,16 +2980,16 @@ _
 
 (match Weapon.Fist
     ^Weapon.Fist => "fist"
-    _            => "armed")  ; returns "fist"  [6.8.2]
+    _            => "armed")  ; returns: "fist"  [6.8.2]
 (match Weapon.Fist
     Weapon.Fist => "fist"
-    _           => "armed")  ; returns "fist"; warning: write ^Weapon.Fist  [6.4.5]
+    _           => "armed")  ; returns: "fist"; warning: write ^Weapon.Fist  [6.4.5]
 (do
     (let limit : i32 = 3)
     (match (Option.Some [i32] value = 3)
         (Option.Some value = ^limit) => "at the limit"
         _                            => "elsewhere"))
-    ; returns "at the limit"; a pin inside a constructor pattern  [6.8.1]
+    ; returns: "at the limit"; a pin inside a constructor pattern  [6.8.1]
 (match 5
     ^missing => 1
     _        => 0)  ; error: missing is not bound  [6.8.2]
@@ -2865,7 +2998,7 @@ _
     (match (list 1 2 3 4 5)
         (list 1 .. ^middle .. 5) => "has it"
         _                        => "lacks it"))
-    ; returns "has it"; a pin may sit between two ..  [6.8.3]
+    ; returns: "has it"; a pin may sit between two ..  [6.8.3]
 (match jane
     ^e @ (Employee ..) => e.name)  ; error: the name before @ always binds  [6.8.4]
 
@@ -2938,11 +3071,11 @@ _
 (Pair [u8] [string] first = 1 second = "one")  ; type: [Pair u8 string]; 1 is a u8 (5.1.1.2)  [7.2.3]
 (Pair first = 1 second = "one")          ; error: Pair needs its type arguments A and B      [7.2.3]
 (Pair [i32] first = 1 second = "one")    ; error: Pair takes two type arguments              [7.2.3]
-p.second                                 ; returns "one"                                     [7.2.1]
+p.second                                 ; returns: "one"                                    [7.2.1]
 (let q : [Pair i32] = p)                 ; error: Pair takes two type arguments              [7.2.2]
 (let none_yet = Option.None [string])    ; none_yet : [Option string]                        [7.2.3]
 (let not_yet : [Option string] = Option.None)  ; error: Option.None needs its type argument  [7.2.3]
-(Pair.first [i32] [string] p)            ; returns 1                                         [7.2.4]
+(Pair.first [i32] [string] p)            ; returns: 1                                        [7.2.4]
 Pair.first                               ; type: [[forall A B] [Pair A B] -> A]              [7.2.4]
 (Pair.first p)                           ; error: Pair.first needs its type arguments        [7.2.4]
 (enum [Either L R]
@@ -2999,16 +3132,16 @@ Pair.first                               ; type: [[forall A B] [Pair A B] -> A] 
         (Option.Some value = first) => first
         ^Option.None                => fallback)})
 first_or                                     ; type: [[forall T] [List T] T -> T]           [7.3.2]
-(first_or [i32] (list 4 5 6) 0)              ; returns 4; T is i32                          [7.3.3]
-(first_or [string] (list [string]) "none")   ; returns "none"; T is string                  [7.3.3]
+(first_or [i32] (list 4 5 6) 0)              ; returns: 4; T is i32                         [7.3.3]
+(first_or [string] (list [string]) "none")   ; returns: "none"; T is string                 [7.3.3]
 (first_or [i32] (list 1 2) "none")           ; error: fallback is an i32 here, not a string  [7.3.3]
-(first_or (list 4 5 6) 0)                    ; returns 4; T is i32, settled by the arguments  [7.3.3]
+(first_or (list 4 5 6) 0)                    ; returns: 4; T is i32, settled by the arguments  [7.3.3]
 {first_or [u32 -> u32] (list {make_adder 1}) {make_adder 2}}
     ; type: [u32 -> u32]; at this call T is a function, so { }  [2.4.2.2]
 (define apply = {fn [forall T U] |x : T f : [T -> U] -> U| (f x)})
-(apply [i32] [bool] 3 {fn |n : i32 -> bool| (> n 2)})  ; returns true; T is i32, U is bool  [7.3.3]
+(apply [i32] [bool] 3 {fn |n : i32 -> bool| (> n 2)})  ; returns: true; T is i32, U is bool  [7.3.3]
 (apply [Employee] [string] jane Employee.name)
-    ; returns "jane"; an accessor is a function (4.4.3)  [7.3.1]
+    ; returns: "jane"; an accessor is a function (4.4.3)  [7.3.1]
 (define pair_up = {fn [forall A B] |a : A b : B -> [Pair A B]| (Pair [A] [B] first = a second = b)})
 (pair_up [i32] [string] 1 "one")             ; type: [Pair i32 string]                      [7.3.1]
 (trait [Shape T] area : [T -> f64])
@@ -3082,10 +3215,10 @@ total_area                                   ; type: [[forall T with [Shape T]] 
 ;    both a type and a constructor
 
 (let numbers : [List i32] = (list 1 2 3))
-(first_or [i32] numbers 0)         ; returns 1                                [7.4.2]
-(first_or numbers 0)               ; returns 1; T is i32, settled by numbers  [7.4.4]
-first_or [i32]                     ; type: [[List i32] i32 -> i32]            [7.4.1]
-(let first_num = first_or [i32])   ; a generic function, passed as a value    [7.4.1]
+(first_or [i32] numbers 0)         ; returns: 1                                [7.4.2]
+(first_or numbers 0)               ; returns: 1; T is i32, settled by numbers  [7.4.4]
+first_or [i32]                     ; type: [[List i32] i32 -> i32]             [7.4.1]
+(let first_num = first_or [i32])   ; a generic function, passed as a value     [7.4.1]
 (let first_any = first_or)         ; error: nothing settles T; write first_or [T]  [7.4.8]
 (pair_up [i32] [string] 1 "one")   ; two type arguments, in forall order      [7.4.1]
 (pair_up 1 "one")                  ; type: [Pair i32 string]; A and B settled by the arguments  [7.4.4]
@@ -3095,21 +3228,21 @@ first_or [i32]                     ; type: [[List i32] i32 -> i32]            [7
 (pair_up [i32] [string] [bool] 1 "one")  ; error: pair_up takes two type arguments  [7.4.4]
 (pair_up [i32 string] 1 "one")
     ; error: [i32 string] reads as i32 applied to string; one type per [ ]  [7.4.3]
-(identity [Employee] jane)         ; returns jane; [Employee] is the type     [7.4.2]
+(identity [Employee] jane)         ; returns: jane; [Employee] is the type    [7.4.2]
 (identity Employee jane)
     ; error: identity takes one argument; here Employee is the constructor, a value  [7.4.2]
 {fn [forall T] |x : T -> T| x} [i32]
     ; error: type arguments follow a name; bind the fn first  [7.4.5]
 (match (Option.Some [i32] value = 3)
     (Option.Some value = v) => v
-    ^Option.None            => 0)  ; returns 3; the pattern takes no type arguments  [7.4.6]
+    ^Option.None            => 0)  ; returns: 3; the pattern takes no type arguments  [7.4.6]
 (let x : u32 = 7)
-(+ x x)                      ; returns 14; T is u32, settled by the arguments              [7.4.4]
+(+ x x)                      ; returns: 14; T is u32, settled by the arguments             [7.4.4]
 (+ x "b")                    ; error: T is u32 from x but string from "b"                  [7.4.9]
 (+ x 1)                      ; error: T is u32 from x but i32 from 1; write 1_u32          [7.4.10]
-(+ x 1_u32)                  ; returns 8                                                   [7.4.10]
-(+ [u32] x 1)                ; returns 8; [u32] makes the 1 a u32                          [7.4.10]
-(get (list 4 5) 1)           ; returns (Option.Some [i32] value = 5); the index is written as u32  [7.4.10]
+(+ x 1_u32)                  ; returns: 8                                                  [7.4.10]
+(+ [u32] x 1)                ; returns: 8; [u32] makes the 1 a u32                         [7.4.10]
+(get (list 4 5) 1)           ; returns: (Option.Some [i32] value = 5); the index is written as u32  [7.4.10]
 (let empty = (list [u8]))    ; empty : [List u8]                                           [7.4.8]
 (let none_yet : [List u8] = (list))
     ; error: nothing settles T; the annotation does not count; write (list [u8])  [7.4.7]
@@ -3118,7 +3251,7 @@ first_or [i32]                     ; type: [[List i32] i32 -> i32]            [7
 (define plus = +)            ; error: nothing settles T; write + [T]                       [7.4.8]
 (define add : [u32 u32 -> u32] = +)
     ; error: the annotation does not settle T; write + [u32]  [7.4.7]
-(as [i64] x)                 ; returns 7 as an i64; To is given, From is settled by x      [7.4.4]
+(as [i64] x)                 ; returns: 7 as an i64; To is given, From is settled by x     [7.4.4]
 (as [i64] [u32] x)           ; the same, with both given                                   [7.4.4]
 (as x)                       ; error: nothing settles To                                   [7.4.8]
 (parse [u32] "42")           ; T is given: the argument cannot settle it                   [7.4.8]
@@ -3250,7 +3383,7 @@ area                      ; type: [[forall T with [Shape T]] T -> f64]  [7.5.2.2
     type_name : [-> string])  ; type_name does not mention T, so every call gives it (7.5.3)  [7.5.2.5]
 (trait [VecAdd T]
     + : [T T -> T])       ; error: + is a built-in name  [7.5.2.6]
-(do (let area = 10.0) area)   ; returns 10.0; warning: area hides Shape's method  [7.5.2.7]
+(do (let area = 10.0) area)   ; returns: 10.0; warning: area hides Shape's method  [7.5.2.7]
 (trait [Grow T]
     grow : [T f64 = _ -> T])  ; the second parameter is optional; each impl gives its default  [7.5.2.8]
 (trait [Pad T]
@@ -3308,10 +3441,10 @@ area                      ; type: [[forall T with [Shape T]] T -> f64]  [7.5.2.2
     area = {fn |s : Square -> f64| (* s.side s.side)}
     double_area = {fn |s : Square -> f64| (* 2.0 (* s.side s.side))})
     ; replaces the trait's double_area, for Square only  [7.5.3.3]
-(area (Circle r = 1.0))            ; returns 3.14; T is Circle, so Circle's impl is used  [7.5.3.1]
-(double_area (Circle r = 1.0))     ; returns 6.28, from the trait's body                  [7.5.3.3]
-(double_area (Square side = 2.0))  ; returns 8.0, from Square's impl                      [7.5.3.3]
-(area 5.0)                         ; error: f64 has no Shape impl                         [7.5.4.5]
+(area (Circle r = 1.0))            ; returns: 3.14; T is Circle, so Circle's impl is used  [7.5.3.1]
+(double_area (Circle r = 1.0))     ; returns: 6.28, from the trait's body                  [7.5.3.3]
+(double_area (Square side = 2.0))  ; returns: 8.0, from Square's impl                      [7.5.3.3]
+(area 5.0)                         ; error: f64 has no Shape impl                          [7.5.4.5]
 (impl [Show Circle]
     show = {fn |c : Circle -> string| (`circle of radius ${r}` (to_string c.r))})
 (impl [forall T with [Show T]] [Show [List T]]
@@ -3322,7 +3455,7 @@ area                      ; type: [[forall T with [Shape T]] T -> f64]  [7.5.2.2
                 ^Option.None            => out))})
     ; a generic impl: a list can be shown when its items can  [7.5.3.5]
 (show (list (Circle r = 1.0) (Circle r = 2.0)))
-    ; returns the two circles' texts, joined; List's impl, then Circle's  [7.5.3.5]
+    ; returns: the two circles' texts, joined; List's impl, then Circle's  [7.5.3.5]
 (struct Dot |x : f64|)
 (impl [Shape Dot])                 ; error: the required method area has no entry  [7.5.3.3]
 (impl [Show Square]
@@ -3335,15 +3468,15 @@ area                      ; type: [[forall T with [Shape T]] T -> f64]  [7.5.2.2
 (impl [Grow Square]
     grow = {fn |s : Square by : f64 -> Square| (Square side = (+ s.side by))})
     ; error: Grow marks grow's second parameter optional; give it a default  [7.5.3.7]
-(grow (Circle r = 1.0))            ; returns (Circle r = 2.0); Circle's default  [7.5.2.9]
-(grow (Circle r = 1.0) 0.5)        ; returns (Circle r = 1.5)                    [7.5.2.9]
+(grow (Circle r = 1.0))            ; returns: (Circle r = 2.0); Circle's default  [7.5.2.9]
+(grow (Circle r = 1.0) 0.5)        ; returns: (Circle r = 1.5)                    [7.5.2.9]
 (impl [Named Circle]
     type_name = {fn |-> string| "Circle"})
-(type_name [Circle])               ; returns "Circle"; T is given, since no argument could settle it  [7.5.2.5]
+(type_name [Circle])               ; returns: "Circle"; T is given, since no argument could settle it  [7.5.2.5]
 (type_name)                        ; error: nothing settles T                    [7.5.2.5]
 (impl [Convert f64 Circle]
     convert = {fn |c : Circle -> f64| c.r})
-(convert [f64] (Circle r = 2.0))           ; returns 2.0; To is given, From is settled by the argument  [7.5.2.3]
+(convert [f64] (Circle r = 2.0))           ; returns: 2.0; To is given, From is settled by the argument  [7.5.2.3]
 (convert [f64] [Circle] (Circle r = 2.0))  ; the same, with both given                                 [7.5.2.3]
 (convert (Circle r = 2.0))                 ; error: nothing settles To                                 [7.5.2.3]
 (trait [Arity F]
@@ -3352,7 +3485,7 @@ area                      ; type: [[forall T with [Shape T]] T -> f64]  [7.5.2.2
     arity = {fn |_ : [A -> B] -> u32| 1})  ; every function of one parameter  [7.5.3.8]
 (impl [forall A B C] [Arity [A B -> C]]
     arity = {fn |_ : [A B -> C] -> u32| 2})  ; two parameters need an impl of their own  [7.5.3.8]
-(arity {fn |n : u8 -> u8| n})      ; returns 1                                   [7.5.3.8]
+(arity {fn |n : u8 -> u8| n})      ; returns: 1                                  [7.5.3.8]
 (impl [Arity [[forall T] T -> T]] ...)
     ; error: a generic function type cannot be implemented over  [7.5.3.9]
 ; with (mod geo), where geo exports a trait Solid with one method,
@@ -3361,7 +3494,7 @@ area                      ; type: [[forall T with [Shape T]] T -> f64]  [7.5.2.2
     volume = {fn |_ : Circle -> f64| 0.0})       ; the method is written bare  [7.5.3.2]
 (impl [geo::Solid Square]
     geo::volume = {fn |_ : Square -> f64| 0.0})  ; error: impl entries name methods bare  [7.5.3.2]
-(geo::volume (Circle r = 2.0))                   ; returns 0.0; qualified at the call  [7.5.2.7]
+(geo::volume (Circle r = 2.0))                   ; returns: 0.0; qualified at the call  [7.5.2.7]
 
 ;; 7.5.4 bounds
 [forall <Identifier> <Identifier>... with <Bound> <Bound>...]
@@ -3404,7 +3537,7 @@ area                      ; type: [[forall T with [Shape T]] T -> f64]  [7.5.2.2
 (define total_area = {fn [forall T with [Shape T]] |a : T b : T -> f64|
     (+ (area a) (area b))})                         ; area is covered by [Shape T]  [7.5.4.4]
 (total_area (Circle r = 1.0) (Circle r = 2.0))
-    ; returns 15.7; T is Circle, and [Shape Circle] is proved by Circle's impl  [7.5.4.5]
+    ; returns: 15.7; T is Circle, and [Shape Circle] is proved by Circle's impl  [7.5.4.5]
 (total_area 1.0 2.0)                                ; error: f64 has no Shape impl  [7.5.4.5]
 (total_area (Circle r = 1.0) (Square side = 1.0))
     ; error: T is Circle from the first argument but Square from the second  [7.4.9]
@@ -3747,11 +3880,11 @@ area                      ; type: [[forall T with [Shape T]] T -> f64]  [7.5.2.2
 (define join = + [string])     ; + as string concatenation                     [8.1.3]
 (define plus = +)              ; error: nothing settles T; write + [T]         [8.1.3]
 (define combine = {fn [forall T] |a : T b : T f : [T T -> T] -> T| (f a b)})
-(combine [i32] 2 3 + [i32])    ; returns 5; + [i32] is passed like any function  [8.1.1]
-(combine [string] "ab" "cd" + [string])  ; returns "abcd"                        [8.1.3]
-(combine [i32] 2 3 max [i32])  ; returns 3                                       [8.1.1]
+(combine [i32] 2 3 + [i32])    ; returns: 5; + [i32] is passed like any function  [8.1.1]
+(combine [string] "ab" "cd" + [string])  ; returns: "abcd"                        [8.1.3]
+(combine [i32] 2 3 max [i32])  ; returns: 3                                       [8.1.1]
 (define three = {fn |a : i32 b : i32 c : i32 -> [List i32]| (list a b c)})
-(three 1 2 3)                  ; returns (list 1 2 3); list wrapped in a fn      [8.1.4]
+(three 1 2 3)                  ; returns: (list 1 2 3); list wrapped in a fn     [8.1.4]
 (define bad_three : [i32 i32 i32 -> [List i32]] = list)
     ; error: list cannot be passed as a value  [8.1.4]
 (define say : [string -> Unit] = print)  ; error: print is a special form                     [8.1.2]
@@ -3761,7 +3894,7 @@ area                      ; type: [[forall T with [Shape T]] T -> f64]  [7.5.2.2
 ; hypothetical: Add is a prelude trait (8.2)
 (impl [Add Vec2]
     + = {fn |a : Vec2 b : Vec2 -> Vec2| (Vec2 x = (+ a.x b.x) y = (+ a.y b.y))})
-(+ (Vec2 x = 1.0 y = 2.0) (Vec2 x = 3.0 y = 4.0))  ; returns (Vec2 x = 4.0 y = 6.0)        [8.1.6]
+(+ (Vec2 x = 1.0 y = 2.0) (Vec2 x = 3.0 y = 4.0))  ; returns: (Vec2 x = 4.0 y = 6.0)       [8.1.6]
 
 ;;; 8.2 arithmetic
 (+ a b)        ; addition; numerical types and string
@@ -3799,36 +3932,36 @@ area                      ; type: [[forall T with [Shape T]] T -> f64]  [7.5.2.2
 ;    one Num trait, and whether min, max and clamp move to Ord (8.3.5), is
 ;    open (11.7.8). What overflow does is set for each impl (11.5.3).
 
-(+ 2 3)          ; returns 5                                            [8.2.1]
+(+ 2 3)          ; returns: 5                                           [8.2.1]
 (+ 2 "cd")       ; error: an i32 and a string                           [8.2.1]
 (let small : u8 = 1)
 (+ small 2.0)    ; error: a u8 and an f64; nothing converts implicitly  [8.2.1]
-(- 7 2)          ; returns 5                                            [8.2.1]
-(neg 5)          ; returns -5                                           [8.2.2]
+(- 7 2)          ; returns: 5                                           [8.2.1]
+(neg 5)          ; returns: -5                                          [8.2.2]
 (- 5)            ; error: - takes two arguments; write (neg 5)          [8.2.2]
 (neg 5_u32)      ; error: u32 has no Neg impl                           [8.2.2]
-(zero [u32])     ; returns 0, a u32                                     [8.2.6]
-(one [f64])      ; returns 1.0                                          [8.2.6]
+(zero [u32])     ; returns: 0, a u32                                    [8.2.6]
+(one [f64])      ; returns: 1.0                                         [8.2.6]
 (zero)           ; error: nothing settles T                             [8.2.6]
-(+ "ab" "cd")    ; returns "abcd"                                       [8.2.3]
-(/ 7.0 2.0)      ; returns 3.5                                          [8.2.4]
-(/ 7 2)          ; returns 3, an i32                                    [8.2.4]
-(* 2.5 2.0)      ; returns 5.0                                          [8.2.1]
-(% 7 3)          ; returns 1                                            [8.2.1]
-(pow 2 10)       ; returns 1024                                         [8.2.1]
-(abs -4)         ; returns 4                                            [8.2.1]
-(min 3 8)        ; returns 3                                            [8.2.1]
-(max 3 8)        ; returns 8                                            [8.2.1]
-(clamp 15 0 10)  ; returns 10                                           [8.2.5]
-(clamp -5 0 10)  ; returns 0                                            [8.2.5]
-(clamp 5 0 10)   ; returns 5                                            [8.2.5]
+(+ "ab" "cd")    ; returns: "abcd"                                      [8.2.3]
+(/ 7.0 2.0)      ; returns: 3.5                                         [8.2.4]
+(/ 7 2)          ; returns: 3, an i32                                   [8.2.4]
+(* 2.5 2.0)      ; returns: 5.0                                         [8.2.1]
+(% 7 3)          ; returns: 1                                           [8.2.1]
+(pow 2 10)       ; returns: 1024                                        [8.2.1]
+(abs -4)         ; returns: 4                                           [8.2.1]
+(min 3 8)        ; returns: 3                                           [8.2.1]
+(max 3 8)        ; returns: 8                                           [8.2.1]
+(clamp 15 0 10)  ; returns: 10                                          [8.2.5]
+(clamp -5 0 10)  ; returns: 0                                           [8.2.5]
+(clamp 5 0 10)   ; returns: 5                                           [8.2.5]
 ; hypothetical: Add and Zero are prelude traits (8.2.7)
 (define sum_of = {fn [forall T with [Add T] [Zero T]] |xs : [List T] -> T|
     (loop |i : u32 = 0 total : T = (zero [T]) -> T|
         (match (get xs i)
             (Option.Some value = x) => (recur i = (+ i 1_u32) total = (+ total x))
             ^Option.None            => total))})  ; the body's 0 is (zero [T])  [8.2.6]
-(sum_of (list 1.5 2.5))  ; returns 4.0; T is f64                        [8.2.6]
+(sum_of (list 1.5 2.5))  ; returns: 4.0; T is f64                       [8.2.6]
 ; hypothetical: Add is a prelude trait (8.2.7)
 {fn [forall T with [Add T]] |x : T -> T| (+ x 1)}
     ; error: T is T from x but i32 from 1; a literal is never a T (5.1.1.5)  [8.2.6]
@@ -3864,21 +3997,21 @@ area                      ; type: [[forall T with [Shape T]] T -> f64]  [7.5.2.2
 ;    - Map keys, sets and sorting will require Eq or Ord, so floats cannot
 ;      be used there without a wrapper type.
 
-(== 2 2)                            ; returns true                         [8.3.1]
+(== 2 2)                            ; returns: true                        [8.3.1]
 (== 2 "2")                          ; error: an i32 and a string           [8.3.1]
-(== "a" "b")                        ; returns false                        [8.3.2]
-(== Weapon.Fist Weapon.Fist)        ; returns true                         [8.3.2]
+(== "a" "b")                        ; returns: false                       [8.3.2]
+(== Weapon.Fist Weapon.Fist)        ; returns: true                        [8.3.2]
 (== {make_adder 1} {make_adder 1})  ; error: functions cannot be compared  [8.3.2]
 ; hypothetical: assumes (/ 0.0 0.0) is NaN (11.5.4)
 (let nan : f64 = (/ 0.0 0.0))
-(== nan nan)  ; returns false                      [8.3.3]
-(< 2 3)       ; returns true                       [8.3.4]
-(>= 3 3)      ; returns true                       [8.3.4]
-(<= 4 3)      ; returns false                      [8.3.4]
-(> 2.5 2.4)   ; returns true                       [8.3.4]
+(== nan nan)  ; returns: false                     [8.3.3]
+(< 2 3)       ; returns: true                      [8.3.4]
+(>= 3 3)      ; returns: true                      [8.3.4]
+(<= 4 3)      ; returns: false                     [8.3.4]
+(> 2.5 2.4)   ; returns: true                      [8.3.4]
 (< "a" "b")   ; error: < needs numerical operands  [8.3.4]
-(< nan 1.0)   ; returns false                      [8.3.3]
-(>= nan nan)  ; returns false                      [8.3.3]
+(< nan 1.0)   ; returns: false                     [8.3.3]
+(>= nan nan)  ; returns: false                     [8.3.3]
 
 ;;; 8.4 boolean logic
 (not a)    ; logical not
@@ -3891,13 +4024,13 @@ area                      ; type: [[forall T with [Shape T]] T -> f64]  [7.5.2.2
 ; 3. These are plain functions on bool, not trait methods (8.1.3), so they
 ;    are passed as values without type arguments.
 
-(not true)                    ; returns false                                              [8.4.1]
-(and true false)              ; returns false                                              [8.4.1]
-(or true false)               ; returns true                                               [8.4.1]
-(xor true true)               ; returns false                                              [8.4.1]
+(not true)                    ; returns: false                                             [8.4.1]
+(and true false)              ; returns: false                                             [8.4.1]
+(or true false)               ; returns: true                                              [8.4.1]
+(xor true true)               ; returns: false                                             [8.4.1]
 (and 1 0)                     ; error: the operands must be bools                          [8.4.1]
 (define both = and)           ; both : [bool bool -> bool]; no type arguments are needed   [8.4.3]
-(or true (do (print "evaluated") false))  ; prints: evaluated; returns true                [8.4.2]
+(or true (do (print "evaluated") false))  ; prints: evaluated; returns: true               [8.4.2]
 (let numbers : [List i32] = (list 1 2 3))
 (and false (== numbers.9 1))  ; panics: index out of range; the second operand still runs  [8.4.2]
 
@@ -3918,14 +4051,14 @@ area                      ; type: [[forall T with [Shape T]] T -> f64]  [7.5.2.2
 ;    default 1 (7.5.2.8). Which types implement it is the question of
 ;    rule 1 (11.3.2).
 
-(let b : u8 = 12)  ; binary 00001100               [8.5.1]
-(bit_and b 10_u8)  ; returns 8, binary 00001000    [8.5.1]
-(bit_or b 10_u8)   ; returns 14, binary 00001110   [8.5.1]
-(bit_xor b 10_u8)  ; returns 6, binary 00000110    [8.5.1]
-(bit_not b)        ; returns 243, binary 11110011  [8.5.1]
-(shl b 2)          ; returns 48; the 2 is a u32    [8.5.2]
-(shr b 2)          ; returns 3                     [8.5.1]
-(shl b)            ; returns 24                    [8.5.2]
+(let b : u8 = 12)  ; binary 00001100                [8.5.1]
+(bit_and b 10_u8)  ; returns: 8, binary 00001000    [8.5.1]
+(bit_or b 10_u8)   ; returns: 14, binary 00001110   [8.5.1]
+(bit_xor b 10_u8)  ; returns: 6, binary 00000110    [8.5.1]
+(bit_not b)        ; returns: 243, binary 11110011  [8.5.1]
+(shl b 2)          ; returns: 48; the 2 is a u32    [8.5.2]
+(shr b 2)          ; returns: 3                     [8.5.1]
+(shl b)            ; returns: 24                    [8.5.2]
 
 ;;; 8.6 casting and conversion
 (as [<Type>] a)      ; widening
@@ -3968,38 +4101,38 @@ area                      ; type: [[forall T with [Shape T]] T -> f64]  [7.5.2.2
 (let n : u32 = 7)
 (let m : u64 = n)                 ; error: nothing converts implicitly; write (as [u64] n)       [8.6.1]
 (as u64 n)                        ; error: u64 is a type, not a value; write [u64]               [8.6.1]
-(as [i64] 5)                      ; returns 5 as an i64; i64 is wider than i32                   [8.6.2]
+(as [i64] 5)                      ; returns: 5 as an i64; i64 is wider than i32                  [8.6.2]
 (as [u8] 5)                       ; error: u8 is not wider than i32                              [8.6.2]
-(try_as [u8] 200)                 ; returns (Option.Some [u8] value = 200)                       [8.6.3]
-(try_as [u8] 300)                 ; returns Option.None [u8]: 300 does not fit in a u8           [8.6.3]
-(as [u32] 'A')                    ; returns 65, the code point of A                              [8.6.2]
-(try_as [char] 65_u32)            ; returns (Option.Some [char] value = 'A')                     [8.6.3]
-(try_as [char] 0xD800_u32)        ; returns Option.None [char]: a surrogate is not a char        [8.6.3]
-(as [i128] 5)                     ; returns 5 as an i128                                         [8.6.2]
-(as [ibig] 7_u64)                 ; returns 7 as an ibig; ibig holds every integer               [8.6.2]
-(as [f256] 2.5)                   ; returns 2.5 as an f256                                       [8.6.2]
+(try_as [u8] 200)                 ; returns: (Option.Some [u8] value = 200)                      [8.6.3]
+(try_as [u8] 300)                 ; returns: Option.None [u8]: 300 does not fit in a u8          [8.6.3]
+(as [u32] 'A')                    ; returns: 65, the code point of A                             [8.6.2]
+(try_as [char] 65_u32)            ; returns: (Option.Some [char] value = 'A')                    [8.6.3]
+(try_as [char] 0xD800_u32)        ; returns: Option.None [char]: a surrogate is not a char       [8.6.3]
+(as [i128] 5)                     ; returns: 5 as an i128                                        [8.6.2]
+(as [ibig] 7_u64)                 ; returns: 7 as an ibig; ibig holds every integer              [8.6.2]
+(as [f256] 2.5)                   ; returns: 2.5 as an f256                                      [8.6.2]
 (as [u64] 7_ubig)                 ; error: u64 is not wider than ubig; use try_as                [8.6.2]
-(as [usize] 7_u32)                ; returns 7 as a usize; a usize has at least 32 bits           [8.6.2]
-(as [u64] 7_usize)                ; returns 7 as a u64; a usize has at most 64 bits              [8.6.2]
+(as [usize] 7_u32)                ; returns: 7 as a usize; a usize has at least 32 bits          [8.6.2]
+(as [u64] 7_usize)                ; returns: 7 as a u64; a usize has at most 64 bits             [8.6.2]
 (as [usize] 7_u64)                ; error: a usize may have only 32 bits; use try_as             [8.6.2]
 (as [isize] 7_usize)              ; error: isize is not in the u family; use try_as (11.7.3)     [8.6.2]
-(try_as [u64] (pow [ubig] 2 64))  ; returns Option.None [u64]: 2^64 does not fit          [8.6.3]
-(try_as [usize] 5000000000_u64)   ; returns Option.None [usize] on a 32-bit target only   [8.6.3]
-(wrap [u8] 300)                   ; returns 44, which is 300 - 256                               [8.6.4]
-(wrap [u64] (pow [ubig] 2 64))    ; returns 0                                             [8.6.4]
+(try_as [u64] (pow [ubig] 2 64))  ; returns: Option.None [u64]: 2^64 does not fit         [8.6.3]
+(try_as [usize] 5000000000_u64)   ; returns: Option.None [usize] on a 32-bit target only  [8.6.3]
+(wrap [u8] 300)                   ; returns: 44, which is 300 - 256                              [8.6.4]
+(wrap [u64] (pow [ubig] 2 64))    ; returns: 0                                            [8.6.4]
 (wrap [ubig] -5)                  ; error: ubig has no size to wrap at                           [8.6.4]
-(wrap [usize] -1)                 ; returns 2^32 - 1 or 2^64 - 1, by the target's width          [8.6.4]
-(parse [u32] "42")                ; returns (Result.Ok [u32] [ParseError] value = 42)            [8.6.5]
-(parse [u32] "forty-two")         ; returns a Result.Error holding a ParseError                  [8.6.5]
-(to_string 42)                    ; returns "42"                                                 [8.6.6]
-(to_string excalibur)             ; returns excalibur as text; the format is open (11.7.4)       [8.6.6]
-(as [i64] [u32] n)                ; returns 7 as an i64; both type arguments given               [8.6.1]
+(wrap [usize] -1)                 ; returns: 2^32 - 1 or 2^64 - 1, by the target's width         [8.6.4]
+(parse [u32] "42")                ; returns: (Result.Ok [u32] [ParseError] value = 42)           [8.6.5]
+(parse [u32] "forty-two")         ; returns: a Result.Error holding a ParseError                 [8.6.5]
+(to_string 42)                    ; returns: "42"                                                [8.6.6]
+(to_string excalibur)             ; returns: excalibur as text; the format is open (11.7.4)      [8.6.6]
+(as [i64] [u32] n)                ; returns: 7 as an i64; both type arguments given              [8.6.1]
 (as n)                            ; error: nothing settles To                                    [8.6.1]
-(as [u32] n)                      ; returns 7; the identity impl [Widen u32 u32]                 [8.6.7]
+(as [u32] n)                      ; returns: 7; the identity impl [Widen u32 u32]                [8.6.7]
 ; hypothetical: Multiply and Widen are prelude traits (8.2.7, 8.6.8)
 (define tenfold = {fn [forall T with [Multiply T] [Widen T u8]] |x : T -> T|
     (* x (as [T] 10_u8))})        ; a constant in a generic body                                 [8.6.7]
-(tenfold 7_u8)                    ; returns 70; T is u8, through the identity impl               [8.6.7]
+(tenfold 7_u8)                    ; returns: 70; T is u8, through the identity impl              [8.6.7]
 (tenfold 7_i8)                    ; error: i8 has no [Widen i8 u8] impl                          [8.6.7]
 
 ;;; 8.7 lists
@@ -4035,13 +4168,13 @@ area                      ; type: [[forall T with [Shape T]] T -> f64]  [7.5.2.2
 ;    there, so an unsuffixed literal index is a u32 (5.1.1.2).
 
 (let numbers : [List i32] = (list 1 2 3))
-(get numbers 1)              ; returns (Option.Some [i32] value = 2)        [8.7.2.1]
-(get numbers 5)              ; returns Option.None [i32]: 5 is out of range  [8.7.2.1]
-(get numbers (+ [u32] 1 1))  ; returns (Option.Some [i32] value = 3)        [8.7.2.2]
+(get numbers 1)              ; returns: (Option.Some [i32] value = 2)       [8.7.2.1]
+(get numbers 5)              ; returns: Option.None [i32]: 5 is out of range  [8.7.2.1]
+(get numbers (+ [u32] 1 1))  ; returns: (Option.Some [i32] value = 3)       [8.7.2.2]
 (get numbers (+ 1 1))        ; error: (+ 1 1) is an i32, not a u32           [8.7.2.2]
 get                          ; type: [[forall T] [List T] u32 -> [Option T]]  [8.7.2.2]
 ; hypothetical: len is not defined yet (11.7.5)
-(len numbers)  ; returns 3
+(len numbers)  ; returns: 3
 
 ;;; 8.8 boxes
 (box <Value T>) -> [Box T]
@@ -4070,12 +4203,12 @@ get                          ; type: [[forall T] [List T] u32 -> [Option T]]  [8
 ; What to_string and debug show for a box is open (11.7.13).
 
 (let b = (box 5_u8))         ; b : [Box u8]                                     [8.8.1]
-(unbox b)                    ; returns 5                                        [8.8.2]
+(unbox b)                    ; returns: 5                                       [8.8.2]
 (box [u64] 5)                ; type: [Box u64]; [u64] makes the 5 a u64         [8.8.3]
 (+ b 1_u8)                   ; error: T is [Box u8] from b but u8 from 1_u8     [8.8.2]
-(+ (unbox b) 1_u8)           ; returns 6                                        [8.8.2]
+(+ (unbox b) 1_u8)           ; returns: 6                                       [8.8.2]
 (let c = b)                  ; c and b share one allocation, unobservably       [8.8.5]
-(== b (box 5_u8))            ; returns true: the contents are equal             [8.8.6]
+(== b (box 5_u8))            ; returns: true: the contents are equal            [8.8.6]
 (let leaf = (box Tree.Leaf [u8]))  ; with Tree from 3.7; leaf : [Box [Tree u8]]  [8.8.1]
 
 ;;; 8.9 output and failure
@@ -4100,7 +4233,7 @@ get                          ; type: [[forall T] [List T] u32 -> [Option T]]  [8
 (print (to_string 42))          ; prints: 42                            [8.9.1]
 (panic)                         ; panics: panic                         [8.9.2]
 (panic "out of fuel")           ; panics: out of fuel                   [8.9.2]
-(assert (== 1 1))               ; returns ()                            [8.9.3]
+(assert (== 1 1))               ; returns: ()                           [8.9.3]
 (assert (== 1 2))               ; panics: assertion failed              [8.9.3]
 (assert (== 1 2) "math broke")  ; panics: math broke                    [8.9.3]
 (debug excalibur)               ; prints excalibur in a debugging form  [8.9.4]
@@ -4241,7 +4374,7 @@ get                          ; type: [[forall T] [List T] u32 -> [Option T]]  [8
 (define f = circle)                    ; error: an alias is not a value           [9.4.7]
 (circle::area)                         ; error: area needs its argument c         [9.4.6]
 (define circle = 1.0)                  ; error: circle is already an alias       [9.4.9]
-(do (let circle = 1.0) circle)         ; returns 1.0; warning: circle is also an alias  [9.4.9]
+(do (let circle = 1.0) circle)         ; returns: 1.0; warning: circle is also an alias  [9.4.9]
 
 ;;; 9.5 visibility of modules
 ; 1. A module whose path contains the segment internal can only be imported
@@ -4334,10 +4467,10 @@ get                          ; type: [[forall T] [List T] u32 -> [Option T]]  [8
     ; allowed: a private trait for an exported type; the impl is usable only here  [9.6.7]
 ; in src/main.tsc:
 (mod geometry::shapes::circle)
-(circle::area (circle::Circle r = 2.0))  ; returns 12.56                [9.6.3]
+(circle::area (circle::Circle r = 2.0))  ; returns: 12.56               [9.6.3]
 circle::Shape.Round                      ; type: circle::Shape          [9.6.3]
 (circle::helper 1.0)                     ; error: helper is not exported  [9.6.4]
-(circle::bend (circle::Circle r = 2.0))  ; returns 0.5; Circle's impl comes with the trait and the type  [9.6.7]
+(circle::bend (circle::Circle r = 2.0))  ; returns: 0.5; Circle's impl comes with the trait and the type  [9.6.7]
 (circle::reveal (circle::Circle r = 2.0))  ; error: reveal is not exported  [9.6.4]
 
 ;;; 9.7 sugar
@@ -4348,6 +4481,52 @@ circle::Shape.Round                      ; type: circle::Shape          [9.6.3]
 (for |i : u32 = 0| (< i 1_u32) (recur i = (+ i 1_u32)) (print "once"))
     ; built-in sugar for a loop (5.10.2); prints: once  [9.7.1]
 
+;;; 9.8 tests
+; 1. tsc test runs every doc example in the project (4.6.9). tsc test
+;    followed by one or more paths runs only the examples those paths
+;    name. Each path is written as in 9.4, and names one of these:
+;    a. A directory: every module under it.
+;    b. A module (9.3.2): every doc in it, its module doc included.
+;    c. A module, then :: and a top-level name in it: the doc of that
+;       define, struct, enum or trait, with the in-place docs of its
+;       fields, variants and methods. A trait's method is a top-level name
+;       too (7.5.2.1), and names only its own doc.
+;    A path that names none of these is an error. An impl has no name, so
+;    its doc runs only under the path of its module or a directory above.
+;    why?: paths are already how a program names modules and their items,
+;    so one item's examples can run without the rest of its module
+; 2. A path is never ambiguous. A segment after a directory is a module or
+;    a directory, and the two never share a name (9.3.3). A segment after a
+;    module is a top-level name, since a module is a file and holds no
+;    modules.
+; 3. A build compiles the examples and checks what compiling can, but never
+;    runs them (4.6.9.10). Only tsc test runs them.
+; 4. Each example runs on its own, as a separate program. A panic stops only
+;    the example it is in, and the run goes on with the next one.
+; 5. A failing example is reported at its failing line, with the outcome
+;    that actually happened: the value, the output, or the panic. The
+;    failing line is the one whose returns:, prints: or panics: was wrong,
+;    or, for a panic that no panics: states, the line of the item that
+;    panicked. The run ends with the number of examples that passed and the
+;    number that failed.
+; 6. When any example fails, tsc test exits with a failure code. Exit codes
+;    are open (11.8.2).
+
+; with src/geometry/shapes.tsc and src/geometry/solids/cube.tsc:
+; tsc test                                 every example in the project   [9.8.1]
+; tsc test geometry                        a directory: both modules      [9.8.1]
+; tsc test geometry::shapes                every doc in shapes.tsc        [9.8.1]
+; tsc test geometry::shapes::area          only area's doc                [9.8.1]
+; tsc test geometry::shapes::area geometry::solids
+;                                          area's doc, then all of cube   [9.8.1]
+; tsc test geometry::shapes::volume        error: shapes has no volume    [9.8.1]
+; tsc test geometry::shapes::Square.side   error: a field has no path     [9.8.1]
+
+; tsc test on a project whose only doc is double's, from 4.6.9:
+;   src/numbers.tsc:5: returns: 9, but the value was 8
+;   0 passed, 1 failed
+; the wording of a report is open (11.1.2)  [9.8.5]
+
 ;;;; 10 example programs
 ; Each entry is one complete program. Tags point at the rules each part
 ; relies on.
@@ -4357,10 +4536,10 @@ circle::Shape.Round                      ; type: circle::Shape          [9.6.3]
 ;: param n: the number to name
 ;: returns: "FizzBuzz" when n is a multiple of 15, "Fizz" when it is a
 ;: multiple of 3, "Buzz" when it is a multiple of 5, and n as text otherwise
-;: example:
-;:   (fizzbuzz 9)  ; returns "Fizz"
-;: example:
-;:   (fizzbuzz 7)  ; returns "7"
+;: example main:
+;:   (fizzbuzz 9)  ; returns: "Fizz"
+;: example main:
+;:   (fizzbuzz 7)  ; returns: "7"
 (define fizzbuzz = {fn |n : u32 -> string|
     (match n
         k if (== (% k 15_u32) 0_u32) => "FizzBuzz"        ; k is not bound yet, so it binds n      [6.2.1]
@@ -4369,8 +4548,22 @@ circle::Shape.Round                      ; type: circle::Shape          [9.6.3]
         k                            => (to_string k))})  ; the unguarded arm makes it exhaustive  [5.7.2.3]
 ;: Prints fizzbuzz for 1 to 15.
 ;: returns: ()
-;: example:
-;:   (main)  ; prints: 1, 2, Fizz and so on to FizzBuzz, one per line
+;: example main:
+;:   (main)  ; prints: 1
+;:           ;       : 2
+;:           ;       : Fizz
+;:           ;       : 4
+;:           ;       : Buzz
+;:           ;       : Fizz
+;:           ;       : 7
+;:           ;       : 8
+;:           ;       : Fizz
+;:           ;       : Buzz
+;:           ;       : 11
+;:           ;       : Fizz
+;:           ;       : 13
+;:           ;       : 14
+;:           ;       : FizzBuzz
 (define main = {fn |-> Unit|
     (for |i : u32 = 1| (<= i 15_u32) (recur i = (+ i 1_u32))
         (print (fizzbuzz i)))})  ; fizzbuzz is defined above, but could be below  [4.1.2]
@@ -4381,8 +4574,8 @@ circle::Shape.Round                      ; type: circle::Shape          [9.6.3]
 ;: Returns the sum of a list of numbers.
 ;: param xs: the numbers to add
 ;: returns: the total of xs, or 0 when xs is empty
-;: example:
-;:   (sum (list 3 4 5))  ; returns 12
+;: example main:
+;:   (sum (list 3 4 5))  ; returns: 12
 (define sum = {fn |xs : [List i32] -> i32|
     (loop |i : u32 = 0 total : i32 = 0 -> i32|
         (match (get xs i)
@@ -4392,8 +4585,9 @@ circle::Shape.Round                      ; type: circle::Shape          [9.6.3]
             ^Option.None            => total))})  ; past the end of xs           [8.7.2.1]
 ;: Prints the sums of two lists.
 ;: returns: ()
-;: example:
-;:   (main)  ; prints: 12, then 0, one per line
+;: example main:
+;:   (main)  ; prints: 12
+;:           ;       : 0
 (define main = {fn |-> Unit| (do
     (print (to_string (sum (list 3 4 5))))     ; prints: 12
     (print (to_string (sum (list [i32])))))})  ; prints: 0; an empty list needs [i32]  [8.7.1.3]
@@ -4420,8 +4614,8 @@ circle::Shape.Round                      ; type: circle::Shape          [9.6.3]
 ;: Returns the area of a shape.
 ;: param shape: the shape to measure
 ;: returns: the number of grid squares the shape covers, or 0 for a dot
-;: example:
-;:   (area (Shape.Rect width = 2 height = 3 corner = (Point x = 0 y = 0)))  ; returns 6
+;: example main:
+;:   (area (Shape.Rect width = 2 height = 3 corner = (Point x = 0 y = 0)))  ; returns: 6
 (define area = {fn |shape : Shape -> i32|
     (match shape
         (Shape.Square side = s ..)           => (* s s)  ; .. skips corner               [6.4.4]
@@ -4430,8 +4624,8 @@ circle::Shape.Round                      ; type: circle::Shape          [9.6.3]
 ;: Returns the name of a shape's variant.
 ;: param shape: the shape to name
 ;: returns: "square", "rect" or "dot"
-;: example:
-;:   (name_of (Shape.Dot at = (Point x = 0 y = 0)))  ; returns "dot"
+;: example main:
+;:   (name_of (Shape.Dot at = (Point x = 0 y = 0)))  ; returns: "dot"
 (define name_of = {fn |shape : Shape -> string|
     (match shape
         (Shape.Square ..) => "square"
@@ -4440,16 +4634,18 @@ circle::Shape.Round                      ; type: circle::Shape          [9.6.3]
 ;: Returns a phrase that describes a shape.
 ;: param shape: the shape to describe
 ;: returns: the shape's name and area, as in "rect with area 6"
-;: example:
-;:   (describe (Shape.Dot at = (Point x = 0 y = 0)))  ; returns "dot with area 0"
+;: example main:
+;:   (describe (Shape.Dot at = (Point x = 0 y = 0)))  ; returns: "dot with area 0"
 (define describe = {fn |shape : Shape -> string|
     (`${kind} with area ${size}`
         (name_of shape)
         (to_string (area shape)))})  ; kind first, then size  [5.1.2.1]
 ;: Prints a description of three shapes.
 ;: returns: ()
-;: example:
-;:   (main)  ; prints: rect with area 6, square with area 16, dot with area 0, one per line
+;: example main:
+;:   (main)  ; prints: rect with area 6
+;:           ;       : square with area 16
+;:           ;       : dot with area 0
 (define main = {fn |-> Unit| (do
     (let origin : Point = (Point x = 0 y = 0))
     (let corner : Point = (Point ..origin x = 5))  ; y is copied from origin  [4.4.4.2]
@@ -4465,10 +4661,10 @@ circle::Shape.Round                      ; type: circle::Shape          [9.6.3]
 ;: returns: the age, as an Ok
 ;: errors: when text is not a number, the error is "not a number: " and the
 ;: text; when the number is over 150, it is "too old"
-;: example:
-;:   (parse_age "42")   ; returns (Result.Ok [u32] [string] value = 42)
-;: example:
-;:   (parse_age "200")  ; returns (Result.Error [u32] [string] error = "too old")
+;: example main:
+;:   (parse_age "42")   ; returns: (Result.Ok [u32] [string] value = 42)
+;: example main:
+;:   (parse_age "200")  ; returns: (Result.Error [u32] [string] error = "too old")
 (define parse_age = {fn |text : string -> [Result u32 string]|
     (match (parse [u32] text)
         (Result.Ok value = n) if (> n 150_u32) => (Result.Error [u32] [string] error = "too old")
@@ -4481,16 +4677,18 @@ circle::Shape.Round                      ; type: circle::Shape          [9.6.3]
 ;: Returns a line that reports the age read from text.
 ;: param text: the text to read
 ;: returns: "age " and the age, or "error: " and why no age was read
-;: example:
-;:   (report "abc")  ; returns "error: not a number: abc"
+;: example main:
+;:   (report "abc")  ; returns: "error: not a number: abc"
 (define report = {fn |text : string -> string|
     (match (parse_age text)
         (Result.Ok value = n)    => (`age ${n}` (to_string n))
         (Result.Error error = e) => (`error: ${e}` e))})
 ;: Prints the reports for three texts.
 ;: returns: ()
-;: example:
-;:   (main)  ; prints: age 42, error: too old, error: not a number: abc, one per line
+;: example main:
+;:   (main)  ; prints: age 42
+;:           ;       : error: too old
+;:           ;       : error: not a number: abc
 (define main = {fn |-> Unit| (do
     (print (report "42"))      ; prints: age 42
     (print (report "200"))     ; prints: error: too old
@@ -4500,8 +4698,8 @@ circle::Shape.Round                      ; type: circle::Shape          [9.6.3]
 ;: Returns a function that adds a fixed number.
 ;: param x: the number the new function adds
 ;: returns: a function that returns its input plus x
-;: example:
-;:   ({make_adder 10} 5)  ; returns 15
+;: example main:
+;:   ({make_adder 10} 5)  ; returns: 15
 (define make_adder = {fn |x : u32 -> [u32 -> u32]| {fn |y : u32 -> u32| (+ x y)}})
 ;: Returns a function that applies one function, then another.
 ;: type A: the type f takes
@@ -4511,8 +4709,8 @@ circle::Shape.Round                      ; type: circle::Shape          [9.6.3]
 ;: param g: the function applied to f's result
 ;: returns: a function that passes its input to f, then f's result to g
 ;: panics: when f or g panics
-;: example:
-;:   ({compose [u32] [u32] [u32] {make_adder 1} {make_adder 2}} 0)  ; returns 3
+;: example main:
+;:   ({compose [u32] [u32] [u32] {make_adder 1} {make_adder 2}} 0)  ; returns: 3
 (define compose = {fn [forall A B C] |f : [A -> B] g : [B -> C] -> [A -> C]|
     {fn |x : A -> C| (g (f x))}})  ; ( ) twice: B and C are type parameters  [7.3.4]
 ;: Combines the items of a list into one value, from first to last.
@@ -4524,8 +4722,8 @@ circle::Shape.Round                      ; type: circle::Shape          [9.6.3]
 ;: returns: init, after step has combined it with every item of xs in turn;
 ;: init itself when xs is empty
 ;: panics: when step panics
-;: example:
-;:   (fold [i32] [i32] (list 1 2 3) 0 + [i32])  ; returns 6
+;: example main:
+;:   (fold [i32] [i32] (list 1 2 3) 0 + [i32])  ; returns: 6
 (define fold = {fn [forall T U] |xs : [List T] init : U step : [U T -> U] -> U|
     (loop |i : u32 = 0 acc : U = init -> U|
         (match (get xs i)
@@ -4533,8 +4731,12 @@ circle::Shape.Round                      ; type: circle::Shape          [9.6.3]
             ^Option.None            => acc))})
 ;: Prints the results of four folds and one composed function.
 ;: returns: ()
-;: example:
-;:   (main)  ; prints: 10, 24, 4, abc, 12, one per line
+;: example main:
+;:   (main)  ; prints: 10
+;:           ;       : 24
+;:           ;       : 4
+;:           ;       : abc
+;:           ;       : 12
 (define main = {fn |-> Unit| (do
     (let numbers : [List i32] = (list 1 2 3 4))
     (print (to_string (fold [i32] [i32] numbers 0 + [i32])))    ; prints: 10               [7.4.2]
@@ -4556,10 +4758,24 @@ circle::Shape.Round                      ; type: circle::Shape          [9.6.3]
 ;    (4.6.12). Doc text is plain, and backticks around a name make a
 ;    checked reference (4.6.2.17). A let-bound fn takes no doc, and a fn
 ;    passed as an argument is covered by its param entry (4.6.1.7,
-;    4.6.3.7). example compile: marks an example that is never run
-;    (4.6.9.5). One field entry may cover several fields (4.6.2.10).
-; 2. When do doc examples run (4.6.9.4)? In a test command, on every build,
-;    or only when asked? What does a failing example report?
+;    4.6.3.7). example compile: and example main compile: mark an example
+;    that is never run (4.6.9.2). One field entry may cover several fields
+;    (4.6.2.10).
+; 2. Settled: every build compiles doc examples and checks what compiling
+;    can, and tsc test runs them (4.6.9.10, 9.8). Still open:
+;    - Implicit stringification, which returns: compares by (4.6.9.7).
+;      (todo)
+;    - Error names and panic kinds, the categories of error: and panics:
+;      (4.6.9.6). (todo) Panics will get types, which panics: will name.
+;      (todo) Warnings use the lint names of 4.7.3. Until errors and panics
+;      are designed, the categories this file uses are provisional:
+;        error   type_mismatch  a value of the wrong type
+;        error   arity          a call with the wrong number of arguments
+;        panic   explicit       panic was called (8.9.2)
+;        panic   assertion      an assert failed (8.9.3)
+;        panic   index          an index past the end of a list (3.4.2.2)
+;    - The exit code of a failed tsc test (9.8.6, 11.8.2). (todo)
+;    - The exact wording of a failure report (9.8.5).
 
 ;;; 11.2 grammar
 ; Nothing open. 11.2.1, where each keyword may appear, is settled by
@@ -4810,7 +5026,8 @@ circle::Shape.Round                      ; type: circle::Shape          [9.6.3]
 ;;; 11.8 programs
 ; 1. Input and output beyond print, such as reading input or files. (old
 ;    todo)
-; 2. Command-line arguments, and exit codes from main.
+; 2. Command-line arguments, and exit codes from main and from tsc test
+;    (9.8.6).
 ; 3. More error management, such as passing a Result.Error along without a
 ;    match at every step. (old todo)
 ; 4. Macros, so programs can define their own sugar. (old notes: "macros
