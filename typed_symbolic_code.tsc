@@ -3931,11 +3931,11 @@ area                      ; type: [[forall T with [Shape T]] T -> f64]  [7.5.2.2
 ; 6. zero and one take no arguments, so their T is always given (7.4.8).
 ;    They are how a generic body writes 0 and 1, since a literal is never
 ;    a value of a type parameter (5.1.1.5).
-; 7. All of these are methods of prelude traits (8.1.3, todo). The working
-;    names are one trait for each operation: Add for +, Subtract, Multiply,
-;    Divide, Remainder, Pow, Abs, Neg, Zero and One. Whether they become
-;    one Num trait, and whether min, max and clamp move to Ord (8.3.5), is
-;    open (11.7.8). What overflow does is set for each impl (11.5.3).
+; 7. All of these are methods of prelude traits (8.1.3, todo), one trait
+;    for each operation: Add for +, Subtract, Multiply, Divide, Remainder,
+;    Pow, Abs, Neg, Zero and One. Whether min, max and clamp move to Ord
+;    (8.3.5) is open (11.7.8). What overflow does is set for each impl
+;    (11.5.3).
 
 (+ 2 3)          ; returns: 5                                           [8.2.1]
 (+ 2 "cd")       ; error: an i32 and a string                           [8.2.1]
@@ -4900,20 +4900,20 @@ circle::Shape.Round                      ; type: circle::Shape          [9.6.3]
 ; 8. The prelude's traits. (todo) Section 7.5 defines how traits work. The
 ;    built-in traits themselves, and their impls for the built-in types,
 ;    are not designed yet (8.1.3). Open:
-;    - Arithmetic (8.2): one Num trait, or one trait for each operator
-;      (Add, Subtract, Multiply, Divide, Remainder, Pow, Abs, Neg, Zero,
-;      One)? Separate traits let a type support + without /. One trait is
-;      simpler to bound. neg gets a trait of its own either way, since
-;      unsigned types lack it (8.2.2). If Num is a trait with supertraits
-;      and no methods (7.5.5.6), do types opt in, or does one blanket impl
-;      cover every type with the operators?
+;    - Settled: arithmetic (8.2) has one trait for each operator: Add,
+;      Subtract, Multiply, Divide, Remainder, Pow, Abs, Neg, Zero and One.
+;      A type can support + without /. The traits themselves are written
+;      later, in the prelude. Still open: should a Num trait also exist, as
+;      a trait with supertraits and no methods (7.5.5.6) that bundles them
+;      for bounds? If so, do types opt in, or does one blanket impl cover
+;      every type with the operators?
 ;    - + on strings (8.2.3): string implements Add, so generic numeric code
 ;      accepts strings and + is not commutative; or joining gets a name of
-;      its own. One Num trait forces the second.
+;      its own.
 ;    - Do min, max and clamp move to Ord, as auto-implementations? They
 ;      work on anything ordered, but are ill-defined with NaN.
-;    - Where do zero and one live, and do types other than the numerical
-;      ones get them?
+;    - zero and one live in their own traits, Zero and One. Do types other
+;      than the numerical ones implement them?
 ;    - pow's exponent: the base's type, as today, or a u32 (11.5.6)? Is abs
 ;      implemented for unsigned types, as the identity?
 ;    - Overflow (11.5.3) and integer / (8.2.4) differ by impl. Each trait's
