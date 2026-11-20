@@ -481,8 +481,8 @@ mod     ; imports a module (9.4)
 export  ; exports a define, enum, struct or trait (9.6)
 ; 1. Keywords are reserved and are not values. A keyword cannot be bound,
 ;    passed or returned; it can only be the head of its own form.
-; 2. The built-ins print, panic, assert and debug are not values either.
-;    They are special forms (8.1.2).
+; 2. The built-ins print, panic, assert, assert_eq and debug are not
+;    values either. They are special forms (8.1.2).
 
 (define choose = if)  ; error: if is a keyword, not a value  [2.2.1]
 (let do : u32 = 1)    ; error: do is reserved                [2.2.1]
@@ -3860,8 +3860,8 @@ area                      ; type: [[forall T with [Shape T]] T -> f64]  [7.5.2.2
 ; 1. A built-in that only takes input values and returns an output, with no
 ;    side effects, is a function. Like any function value, it can be bound,
 ;    passed and returned.
-; 2. The other built-ins are special forms: print, panic, assert and debug.
-;    Like keywords, they can only be called, never passed, and no binding
+; 2. The other built-ins are special forms: print, panic, assert,
+;    assert_eq and debug. Like keywords, they can only be called, never passed, and no binding
 ;    may take their names (4.1.9). A fn that calls one is still an ordinary
 ;    function value.
 ; 3. A built-in function that works on several types, such as +, is the
@@ -4220,8 +4220,9 @@ get                          ; type: [[forall T] [List T] u32 -> [Option T]]  [8
 (print <Value string>) -> Unit
 (panic <Value string>?) -> Never
 (assert <Value bool> <Value string>?) -> Unit
+(assert_eq <Value> <Value> <Value string>?) -> Unit  ; reserved (rule 6)
 (debug <Value>) -> Unit
-; All four are special forms (8.1.2).
+; All five are special forms (8.1.2).
 ; 1. print writes its string to the console, then a newline. It only takes
 ;    a string; convert other values with to_string (8.6).
 ; 2. panic stops the program with its message, which defaults to "panic". It
@@ -4232,6 +4233,11 @@ get                          ; type: [[forall T] [List T] u32 -> [Option T]]  [8
 ;    it specially.
 ; 5. debug is an anti-pattern outside of debugging.
 ;    why: it can result in nonsense being printed
+; 6. assert_eq is reserved: no binding may take its name (4.1.9). It will
+;    compare its two values by their canonical text, not by == (todo,
+;    11.7.4). Until it is designed, calling it is an error.
+;    why?: a test compares a value with text (4.6.9.7), so an assert that
+;    needs no equality impl compares the same way
 
 (print "hello")                 ; prints: hello                         [8.9.1]
 (print 42)                      ; error: print takes a string           [8.9.1]
@@ -4243,6 +4249,7 @@ get                          ; type: [[forall T] [List T] u32 -> [Option T]]  [8
 (assert (== 1 2) "math broke")  ; panics: math broke                    [8.9.3]
 (debug excalibur)               ; prints excalibur in a debugging form  [8.9.4]
 (debug (list 1 2))              ; any type works                        [8.9.4]
+(let assert_eq = 1)             ; error: assert_eq is a special form    [8.9.6]
 ; as a whole program:
 (define main = {fn |-> Unit| (debug "left in by mistake")})
     ; compiles, but debug is not meant to stay in a program  [8.9.5]
@@ -4937,6 +4944,9 @@ circle::Shape.Round                      ; type: circle::Shape          [9.6.3]
 ;      [Option T], [Result T E] and [Map K V] implement? Does a Map's key
 ;      need Eq, or a hash trait?
 ;    - Should debug require a trait, or keep working on every type (8.9.4)?
+;    - assert_eq (8.9.6) is reserved, and compares by canonical text rather
+;      than ==. Its design is todo, along with the canonical text itself
+;      (item 4, 4.6.9.7).
 ; 9. Automatic impls. (todo) == works on every type but functions (8.3.2)
 ;    and to_string on every type (8.6.6), so something has to give a
 ;    program's structs and enums those impls. Settled: an automatic impl

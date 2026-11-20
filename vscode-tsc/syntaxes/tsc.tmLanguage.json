@@ -11,7 +11,7 @@
     "comment": {
       "patterns": [
         {
-          "match": "^\\s*(;;;;+)(?![;:])\\s*(\\d+(?:\\.\\d+)*)?\\s*(.*?)\\s*(\\((?:old )?todo\\))?\\s*$",
+          "match": "^\\s*(;;;;+)(?![;:!])\\s*(\\d+(?:\\.\\d+)*)?\\s*(.*?)\\s*(\\((?:old )?todo\\))?\\s*$",
           "name": "comment.line.header.level-4.tsc",
           "captures": {
             "1": {
@@ -29,7 +29,7 @@
           }
         },
         {
-          "match": "^\\s*(;;;)(?![;:])\\s*(\\d+(?:\\.\\d+)*)?\\s*(.*?)\\s*(\\((?:old )?todo\\))?\\s*$",
+          "match": "^\\s*(;;;)(?![;:!])\\s*(\\d+(?:\\.\\d+)*)?\\s*(.*?)\\s*(\\((?:old )?todo\\))?\\s*$",
           "name": "comment.line.header.level-3.tsc",
           "captures": {
             "1": {
@@ -47,7 +47,7 @@
           }
         },
         {
-          "match": "^\\s*(;;)(?![;:])\\s*(\\d+(?:\\.\\d+)*)?\\s*(.*?)\\s*(\\((?:old )?todo\\))?\\s*$",
+          "match": "^\\s*(;;)(?![;:!])\\s*(\\d+(?:\\.\\d+)*)?\\s*(.*?)\\s*(\\((?:old )?todo\\))?\\s*$",
           "name": "comment.line.header.level-2.tsc",
           "captures": {
             "1": {
@@ -65,8 +65,47 @@
           }
         },
         {
-          "begin": "(;)(:)\\s*(example)(:)\\s*$",
-          "while": "^\\s*(;)(:)(?=\\s{3,}\\S)",
+          "begin": "(;)(!!?)(?!!)",
+          "end": "$",
+          "beginCaptures": {
+            "1": {
+              "name": "punctuation.definition.comment.tsc"
+            },
+            "2": {
+              "name": "punctuation.definition.lint-command.tsc"
+            }
+          },
+          "name": "meta.preprocessor.lint-command.tsc",
+          "patterns": [
+            {
+              "match": "\\G\\s*(allow|warn|deny)\\b(?:\\s+([a-z_][a-z0-9_]*))?",
+              "captures": {
+                "1": {
+                  "name": "keyword.other.lint-level.tsc"
+                },
+                "2": {
+                  "name": "constant.other.lint.tsc"
+                }
+              }
+            },
+            {
+              "include": "#category"
+            },
+            {
+              "match": "(?<=>)\\?",
+              "name": "keyword.operator.optional.notation.tsc"
+            },
+            {
+              "include": "#bound"
+            },
+            {
+              "include": "#comment"
+            }
+          ]
+        },
+        {
+          "begin": "(;)(::?)\\s*(example(?:\\s+main)?(?:\\s+compile)?)(:)\\s*$",
+          "while": "^\\s*(;)(::?)(?=\\s{3,}\\S|\\s*$)",
           "beginCaptures": {
             "0": {
               "name": "comment.line.documentation.tsc"
@@ -103,7 +142,7 @@
           ]
         },
         {
-          "begin": "(;)(:)",
+          "begin": "(;)(::?)",
           "end": "$",
           "beginCaptures": {
             "1": {
@@ -117,6 +156,10 @@
           "patterns": [
             {
               "include": "#doc-entries"
+            },
+            {
+              "match": "`[^`]*`",
+              "name": "markup.inline.raw.tsc"
             },
             {
               "include": "#comment-annotations"
@@ -142,6 +185,14 @@
               }
             },
             {
+              "match": "\\G\\s+(:)(?=\\s|$)",
+              "captures": {
+                "1": {
+                  "name": "keyword.other.outcome.tsc"
+                }
+              }
+            },
+            {
               "include": "#comment-annotations"
             }
           ]
@@ -151,7 +202,7 @@
     "doc-entries": {
       "patterns": [
         {
-          "match": "\\G\\s*(type|param|default|field|variant)\\s+([A-Za-z_][A-Za-z0-9_]*(?:\\.[A-Za-z_][A-Za-z0-9_]*)?|\\d+)\\s*(:)",
+          "match": "\\G\\s*(type|param|default|field|variant)\\s+((?:[A-Za-z_][A-Za-z0-9_]*(?:\\.[A-Za-z_][A-Za-z0-9_]*)?|\\d+)(?:\\s+(?:[A-Za-z_][A-Za-z0-9_]*(?:\\.[A-Za-z_][A-Za-z0-9_]*)?|\\d+))*)\\s*(:)",
           "captures": {
             "1": {
               "name": "keyword.other.doc.entry.tsc"
@@ -165,7 +216,7 @@
           }
         },
         {
-          "match": "\\G\\s*(returns|errors|panics|example|default)(:)",
+          "match": "\\G\\s*(returns|errors|panics|law|default|example(?:\\s+main)?(?:\\s+compile)?)(:)",
           "captures": {
             "1": {
               "name": "keyword.other.doc.entry.tsc"
@@ -200,6 +251,14 @@
           "captures": {
             "1": {
               "name": "keyword.other.hypothetical.tsc"
+            }
+          }
+        },
+        {
+          "match": "(?<=error:|warning:|panics:)\\s+([a-z][a-z0-9_]*)(?=,|\\s*(?:;|$))",
+          "captures": {
+            "1": {
+              "name": "support.constant.outcome.category.tsc"
             }
           }
         },
@@ -377,6 +436,12 @@
         },
         {
           "include": "#type-decl"
+        },
+        {
+          "include": "#trait-decl"
+        },
+        {
+          "include": "#impl"
         },
         {
           "include": "#mod"
@@ -582,6 +647,156 @@
         }
       ]
     },
+    "trait-decl": {
+      "begin": "(\\()\\s*(trait)(?![A-Za-z0-9_:]|\\.[A-Za-z0-9_])\\s*(?:(\\[)\\s*([A-Za-z_][A-Za-z0-9_]*)((?:\\s+[A-Za-z_][A-Za-z0-9_]*)*)\\s*(\\])|([A-Za-z_][A-Za-z0-9_]*))?",
+      "beginCaptures": {
+        "1": {
+          "name": "punctuation.section.parens.begin.tsc"
+        },
+        "2": {
+          "name": "keyword.control.tsc"
+        },
+        "3": {
+          "name": "punctuation.definition.type.begin.tsc"
+        },
+        "4": {
+          "name": "entity.name.type.trait.tsc"
+        },
+        "5": {
+          "patterns": [
+            {
+              "match": "[A-Za-z_][A-Za-z0-9_]*",
+              "name": "entity.name.type.parameter.tsc"
+            }
+          ]
+        },
+        "6": {
+          "name": "punctuation.definition.type.end.tsc"
+        },
+        "7": {
+          "name": "entity.name.type.trait.tsc"
+        }
+      },
+      "end": "\\)",
+      "endCaptures": {
+        "0": {
+          "name": "punctuation.section.parens.end.tsc"
+        }
+      },
+      "name": "meta.definition.trait.tsc",
+      "patterns": [
+        {
+          "include": "#comment"
+        },
+        {
+          "include": "#with-clause"
+        },
+        {
+          "include": "#method-entry"
+        },
+        {
+          "include": "#value"
+        }
+      ]
+    },
+    "impl": {
+      "begin": "(\\()\\s*(impl)(?![A-Za-z0-9_:]|\\.[A-Za-z0-9_])",
+      "beginCaptures": {
+        "1": {
+          "name": "punctuation.section.parens.begin.tsc"
+        },
+        "2": {
+          "name": "keyword.control.tsc"
+        }
+      },
+      "end": "\\)",
+      "endCaptures": {
+        "0": {
+          "name": "punctuation.section.parens.end.tsc"
+        }
+      },
+      "name": "meta.definition.impl.tsc",
+      "patterns": [
+        {
+          "include": "#comment"
+        },
+        {
+          "include": "#forall"
+        },
+        {
+          "include": "#bound"
+        },
+        {
+          "include": "#method-entry"
+        },
+        {
+          "include": "#value"
+        }
+      ]
+    },
+    "method-entry": {
+      "match": "(?<![^\\s(])([A-Za-z_][A-Za-z0-9_]*|==|<=|>=|\\+|-|\\*|\\/|%|<|>)\\s*(?:(:)(?!:)|(?==(?![=>])))",
+      "captures": {
+        "1": {
+          "name": "entity.name.function.method.tsc"
+        },
+        "2": {
+          "name": "punctuation.separator.type.tsc"
+        }
+      }
+    },
+    "with-clause": {
+      "begin": "(?<![A-Za-z0-9_.:])(with)(?![A-Za-z0-9_:]|\\.[A-Za-z0-9_])",
+      "beginCaptures": {
+        "1": {
+          "name": "keyword.control.tsc"
+        }
+      },
+      "end": "(?=[^\\s\\[;])",
+      "patterns": [
+        {
+          "include": "#comment"
+        },
+        {
+          "include": "#bound"
+        }
+      ]
+    },
+    "bound": {
+      "begin": "(\\[)\\s*((?:[a-z_][A-Za-z0-9_]*::)*)([A-Za-z_][A-Za-z0-9_]*)(?=[\\s\\]])",
+      "beginCaptures": {
+        "1": {
+          "name": "punctuation.definition.type.begin.tsc"
+        },
+        "2": {
+          "patterns": [
+            {
+              "match": "[a-z_][A-Za-z0-9_]*",
+              "name": "entity.name.namespace.tsc"
+            },
+            {
+              "match": "::",
+              "name": "punctuation.separator.namespace.tsc"
+            }
+          ]
+        },
+        "3": {
+          "name": "entity.name.type.trait.tsc"
+        }
+      },
+      "end": "\\]",
+      "endCaptures": {
+        "0": {
+          "name": "punctuation.definition.type.end.tsc"
+        }
+      },
+      "name": "meta.type.bound.tsc",
+      "patterns": [
+        {
+          "include": "#type"
+        }
+      ]
+    },
     "mod": {
       "begin": "(\\()\\s*(mod)(?![A-Za-z0-9_:]|\\.[A-Za-z0-9_])",
       "beginCaptures": {
@@ -703,15 +918,15 @@
     "head": {
       "patterns": [
         {
-          "match": "(?<![A-Za-z0-9_.:])(?:forall|define|unless|struct|export|match|recur|when|enum|next|loop|let|for|mod|do|fn|if)(?![A-Za-z0-9_:]|\\.[A-Za-z0-9_])",
+          "match": "(?<![A-Za-z0-9_.:])(?:forall|define|unless|struct|export|trait|match|recur|with|when|enum|impl|next|loop|let|for|mod|do|fn|if)(?![A-Za-z0-9_:]|\\.[A-Za-z0-9_])",
           "name": "keyword.control.tsc"
         },
         {
-          "match": "(?<![A-Za-z0-9_.:])(?:assert|print|panic|debug)(?![A-Za-z0-9_:]|\\.[A-Za-z0-9_])",
+          "match": "(?<![A-Za-z0-9_.:])(?:assert_eq|assert|print|panic|debug)(?![A-Za-z0-9_:]|\\.[A-Za-z0-9_])",
           "name": "keyword.other.special-form.tsc"
         },
         {
-          "match": "(?<![A-Za-z0-9_.:])(?:to_string|bit_not|bit_and|bit_xor|bit_or|try_as|clamp|parse|wrap|list|pow|abs|min|max|not|and|xor|shl|shr|get|or|as)(?![A-Za-z0-9_:]|\\.[A-Za-z0-9_])",
+          "match": "(?<![A-Za-z0-9_.:])(?:to_string|bit_not|bit_and|bit_xor|bit_or|try_as|clamp|parse|unbox|zero|wrap|list|pow|abs|neg|one|min|max|not|and|xor|shl|shr|get|box|or|as)(?![A-Za-z0-9_:]|\\.[A-Za-z0-9_])",
           "name": "support.function.builtin.tsc"
         },
         {
@@ -719,7 +934,7 @@
           "name": "support.function.builtin.operator.tsc"
         },
         {
-          "match": "(?<![A-Za-z0-9_.:])(?:Option|Result|Never|Unit|List|Map)(?=\\.[A-Z])",
+          "match": "(?<![A-Za-z0-9_.:])(?:Option|Result|Never|Unit|List|Map|Box)(?=\\.[A-Z])",
           "name": "support.type.builtin.tsc"
         },
         {
@@ -843,15 +1058,15 @@
     "name": {
       "patterns": [
         {
-          "match": "(?<![A-Za-z0-9_.:])(?:forall|define|unless|struct|export|match|recur|when|enum|next|loop|let|for|mod|do|fn|if)(?![A-Za-z0-9_:]|\\.[A-Za-z0-9_])",
+          "match": "(?<![A-Za-z0-9_.:])(?:forall|define|unless|struct|export|trait|match|recur|with|when|enum|impl|next|loop|let|for|mod|do|fn|if)(?![A-Za-z0-9_:]|\\.[A-Za-z0-9_])",
           "name": "keyword.control.tsc"
         },
         {
-          "match": "(?<![A-Za-z0-9_.:])(?:assert|print|panic|debug)(?![A-Za-z0-9_:]|\\.[A-Za-z0-9_])",
+          "match": "(?<![A-Za-z0-9_.:])(?:assert_eq|assert|print|panic|debug)(?![A-Za-z0-9_:]|\\.[A-Za-z0-9_])",
           "name": "keyword.other.special-form.tsc"
         },
         {
-          "match": "(?<![A-Za-z0-9_.:])(?:to_string|bit_not|bit_and|bit_xor|bit_or|try_as|clamp|parse|wrap|list|pow|abs|min|max|not|and|xor|shl|shr|get|or|as)(?![A-Za-z0-9_:]|\\.[A-Za-z0-9_])",
+          "match": "(?<![A-Za-z0-9_.:])(?:to_string|bit_not|bit_and|bit_xor|bit_or|try_as|clamp|parse|unbox|zero|wrap|list|pow|abs|neg|one|min|max|not|and|xor|shl|shr|get|box|or|as)(?![A-Za-z0-9_:]|\\.[A-Za-z0-9_])",
           "name": "support.function.builtin.tsc"
         },
         {
@@ -859,7 +1074,7 @@
           "name": "support.type.primitive.tsc"
         },
         {
-          "match": "(?<![A-Za-z0-9_.:])(?:Option|Result|Never|Unit|List|Map)(?![A-Za-z0-9_:]|\\.[A-Za-z0-9_])",
+          "match": "(?<![A-Za-z0-9_.:])(?:Option|Result|Never|Unit|List|Map|Box)(?![A-Za-z0-9_:]|\\.[A-Za-z0-9_])",
           "name": "support.type.builtin.tsc"
         },
         {
@@ -867,7 +1082,7 @@
           "name": "constant.language.boolean.tsc"
         },
         {
-          "match": "(?<![A-Za-z0-9_.:])(?:Option|Result|Never|Unit|List|Map)(?=\\.[A-Z])",
+          "match": "(?<![A-Za-z0-9_.:])(?:Option|Result|Never|Unit|List|Map|Box)(?=\\.[A-Z])",
           "name": "support.type.builtin.tsc"
         },
         {
@@ -938,6 +1153,9 @@
           "include": "#comment"
         },
         {
+          "include": "#with-clause"
+        },
+        {
           "include": "#category"
         },
         {
@@ -997,6 +1215,14 @@
           "name": "keyword.operator.optional.notation.tsc"
         },
         {
+          "match": "=",
+          "name": "keyword.operator.assignment.tsc"
+        },
+        {
+          "match": "(?<![A-Za-z0-9_.:])_(?![A-Za-z0-9_:]|\\.[A-Za-z0-9_])",
+          "name": "variable.language.wildcard.tsc"
+        },
+        {
           "include": "#literal"
         },
         {
@@ -1011,11 +1237,11 @@
           "name": "support.type.primitive.tsc"
         },
         {
-          "match": "(?<![A-Za-z0-9_.:])(?:Option|Result|Never|Unit|List|Map)(?![A-Za-z0-9_:]|\\.[A-Za-z0-9_])",
+          "match": "(?<![A-Za-z0-9_.:])(?:Option|Result|Never|Unit|List|Map|Box)(?![A-Za-z0-9_:]|\\.[A-Za-z0-9_])",
           "name": "support.type.builtin.tsc"
         },
         {
-          "match": "(?<![A-Za-z0-9_.:])(?:forall|define|unless|struct|export|match|recur|when|enum|next|loop|let|for|mod|do|fn|if)(?![A-Za-z0-9_:]|\\.[A-Za-z0-9_])",
+          "match": "(?<![A-Za-z0-9_.:])(?:forall|define|unless|struct|export|trait|match|recur|with|when|enum|impl|next|loop|let|for|mod|do|fn|if)(?![A-Za-z0-9_:]|\\.[A-Za-z0-9_])",
           "name": "keyword.control.tsc"
         },
         {
@@ -1037,7 +1263,7 @@
       ]
     },
     "category": {
-      "begin": "(<)(Type Argument|Field Pattern|Declaration|Application|Type Header|Constructor|Expression|Definition|Identifier|Annotated|Parameter|Signature|Special|Binding|Pattern|Literal|Callee|Fields|Forall|Suffix|Value|Guard|Type|Path|Name|Pin|Arm)(?![A-Za-z])",
+      "begin": "(<)(Type Argument|Field Pattern|Trait Header|Declaration|Application|Type Header|Constructor|Box Pattern|Method Type|Trait Entry|Expression|Definition|Identifier|Impl Entry|Annotated|Parameter|Signature|Argument|Special|Binding|Pattern|Literal|Callee|Fields|Forall|Suffix|Value|Guard|Bound|Level|Type|Path|Name|Lint|Pin|Arm)(?![A-Za-z])",
       "beginCaptures": {
         "1": {
           "name": "punctuation.definition.tag.begin.tsc"

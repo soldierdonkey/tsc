@@ -19,18 +19,19 @@ const alt = (words) => [...words].sort((a, b) => b.length - a.length).map(esc).j
 
 // 2.2
 const KEYWORDS = [
-  "do", "fn", "forall", "define", "let", "if", "when", "unless", "struct",
-  "enum", "match", "next", "loop", "recur", "for", "mod", "export",
+  "do", "fn", "forall", "with", "define", "let", "if", "when", "unless",
+  "struct", "enum", "trait", "impl", "match", "next", "loop", "recur", "for",
+  "mod", "export",
 ];
 // 8.1.2: called like functions, but never values
-const SPECIAL_FORMS = ["print", "panic", "assert", "debug"];
-// 8.2 - 8.7: built-in functions with names
+const SPECIAL_FORMS = ["print", "panic", "assert", "assert_eq", "debug"];
+// 8.2 - 8.8: built-in functions with names
 const BUILTINS = [
-  "pow", "abs", "min", "max", "clamp",
+  "pow", "abs", "neg", "zero", "one", "min", "max", "clamp",
   "not", "and", "or", "xor",
   "bit_not", "bit_and", "bit_or", "bit_xor", "shl", "shr",
   "as", "try_as", "wrap", "parse", "to_string",
-  "list", "get",
+  "list", "get", "box", "unbox",
 ];
 // 8.2, 8.3: built-in operators
 const OPERATORS = ["==", "<=", ">=", "+", "-", "*", "/", "%", "<", ">"];
@@ -40,8 +41,8 @@ const PRIMITIVES = [
   "i8", "i16", "i32", "i64", "i128", "i256", "ibig", "isize",
   "f32", "f64", "f128", "f256",
   "bool", "char", "string"];
-// 3.2, 3.4 - 3.6
-const BUILTIN_TYPES = ["Unit", "Never", "List", "Map", "Option", "Result"];
+// 3.2, 3.4 - 3.7
+const BUILTIN_TYPES = ["Unit", "Never", "List", "Map", "Option", "Result", "Box"];
 // 1.3.2
 const BOOLEANS = ["true", "false"];
 // 2.5: categories used in general forms; anything else after <Category is a type
@@ -49,9 +50,12 @@ const CATEGORIES = [
   "Special", "Declaration", "Callee", "Application", "Expression", "Value",
   "Type Argument", "Type Header", "Type", "Annotated", "Parameter", "Fields",
   "Signature", "Definition", "Binding", "Constructor", "Forall", "Pattern",
-  "Field Pattern", "Pin", "Guard", "Arm", "Identifier", "Literal", "Path",
-  "Suffix", "Name",
+  "Field Pattern", "Box Pattern", "Pin", "Guard", "Arm", "Identifier",
+  "Literal", "Path", "Suffix", "Name", "Bound", "Trait Header", "Method Type",
+  "Trait Entry", "Impl Entry", "Level", "Lint", "Argument",
 ];
+// 4.7.1: lint command levels
+const LINT_LEVELS = ["allow", "warn", "deny"];
 
 // ---- token building blocks ------------------------------------------------
 
@@ -100,7 +104,7 @@ const grammar = {
       patterns: [
         // ;;;; section, ;;; entry, ;; sub-entry (0.1.1): "N title (todo)"
         ...[[";;;;+", 4], [";;;", 3], [";;", 2]].map(([semis, level]) => ({
-          match: `^\\s*(${semis})(?![;:])\\s*(\\d+(?:\\.\\d+)*)?\\s*(.*?)\\s*(\\((?:old )?todo\\))?\\s*$`,
+          match: `^\\s*(${semis})(?![;:!])\\s*(\\d+(?:\\.\\d+)*)?\\s*(.*?)\\s*(\\((?:old )?todo\\))?\\s*$`,
           name: `comment.line.header.level-${level}.tsc`,
           captures: {
             1: { name: "punctuation.definition.comment.tsc" },
@@ -110,11 +114,35 @@ const grammar = {
           },
         })),
         {
-          // ;: example: and the code below it (4.6.7): each following ;:
-          // line with at least three spaces is ordinary code, so a form may
-          // span several lines (1.5.10)
-          begin: "(;)(:)\\s*(example)(:)\\s*$",
-          while: "^\\s*(;)(:)(?=\\s{3,}\\S)",
+          // ;! and ;!! lint commands (1.1.4, 4.7.1): level, lint, argument
+          begin: "(;)(!!?)(?!!)",
+          end: "$",
+          beginCaptures: {
+            1: { name: "punctuation.definition.comment.tsc" },
+            2: { name: "punctuation.definition.lint-command.tsc" },
+          },
+          name: "meta.preprocessor.lint-command.tsc",
+          patterns: [
+            {
+              match: `\\G\\s*(${alt(LINT_LEVELS)})\\b(?:\\s+([a-z_][a-z0-9_]*))?`,
+              captures: {
+                1: { name: "keyword.other.lint-level.tsc" },
+                2: { name: "constant.other.lint.tsc" },
+              },
+            },
+            { include: "#category" },
+            { match: "(?<=>)\\?", name: "keyword.operator.optional.notation.tsc" },
+            { include: "#bound" },
+            { include: "#comment" },
+          ],
+        },
+        {
+          // example main:, example:, example main compile:, example compile:
+          // and the code below them (4.6.9): each following ;: line with at
+          // least three spaces is ordinary code, so a form may span several
+          // lines (1.5.10), and a blank ;: line does not end the example
+          begin: "(;)(::?)\\s*(example(?:\\s+main)?(?:\\s+compile)?)(:)\\s*$",
+          while: "^\\s*(;)(::?)(?=\\s{3,}\\S|\\s*$)",
           beginCaptures: {
             0: { name: "comment.line.documentation.tsc" },
             1: { name: "punctuation.definition.comment.tsc" },
@@ -131,15 +159,21 @@ const grammar = {
           patterns: [{ include: "#value" }],
         },
         {
-          // ;: doc comment (1.1.3); ;;: is an ordinary comment
-          begin: "(;)(:)",
+          // ;: doc comment and ;:: module doc (1.1.3, 4.6.12); ;;: is an
+          // ordinary comment
+          begin: "(;)(::?)",
           end: "$",
           beginCaptures: {
             1: { name: "punctuation.definition.comment.tsc" },
             2: { name: "punctuation.definition.comment.doc.tsc" },
           },
           name: "comment.line.documentation.tsc",
-          patterns: [{ include: "#doc-entries" }, { include: "#comment-annotations" }],
+          patterns: [
+            { include: "#doc-entries" },
+            // `name` or `code`: a code span (4.6.2.17)
+            { match: "`[^`]*`", name: "markup.inline.raw.tsc" },
+            { include: "#comment-annotations" },
+          ],
         },
         {
           begin: ";+",
@@ -149,6 +183,8 @@ const grammar = {
           patterns: [
             // numbered rule: "; 3. ..." and sub-items "a. ..."
             { match: "\\G\\s*(\\d+\\.|[a-z]\\.)(?=\\s)", captures: { 1: { name: "markup.list.numbered.tsc constant.numeric.rule.tsc" } } },
+            // ;       : 2, a further line of prints: (4.6.9.8)
+            { match: "\\G\\s+(:)(?=\\s|$)", captures: { 1: { name: "keyword.other.outcome.tsc" } } },
             { include: "#comment-annotations" },
           ],
         },
@@ -157,18 +193,20 @@ const grammar = {
     // 4.6.2: doc entries
     "doc-entries": {
       patterns: [
-        // type T:, param x:, param 1:, default x:, field V.x:, variant V:
+        // type T:, param x:, param 1:, default x:, default 2:, field V.x:,
+        // field x y:, variant V:
         {
-          match: `\\G\\s*(type|param|default|field|variant)\\s+(${ID}(?:\\.${ID})?|\\d+)\\s*(:)`,
+          match: `\\G\\s*(type|param|default|field|variant)\\s+((?:${ID}(?:\\.${ID})?|\\d+)(?:\\s+(?:${ID}(?:\\.${ID})?|\\d+))*)\\s*(:)`,
           captures: {
             1: { name: "keyword.other.doc.entry.tsc" },
             2: { name: "variable.parameter.doc.tsc" },
             3: { name: "punctuation.separator.doc.tsc" },
           },
         },
-        // returns:, errors:, panics:, example:, and a field's own default:
+        // returns:, errors:, panics:, law:, a field's own default:, and the
+        // example entries when no code follows
         {
-          match: "\\G\\s*(returns|errors|panics|example|default)(:)",
+          match: "\\G\\s*(returns|errors|panics|law|default|example(?:\\s+main)?(?:\\s+compile)?)(:)",
           captures: {
             1: { name: "keyword.other.doc.entry.tsc" },
             2: { name: "punctuation.separator.doc.tsc" },
@@ -183,6 +221,12 @@ const grammar = {
         { match: "\\G\\s*(why:)", captures: { 1: { name: "keyword.other.reason.tsc" } } },
         { match: "\\G\\s*(hypothetical:)", captures: { 1: { name: "keyword.other.hypothetical.tsc" } } },
         // 0.3.2: outcomes
+        // 4.6.9.6: the category after error:, warning: or panics:, such as
+        // error: type_mismatch, ... or panics: explicit, ...
+        {
+          match: "(?<=error:|warning:|panics:)\\s+([a-z][a-z0-9_]*)(?=,|\\s*(?:;|$))",
+          captures: { 1: { name: "support.constant.outcome.category.tsc" } },
+        },
         { match: "\\berror:", name: "invalid.illegal.outcome.error.tsc" },
         { match: "\\bpanics:", name: "invalid.illegal.outcome.panic.tsc" },
         { match: "\\bwarning:", name: "invalid.deprecated.outcome.warning.tsc" },
@@ -269,6 +313,8 @@ const grammar = {
         { include: "#literal" },
         { include: "#define" },
         { include: "#type-decl" },
+        { include: "#trait-decl" },
+        { include: "#impl" },
         { include: "#mod" },
         { include: "#fn" },
         { include: "#paren" },
@@ -344,6 +390,85 @@ const grammar = {
               ]
             : [{ include: "#value" }],
       })),
+    },
+
+    // (trait [Name T U] with [Bound]... entries...) (7.5.1, 7.5.5)
+    "trait-decl": {
+      begin: `(\\()\\s*(trait)${E}\\s*(?:(\\[)\\s*(${ID})((?:\\s+${ID})*)\\s*(\\])|(${ID}))?`,
+      beginCaptures: {
+        1: { name: "punctuation.section.parens.begin.tsc" },
+        2: { name: "keyword.control.tsc" },
+        3: { name: "punctuation.definition.type.begin.tsc" },
+        4: { name: "entity.name.type.trait.tsc" },
+        5: { patterns: [{ match: ID, name: "entity.name.type.parameter.tsc" }] },
+        6: { name: "punctuation.definition.type.end.tsc" },
+        7: { name: "entity.name.type.trait.tsc" },
+      },
+      end: "\\)",
+      endCaptures: { 0: { name: "punctuation.section.parens.end.tsc" } },
+      name: "meta.definition.trait.tsc",
+      patterns: [
+        { include: "#comment" },
+        { include: "#with-clause" },
+        { include: "#method-entry" },
+        { include: "#value" },
+      ],
+    },
+
+    // (impl [forall T with [Bound]]? [Trait Types...] entries...) (7.5.3)
+    impl: {
+      begin: `(\\()\\s*(impl)${E}`,
+      beginCaptures: {
+        1: { name: "punctuation.section.parens.begin.tsc" },
+        2: { name: "keyword.control.tsc" },
+      },
+      end: "\\)",
+      endCaptures: { 0: { name: "punctuation.section.parens.end.tsc" } },
+      name: "meta.definition.impl.tsc",
+      patterns: [
+        { include: "#comment" },
+        { include: "#forall" },
+        { include: "#bound" },
+        { include: "#method-entry" },
+        { include: "#value" },
+      ],
+    },
+
+    // area : [T -> f64] or area = {fn ...}: a trait or impl entry (2.5.2)
+    "method-entry": {
+      match: `(?<![^\\s(])(${ID}|${alt(OPERATORS)})\\s*(?:(:)(?!:)|(?==(?![=>])))`,
+      captures: {
+        1: { name: "entity.name.function.method.tsc" },
+        2: { name: "punctuation.separator.type.tsc" },
+      },
+    },
+
+    // with [Bound] [Bound]...: the bounds of a forall list, or a trait's
+    // supertraits (7.5.4, 7.5.5); ends at the first thing that is not a bound
+    "with-clause": {
+      begin: `${B}(with)${E}`,
+      beginCaptures: { 1: { name: "keyword.control.tsc" } },
+      end: "(?=[^\\s\\[;])",
+      patterns: [{ include: "#comment" }, { include: "#bound" }],
+    },
+
+    // [Trait Type...]: a trait applied to types (7.5.4.1)
+    bound: {
+      begin: `(\\[)\\s*((?:[a-z_][A-Za-z0-9_]*::)*)(${ID})(?=[\\s\\]])`,
+      beginCaptures: {
+        1: { name: "punctuation.definition.type.begin.tsc" },
+        2: {
+          patterns: [
+            { match: "[a-z_][A-Za-z0-9_]*", name: "entity.name.namespace.tsc" },
+            { match: "::", name: "punctuation.separator.namespace.tsc" },
+          ],
+        },
+        3: { name: "entity.name.type.trait.tsc" },
+      },
+      end: "\\]",
+      endCaptures: { 0: { name: "punctuation.definition.type.end.tsc" } },
+      name: "meta.type.bound.tsc",
+      patterns: [{ include: "#type" }],
     },
 
     // (mod a::b::c), (mod b::c = a::b::c) (9.4)
@@ -503,6 +628,7 @@ const grammar = {
       name: "meta.type.forall.tsc",
       patterns: [
         { include: "#comment" },
+        { include: "#with-clause" },
         { include: "#category" },
         { match: ID, name: "entity.name.type.parameter.tsc" },
         { match: "\\.\\.\\.", name: "keyword.operator.repetition.notation.tsc" },
@@ -525,6 +651,9 @@ const grammar = {
         { match: "->", name: "storage.type.function.arrow.tsc" },
         { match: "\\.\\.\\.", name: "keyword.operator.repetition.notation.tsc" },
         { match: "(?<=[>)\\]|}])\\?", name: "keyword.operator.optional.notation.tsc" },
+        // [T f64 = _ -> T]: an optional parameter of a required method (7.5.2.8)
+        { match: "=", name: "keyword.operator.assignment.tsc" },
+        { match: `${B}_${E}`, name: "variable.language.wildcard.tsc" },
         { include: "#literal" },
         { include: "#type-name" },
       ],

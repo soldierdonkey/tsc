@@ -2,10 +2,10 @@ const vscode = require("vscode");
 const { checkWhitespace, fixAll } = require("./whitespace");
 
 // A line starting with two or more semicolons is a header (spec 0.1.1), except
-// ;;: which is an ordinary comment (spec 1.1.3).
+// ;;: and ;;!, which are ordinary comments (spec 1.1.3, 1.1.4).
 // A header with N semicolons runs until the next header with N or more
 // semicolons, so ;; ends at the next ;; or ;;;, and ;;; contains its ;; sections.
-const HEADER = /^\s*(;{2,})(?!:)/;
+const HEADER = /^\s*(;{2,})(?![:!])/;
 
 function headerRanges(doc) {
   const ranges = [];
